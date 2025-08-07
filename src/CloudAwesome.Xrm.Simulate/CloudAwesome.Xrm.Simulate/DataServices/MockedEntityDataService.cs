@@ -207,4 +207,10 @@ public class MockedEntityDataService
         get => _dataStore.FakeServiceFailureSettings;
         set => _dataStore.FakeServiceFailureSettings = value?? new FakeServiceFailureSettings();
     }
+
+    public FiscalYearSettings? FiscalYearSettings
+    {
+        get => _dataStore.FiscalYearSettings;
+        set => _dataStore.FiscalYearSettings = value ?? new FiscalYearSettings();
+    }
 }

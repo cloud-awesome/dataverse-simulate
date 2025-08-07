@@ -24,4 +24,6 @@ public interface ISimulatorOptions
     public Dictionary<string, List<Entity>>? InitialiseData { get; set; }
     
     public ISecurityModel? SimulatedSecurityModel { get; set; }
+    
+    public FiscalYearSettings? FiscalYearSettings { get; set; }
 }

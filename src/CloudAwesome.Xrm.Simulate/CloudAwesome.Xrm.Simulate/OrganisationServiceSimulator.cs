@@ -40,6 +40,7 @@ public static class OrganisationServiceSimulator
         ConfigureOrganization(options);
         ConfigureAuthenticatedUser(options);
         SetSystemTime(options);
+        ConfigureFiscalYearSettings(options);
         
         return Service;
     }
@@ -118,7 +119,14 @@ public static class OrganisationServiceSimulator
         _dataService.Organization = organization.ToEntityReference();
         return organization.ToEntityReference();
     }
-    
+
+    private static void ConfigureFiscalYearSettings(ISimulatorOptions? options)
+    {
+        if (options?.FiscalYearSettings is not null)
+        {
+            _dataService.FiscalYearSettings = options.FiscalYearSettings;
+        }
+    }
 
     private static EntityReference ConfigureAuthenticatedUser(ISimulatorOptions? options)
     {

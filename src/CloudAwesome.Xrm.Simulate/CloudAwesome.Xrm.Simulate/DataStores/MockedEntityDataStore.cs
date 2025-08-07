@@ -18,6 +18,8 @@ internal class MockedEntityDataStore
     public PluginExecutionContextMock ExecutionContextMock { get; internal set; }
     
     public FakeServiceFailureSettings FakeServiceFailureSettings { get; internal set; }
+
+    public FiscalYearSettings FiscalYearSettings { get; internal set; } = new FiscalYearSettings();
     
     internal MockedEntityDataStore()
     {

@@ -25,7 +25,7 @@ public static class QueryExpressionParser
         records = Filter.Apply(query.Criteria, records, dataService);
         records = Columns.Apply(query.ColumnSet, records);
         records = LinkedEntities.Apply(query.LinkEntities.ToList(), records.ToList(), data, dataService);
-        records = Aggregates.Apply(query.ColumnSet, records, query.EntityName);
+        records = Aggregates.Apply(query.ColumnSet, records, query.EntityName, dataService.FiscalYearSettings);
         records = Order.Apply(query.Orders, records);
         records = Distinct.Apply(query.Distinct, records);
         records = TopCount.Apply(query.TopCount, records.ToList());

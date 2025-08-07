@@ -1,11 +1,13 @@
-﻿using Microsoft.Xrm.Sdk;
+﻿using CloudAwesome.Xrm.Simulate.DataStores;
+using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 
 namespace CloudAwesome.Xrm.Simulate.QueryParsers;
 
 public static class Aggregates
 {
-    public static IQueryable<Entity> Apply(ColumnSet columnSet, IEnumerable<Entity> records, string entityName)
+    public static IQueryable<Entity> Apply(ColumnSet columnSet, IEnumerable<Entity> records, string entityName,
+        FiscalYearSettings fiscalYearSettings)
     {
         // If there are no aggregate expressions, don't touch the pipeline.
         if (columnSet == null ||
@@ -29,7 +31,10 @@ public static class Aggregates
         var grouped = groupByExpressions.Count == 0
             ? records.GroupBy(_ => GroupKey.Empty, GroupKeyComparer.Instance)
             : records.GroupBy(
-                r => new GroupKey(groupByExpressions.Select(g => GetAttributeValue(r, g.AttributeName)).ToArray()),
+                r => new GroupKey(groupByExpressions
+                    .Select(g => NormalizeGroupByValue(
+                        GetAttributeValue(r, g.AttributeName), g, fiscalYearSettings))
+                    .ToArray()),
                 GroupKeyComparer.Instance);
 
         var output = new List<Entity>();
@@ -102,7 +107,7 @@ public static class Aggregates
                 any = true;
             }
         }
-        return any ? (object)sum : null;
+        return any ? (object)sum : 0;
     }
 
     private static object Avg(IEnumerable<Entity> group, string attribute)
@@ -248,4 +253,75 @@ public static class Aggregates
             }
         }
     }
+    
+        private static object NormalizeGroupByValue(object value, XrmAttributeExpression expr, FiscalYearSettings options)
+    {
+        if (value == null) return null;
+
+        // Unwrap Money to underlying numeric if it shows up accidentally
+        if (value is Microsoft.Xrm.Sdk.Money m) value = m.Value;
+
+        // Accept DateTimeOffset too (Dataverse sometimes)
+        if (value is DateTimeOffset dto) value = dto.UtcDateTime;
+
+        if (value is DateTime dt)
+        {
+            // You can choose to treat 'Unspecified' as UTC/local; for tests UTC is fine.
+            dt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+
+            switch (expr.DateTimeGrouping)
+            {
+                case XrmDateTimeGrouping.Day:
+                    // Day of month 1..31 (common for reporting; pairs with Year/Month)
+                    return dt.Day;
+
+                case XrmDateTimeGrouping.Week:
+                    // ISO-8601 week number (1..53)
+                    return System.Globalization.ISOWeek.GetWeekOfYear(dt);
+                
+                case XrmDateTimeGrouping.Month:
+                    // 1..12
+                    return dt.Month;
+
+                case XrmDateTimeGrouping.Quarter:
+                    return ((dt.Month - 1) / 3) + 1; // 1..4
+
+                case XrmDateTimeGrouping.Year:
+                    return dt.Year;
+
+                case XrmDateTimeGrouping.FiscalPeriod:
+                    return GetFiscalPeriod(dt, options.FiscalYearStartMonth);
+
+                case XrmDateTimeGrouping.FiscalYear:
+                    return GetFiscalYearLabel(dt, options.FiscalYearStartMonth, 
+                        options.FiscalYearNameBasedOnStartDate, options.FiscalYearPrefix);
+
+                case XrmDateTimeGrouping.None:
+                default:
+                    // If grouping is requested but no specific DateTimeGrouping, use date-only
+                    return dt.Date;
+            }
+        }
+
+        // Non-date group-by: return as-is
+        return value;
+    }
+
+    private static int GetFiscalPeriod(DateTime dt, int startMonth)
+    {
+        // startMonth: 1..12
+        int zeroBased = ((dt.Month - startMonth) + 12) % 12; // 0..11
+        return zeroBased + 1; // 1..12
+    }
+
+    private static string GetFiscalYearLabel(DateTime dt, int startMonth, bool namedByStartYear,
+        string prefix)
+    {
+        // If fiscal year starts in, say, April (4), then:
+        // - Jan–Mar 2025 belong to FY that STARTED in 2024 and ENDS in 2025.
+        int startYear = dt.Month >= startMonth ? dt.Year : dt.Year - 1;
+        var tester = namedByStartYear ? startYear : (startYear + 1);
+        return $"{prefix}{tester}";
+    }
+
 }
