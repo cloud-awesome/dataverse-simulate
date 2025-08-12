@@ -19,7 +19,7 @@ internal class MockedEntityDataStore
     
     public FakeServiceFailureSettings FakeServiceFailureSettings { get; internal set; }
 
-    public FiscalYearSettings FiscalYearSettings { get; internal set; } = new FiscalYearSettings();
+    public FiscalYearSettings FiscalYearSettings { get; internal set; }
     
     internal MockedEntityDataStore()
     {

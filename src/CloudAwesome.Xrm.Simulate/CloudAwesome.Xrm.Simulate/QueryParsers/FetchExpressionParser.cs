@@ -36,15 +36,11 @@ public static class FetchExpressionParser
         try
         {
             var entityNode = fetchNode.SelectSingleNode("entity");
-            var query = new QueryExpression(entityNode.Attributes["name"]?.Value)
-            {
-                ColumnSet = new ColumnSet(
-                    entityNode?
-                        .SelectNodes("attribute")?.Cast<XmlNode>()
-                        .Select(x => x.Attributes?["name"]?.Value)
-                        .ToArray())
-            };
-
+            if (entityNode == null) return new QueryExpression();
+            
+            var entityName = GetStringXmlAttribute(entityNode, "name");
+            var query = new QueryExpression(entityName);
+            
             if (int.TryParse(fetchNode.Attributes["top"]?.Value, out int topCount))
             {
                 query.TopCount = topCount;
@@ -53,6 +49,75 @@ public static class FetchExpressionParser
             if (bool.TryParse(fetchNode.Attributes["distinct"]?.Value, out bool distinct))
             {
                 query.Distinct = distinct;
+            }
+
+            var isAggregate = GetBooleanXmlAttribute(fetchNode, "aggregate");
+
+            if (isAggregate)
+            {
+                query.ColumnSet = new ColumnSet(false);
+
+                foreach (XmlNode attrNode in entityNode.SelectNodes("attribute")!)
+                {
+                    var name = GetStringXmlAttribute(attrNode, "name");
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+
+                    var alias = GetStringXmlAttribute(attrNode, "alias");
+                    var hasAggregate = attrNode.Attributes?["aggregate"] != null;
+                    var isGroupBy = GetBooleanXmlAttribute(attrNode, "groupby") || attrNode.Attributes?["dategrouping"] != null;
+
+                    if (hasAggregate)
+                    {
+                        var attributeAggregate = GetStringXmlAttribute(attrNode, "aggregate")?.ToLowerInvariant();
+                        var distinctOnCount = GetBooleanXmlAttribute(attrNode, "distinct"); // only relevant with aggregate="count"
+
+                        var aggType = attributeAggregate switch
+                        {
+                            "sum"         => XrmAggregateType.Sum,
+                            "avg"         => XrmAggregateType.Avg,
+                            "min"         => XrmAggregateType.Min,
+                            "max"         => XrmAggregateType.Max,
+                            "count"       => XrmAggregateType.Count,       // NOTE: distinct ignored unless you add CountDistinct
+                            "countcolumn" => XrmAggregateType.CountColumn,
+                            _ => throw new NotSupportedException($"Unknown aggregate '{attributeAggregate}'.")
+                        };
+
+                        // TODO - CountDistinct, change the mapping above:
+                        // if (agg == "count" && distinctOnCount) aggType = XrmAggregateType.CountDistinct;
+
+                        query.ColumnSet.AttributeExpressions.Add(new XrmAttributeExpression(
+                            attributeName: name,
+                            alias: string.IsNullOrWhiteSpace(alias) ? null : alias,
+                            aggregateType: aggType
+                        ));
+                    }
+                    else if (isGroupBy)
+                    {
+                        var dateGroupingAttribute = GetStringXmlAttribute(attrNode, "dategrouping");
+                        var dateGrouping = MapDateGrouping(dateGroupingAttribute);
+
+                        var xrmAttributeExpression = new XrmAttributeExpression(
+                            attributeName: name,
+                            alias: string.IsNullOrWhiteSpace(alias) ? null : alias,
+                            aggregateType: XrmAggregateType.None,
+                            dateTimeGrouping: dateGrouping
+                        );
+                        xrmAttributeExpression.HasGroupBy = true;
+                        
+                        query.ColumnSet.AttributeExpressions.Add(xrmAttributeExpression);
+                    }
+                    // else: ignore bare attributes in aggregate fetches (FetchXML would ignore them too)
+                }
+            }
+            else
+            {
+                query.ColumnSet = new ColumnSet(
+                    entityNode?
+                        .SelectNodes("attribute")?.Cast<XmlNode>()
+                        .Select(x => x.Attributes?["name"]?.Value)
+                        .Where(n => !string.IsNullOrWhiteSpace(n))
+                        .ToArray()
+                );
             }
 
             if (entityNode?.SelectSingleNode("filter") is not null)
@@ -129,10 +194,23 @@ public static class FetchExpressionParser
     
     private static OrderExpression ParseOrder(XmlNode orderNode)
     {
-        var attributeName = orderNode.Attributes["attribute"].Value;
-        var orderType = (OrderType)Enum.Parse(typeof(OrderType), orderNode.Attributes["descending"]?.Value == "true" ? "Descending" : "Ascending", true);
+        var attributeName = orderNode.Attributes?["attribute"]?.Value;
+        var aliasName = orderNode.Attributes?["alias"]?.Value;
+        
+        var name = !string.IsNullOrWhiteSpace(attributeName)
+            ? attributeName
+            : !string.IsNullOrWhiteSpace(aliasName)
+                ? aliasName
+                : throw new InvalidOperationException("<order> must specify either 'attribute' or 'alias'.");
 
-        return new OrderExpression(attributeName, orderType);
+        var descendingRaw = orderNode.Attributes?["descending"]?.Value;
+        var isDescending = false;
+        if (!string.IsNullOrWhiteSpace(descendingRaw))
+            bool.TryParse(descendingRaw, out isDescending);
+
+        var orderType = isDescending ? OrderType.Descending : OrderType.Ascending;
+
+        return new OrderExpression(name, orderType);
     }
     
     private static LinkEntity? ParseLinkEntity(XmlNode linkEntityNode, string baseEntityName)
@@ -210,4 +288,30 @@ public static class FetchExpressionParser
         
         // etc., add all needed mappings here
     };
+    
+    private static string GetStringXmlAttribute(XmlNode n, string name) => n.Attributes?[name]?.Value;
+    private static bool GetBooleanXmlAttribute(XmlNode n, string name)
+        => bool.TryParse(n.Attributes?[name]?.Value, out var b) && b;
+
+    private static XrmDateTimeGrouping MapDateGrouping(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return XrmDateTimeGrouping.None;
+        switch (s.ToLowerInvariant())
+        {
+            case "day":            return XrmDateTimeGrouping.Day;
+            case "week":           return XrmDateTimeGrouping.Week;
+            case "month":          return XrmDateTimeGrouping.Month;
+            case "quarter":        return XrmDateTimeGrouping.Quarter;
+            case "year":           return XrmDateTimeGrouping.Year;
+            case "fiscal-period":  return XrmDateTimeGrouping.FiscalPeriod;
+            case "fiscal-year":    return XrmDateTimeGrouping.FiscalYear;
+            default: throw new NotSupportedException($"Unknown dategrouping '{s}'.");
+        }
+    }
+
+    // Empty iterable when SelectNodes returns null
+    private sealed class XmlNodeListStub : System.Collections.IEnumerable
+    {
+        public System.Collections.IEnumerator GetEnumerator() { yield break; }
+    }
 }

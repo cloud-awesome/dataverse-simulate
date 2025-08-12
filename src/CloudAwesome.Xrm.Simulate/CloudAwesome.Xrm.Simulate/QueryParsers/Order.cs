@@ -18,22 +18,32 @@ public static class Order
         for (var i = 0; i < orders.Count; i++)
         {
             var order = orders[i];
-            if (string.IsNullOrWhiteSpace(order.AttributeName))
+
+            string orderAttributeOrAlias;
+            if (!string.IsNullOrWhiteSpace(order.AttributeName))
             {
-                throw new ArgumentException("AttributeName cannot be null or empty", nameof(order.AttributeName));
+                orderAttributeOrAlias = order.AttributeName;
+            }
+            else if (!string.IsNullOrWhiteSpace(order.Alias))
+            {
+                orderAttributeOrAlias = order.Alias;
+            }
+            else
+            {
+                throw new ArgumentException("Either AttributeName or Alias need to populated", nameof(order.AttributeName));
             }
 
             if (i == 0)
             {
                 orderedRecords = order.OrderType == OrderType.Ascending
-                    ? records.OrderBy(entity => entity.GetAttributeValue<object>(order.AttributeName))
-                    : records.OrderByDescending(entity => entity.GetAttributeValue<object>(order.AttributeName));
+                    ? records.OrderBy(entity => entity.GetAttributeValue<object>(orderAttributeOrAlias))
+                    : records.OrderByDescending(entity => entity.GetAttributeValue<object>(orderAttributeOrAlias));
             }
             else
             {
                 orderedRecords = order.OrderType == OrderType.Ascending
-                    ? orderedRecords.ThenBy(entity => entity.GetAttributeValue<object>(order.AttributeName))
-                    : orderedRecords.ThenByDescending(entity => entity.GetAttributeValue<object>(order.AttributeName));
+                    ? orderedRecords.ThenBy(entity => entity.GetAttributeValue<object>(orderAttributeOrAlias))
+                    : orderedRecords.ThenByDescending(entity => entity.GetAttributeValue<object>(orderAttributeOrAlias));
             }
         }
             

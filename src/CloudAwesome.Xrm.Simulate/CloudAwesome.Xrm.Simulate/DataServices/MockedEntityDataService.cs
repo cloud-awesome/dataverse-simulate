@@ -135,6 +135,10 @@ public class MockedEntityDataService
     public void Reinitialise()
     {
         _dataStore.Data.Clear();
+        
+        this.FiscalYearSettings = new FiscalYearSettings();
+        this.ExecutionContext = new PluginExecutionContextMock();
+        this.FakeServiceFailureSettings = new FakeServiceFailureSettings();
     }
     
     /// <summary>
