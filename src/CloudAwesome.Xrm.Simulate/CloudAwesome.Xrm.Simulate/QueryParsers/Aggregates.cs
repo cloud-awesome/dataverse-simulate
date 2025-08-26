@@ -88,7 +88,7 @@ public static class Aggregates
             case XrmAggregateType.CountColumn:
                 // Count of non-null values for that column
                 return group.Count(e => GetAttributeValue(e, expr.AttributeName) != null);
-
+            
             case XrmAggregateType.None:
             default:
                 return null;

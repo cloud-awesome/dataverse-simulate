@@ -24,46 +24,42 @@ public class InitialTestDeleteMe: IntegrationBaseFixture
     private readonly IOrganizationService _mockService = null!; 
     
     [Test]
-    [Ignore("In progress sandbox")]
     public void Temp()
     {
         // Live
         var service = DataverseConnectionManager.Instance.GetConnection();
-
-        var arthurId = service.Create(_arthur);
-        var retrievedArthur = 
-            service.Retrieve(_arthur.LogicalName, arthurId, new ColumnSet("firstname", "lastname"));
-        service.Delete(_arthur.LogicalName, arthurId);
-
+        var liveEntity = CreateAndRetrieveContact(service, _arthur, true);
+        
         // Mocked
         var mockService = _mockService.Simulate();
-        mockService.Simulated().Data().Reinitialise();
+        var mockedEntity = CreateAndRetrieveContact(mockService, _arthur);
         
-        var mockedArthurId = mockService.Create(_arthur);
-        var mockRetrievedArthur = 
-            mockService.Retrieve(_arthur.LogicalName, mockedArthurId, new ColumnSet("firstname", "lastname"));
-
         // Assert
-        arthurId.Should().NotBeEmpty();
-        mockedArthurId.Should().NotBeEmpty();
+        mockedEntity.Should().BeEquivalentTo(liveEntity);
+    }
 
-        // TODO - fails - need to always return the primary key, even if it isn't asked for in the column set!
-        mockRetrievedArthur.Attributes.Should().BeEquivalentTo(retrievedArthur.Attributes);
-        //mockRetrievedArthur.FormattedValues.Should().BeEquivalentTo(retrievedArthur.FormattedValues);
+    private Entity CreateAndRetrieveContact(IOrganizationService service, Entity entityToCreate, 
+        bool deleteRecord = false)
+    {
+        var id = service.Create(entityToCreate);
+        var retrievedRecord = 
+            service.Retrieve(_arthur.LogicalName, id, new ColumnSet("firstname", "lastname"));
         
-        /*
-            TODO - This should replace the assertions above, so it checks the whole object, 
-                    (excluding those items we expect to be different)
-                    
-            mockRetrievedArthur.Should().BeEquivalentTo(retrievedArthur,
-                options => options.Excluding(o => o.Id));
-        */
-        
-        /*
-            CONSIDER - breaking the `arrange` section out into a separate method,
-                taking an IOrganizationService input, then calling twice, once with 
-                mock, the other with the live and compare exact results in `assert`
-         */
+        if (deleteRecord)
+        {
+            service.Delete(_arthur.LogicalName, id);
+        }
+
+        var returnEntity = new Entity(_arthur.LogicalName)
+        {
+            Attributes =
+            {
+                ["firstname"] = retrievedRecord.GetAttributeValue<string>("firstname"),
+                ["lastname"] = retrievedRecord.GetAttributeValue<string>("lastname")
+            }
+        };
+
+        return returnEntity;
     }
     
     private readonly Entity _arthur = new Entity("contact")
