@@ -43,14 +43,14 @@ public class InitialTestDeleteMe: IntegrationBaseFixture
     {
         var id = service.Create(entityToCreate);
         var retrievedRecord = 
-            service.Retrieve(_arthur.LogicalName, id, new ColumnSet("firstname", "lastname"));
+            service.Retrieve(entityToCreate.LogicalName, id, new ColumnSet("firstname", "lastname"));
         
         if (deleteRecord)
         {
-            service.Delete(_arthur.LogicalName, id);
+            service.Delete(entityToCreate.LogicalName, id);
         }
 
-        var returnEntity = new Entity(_arthur.LogicalName)
+        var returnEntity = new Entity(entityToCreate.LogicalName)
         {
             Attributes =
             {
