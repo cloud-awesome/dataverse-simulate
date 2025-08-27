@@ -20,17 +20,21 @@ public static class PluginExecutionContextSimulator
         pluginExecutionContext.UserId.Returns(x => 
             options?.AuthenticatedUser?.Id ?? 
             dataService.AuthenticatedUser.Id);
-        
-        if (dataService.ExecutionContext is null) return pluginExecutionContext;
-
-        var context = dataService.ExecutionContext;
-        
-        pluginExecutionContext.PrimaryEntityId.Returns(context.PrimaryEntityId);
-        pluginExecutionContext.PrimaryEntityName.Returns(context.PrimaryEntityName);
-        
         pluginExecutionContext.InitiatingUserId.Returns(x => 
             options?.AuthenticatedUser?.Id ?? 
             dataService.AuthenticatedUser.Id);
+        pluginExecutionContext.BusinessUnitId.Returns(dataService.BusinessUnit.Id);
+        pluginExecutionContext.OrganizationId.Returns(dataService.Organization.Id);
+        pluginExecutionContext.OperationCreatedOn.Returns(dataService.SystemTime);
+        
+        if (dataService.ExecutionContext is null) return pluginExecutionContext;
+        
+        var context = dataService.ExecutionContext;
+ 
+        pluginExecutionContext.PrimaryEntityId.Returns(context.PrimaryEntityId);
+        pluginExecutionContext.PrimaryEntityName.Returns(context.PrimaryEntityName);
+
+        pluginExecutionContext.MessageName.Returns(context.MessageName);
         
         pluginExecutionContext.Depth.Returns(context.Depth);
         pluginExecutionContext.Stage.Returns(context.Stage);

@@ -12,6 +12,7 @@ public static class ServiceProviderSimulator
     private static readonly MockedEntityDataService DataService = new();
     private static readonly MockedLoggingService LoggingService = new();
     private static readonly MockedTelemetryService TelemetryService = new();
+    private static readonly MockedServiceBusService ServiceBus = new();
     private static readonly SimulatorAuditService SimulatorAuditService = new();
     
     public static IServiceProvider Simulate(this IServiceProvider serviceProvider,
@@ -21,12 +22,21 @@ public static class ServiceProviderSimulator
         LoggingService.Clear();
         TelemetryService.Clear();
         SimulatorAuditService.Clear();
+        ServiceBus.Clear();
         
         var localServiceProvider = Substitute.For<IServiceProvider>();
+
         
-        // TODO - Process the rest of the simulator options
-        DataService.FakeServiceFailureSettings = options?.FakeServiceFailureSettings;
+        // Execution mock will overwrite anything that came from other simulator options
         DataService.ExecutionContext = options?.PluginExecutionContextMock;
+        DataService.FakeServiceFailureSettings = options?.FakeServiceFailureSettings;
+        
+        SimulatorOptionsProcessor.ConfigureAuthenticatedUser(DataService, options);
+        SimulatorOptionsProcessor.InitialiseMockedData(DataService, options);
+        SimulatorOptionsProcessor.ConfigureUsersBusinessUnit(DataService, options);
+        SimulatorOptionsProcessor.ConfigureOrganization(DataService, options);
+        SimulatorOptionsProcessor.SetSystemTime(DataService, options);
+        SimulatorOptionsProcessor.ConfigureFiscalYearSettings(DataService, options);
         
         localServiceProvider.GetService(Arg.Any<Type>())
             .Returns(callInfo =>
@@ -43,7 +53,7 @@ public static class ServiceProviderSimulator
                     _ when argType == typeof(ILogger) => 
                         TelemetrySimulator.Create(DataService, TelemetryService, options),
                     _ when argType == typeof(IServiceEndpointNotificationService) => 
-                        ServiceEndpointNotificationSimulator.Create(DataService, options),
+                        ServiceEndpointNotificationSimulator.Create(DataService, ServiceBus, options),
                     // QUESTION - Has ITransactionCurrencyService been removed?
                     _ => throw new ArgumentException("Type of Service requested is not supported")
                 };
@@ -54,6 +64,7 @@ public static class ServiceProviderSimulator
 
     public static ServiceProviderSimulated Simulated(this IServiceProvider serviceProvider)
     {
-        return new ServiceProviderSimulated(DataService, LoggingService, TelemetryService, SimulatorAuditService);
+        return new ServiceProviderSimulated(DataService, LoggingService, TelemetryService, 
+            SimulatorAuditService, ServiceBus);
     }
 }

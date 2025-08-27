@@ -14,7 +14,7 @@ internal class MockedEntityDataStore
     public EntityReference Organization { get; internal set; } = new EntityReference("organization", Guid.NewGuid());
     
     public DateTime SystemTime { get; internal set; } = DateTime.Now;
-    
+
     public PluginExecutionContextMock ExecutionContextMock { get; internal set; }
     
     public FakeServiceFailureSettings FakeServiceFailureSettings { get; internal set; }

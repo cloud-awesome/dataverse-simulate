@@ -7,7 +7,8 @@ namespace CloudAwesome.Xrm.Simulate.ServiceProviders;
 
 public static class ServiceEndpointNotificationSimulator
 {
-    public static IServiceEndpointNotificationService? Create(MockedEntityDataService dataService, ISimulatorOptions? options)
+    public static IServiceEndpointNotificationService? Create(MockedEntityDataService dataService, 
+        MockedServiceBusService serviceBus, ISimulatorOptions? options)
     {
         if (dataService.FakeServiceFailureSettings is { ServiceEndpointNotificationService: true })
         {
@@ -15,9 +16,23 @@ public static class ServiceEndpointNotificationSimulator
         }
         
         var notificationSimulator = Substitute.For<IServiceEndpointNotificationService>();
-        
-        // TODO - Mock out the .Execute method
-        
+
+        notificationSimulator.Execute(Arg.Any<EntityReference>(), Arg.Any<IPluginExecutionContext>())
+            .Returns(x =>
+            {
+                if (x.Arg<EntityReference>().LogicalName != "serviceendpoint")
+                {
+                    // TODO - Verify what dataverse returns in this case
+                    throw new InvalidPluginExecutionException("EntityReference provided to " +
+                                                              "IServiceEndpointNotificationService.Execute " +
+                                                              "must be of type 'serviceendpoint'");
+                }
+                
+                serviceBus.Add(x.Arg<IPluginExecutionContext>());
+                
+                // TODO - Only a two-way or REST listener will return a string back to the caller
+                return Guid.NewGuid().ToString();
+            });
 
         return notificationSimulator;
     } 

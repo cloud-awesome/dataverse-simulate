@@ -1,7 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.ServiceProviders;
+using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
+using CloudAwesome.Xrm.Simulate.Test.TestEntities;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.PluginTelemetry;
 using NUnit.Framework;
@@ -140,6 +145,36 @@ public class ServiceProviderSimulatorTests
 
         executionContext.Should().BeNull();
     }
+
+    [Test]
+    public void GetService_Can_Return_Mocked_IServiceEndpointNotificationService()
+    {
+        var serviceProvider = _serviceProvider.Simulate();
+
+        var serviceBus = (IServiceEndpointNotificationService)
+            serviceProvider.GetService(typeof(IServiceEndpointNotificationService))!;
+
+        serviceBus.Should().NotBeNull();
+    }
+    
+    [Test]
+    public void Faking_Service_Failure_With_IServiceEndpointNotificationService_Returns_Null()
+    {
+        var options = new SimulatorOptions
+        {
+            FakeServiceFailureSettings = new FakeServiceFailureSettings
+            {
+                ServiceEndpointNotificationService = true
+            }
+        };
+
+        var serviceProvider = _serviceProvider.Simulate(options);
+        
+        var executionContext = (IServiceEndpointNotificationService)
+            serviceProvider.GetService(typeof(IServiceEndpointNotificationService))!;
+
+        executionContext.Should().BeNull();
+    }
     
     [Test]
     public void GetService_Requesting_Unsupported_Service_Should_Throw_Error()
@@ -194,5 +229,78 @@ public class ServiceProviderSimulatorTests
         traces.Count.Should().Be(1);
         tasks.Count.Should().Be(1);
     }
+ 
+    [Test]
+    public void Initialising_With_An_Authenticated_User_Should_Store_Reference()
+    {
+        var options = new SimulatorOptions
+        {
+            AuthenticatedUser = new Entity("systemuser", Guid.NewGuid())
+            {
+                Attributes =
+                {
+                    ["fullname"] = "Gemma Armstrong"
+                }
+            }
+        };
+
+        var serviceProvider = _serviceProvider.Simulate(options);
+
+        serviceProvider.Simulated().Data().AuthenticatedUser.Should().NotBeNull();
+        serviceProvider.Simulated().Data().AuthenticatedUser.Id.Should().Be(options.AuthenticatedUser.Id);
+    }
     
+    [Test]
+    public void Initialising_With_An_Authenticated_User_Should_Add_To_User_Data_Store()
+    {
+        var options = new SimulatorOptions
+        {
+            AuthenticatedUser = new Entity("systemuser", Guid.NewGuid())
+            {
+                Attributes =
+                {
+                    ["fullname"] = "Gemma Armstrong"
+                }
+            }
+        };
+
+        var serviceProvider = _serviceProvider.Simulate(options);
+        
+        var users = serviceProvider.Simulated().Data().Get("systemuser");
+        users.Count.Should().Be(1);
+        users.FirstOrDefault()!.Attributes["fullname"].Should().Be("Gemma Armstrong");
+    }
+    
+    [Test]
+    public void Simulating_Service_With_PreInitialised_Data_Is_Correctly_Initialised()
+    {
+        var options = new SimulatorOptions
+        {
+            InitialiseData = new Dictionary<string, List<Entity>>
+            {
+                {
+                    Contact.EntityLogicalName,
+                    [
+                        Arthur.Contact(),
+                        Bruce.Contact()
+                    ]
+                },
+                {
+                    "account",
+                    [
+                        Arthur.Account()
+                    ]
+                }
+            }
+        };
+
+        var serviceProvider = _serviceProvider.Simulate(options);
+        var contacts = serviceProvider.Simulated().Data().Get("contact");
+        var accounts = serviceProvider.Simulated().Data().Get("account");
+        var leads = serviceProvider.Simulated().Data().Get("lead");
+
+        contacts.Count.Should().Be(2);
+        accounts.Count.Should().Be(1);
+        leads.Count.Should().Be(0);
+    }
 }

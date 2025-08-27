@@ -182,4 +182,36 @@ public class PluginExecutionContextSimulatorTests
         target.LogicalName.Should().Be(Contact.EntityLogicalName);
         target.Id.Should().Be(Siobhan.Contact().Id);
     }
+
+    [Test]
+    public void SimulatorOptions_Are_Correctly_Reflected_In_ExecutionContext()
+    {
+        var options = new SimulatorOptions
+        {
+            AuthenticatedUser = new SystemUser
+            {
+                Id = Guid.NewGuid(),
+                FullName = "Daphne Moon"
+            },
+            BusinessUnit = new BusinessUnit
+            {
+                Id = Guid.NewGuid(),
+                Name = "Root BU"
+            },
+            Organization = new Organization
+            {
+                Id = Guid.NewGuid(),
+                Name = "Cloud Awesome"
+            },
+            ClockSimulator = new MockSystemTime(new DateTime(2009, 8, 15))
+        };
+
+        var service = _serviceProvider.Simulate(options);
+        var executionContext = (IPluginExecutionContext)service.GetService(typeof(IPluginExecutionContext))!;
+
+        executionContext.UserId.Should().Be(options.AuthenticatedUser.Id);
+        executionContext.InitiatingUserId.Should().Be(options.AuthenticatedUser.Id);
+        executionContext.BusinessUnitId.Should().Be(options.BusinessUnit.Id);
+        executionContext.OrganizationId.Should().Be(options.Organization.Id);
+    }
 }

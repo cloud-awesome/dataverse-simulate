@@ -1,4 +1,7 @@
-﻿using CloudAwesome.Xrm.Simulate.DataServices;
+﻿using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using CloudAwesome.Xrm.Simulate.DataServices;
 using Microsoft.Xrm.Sdk;
 
 namespace CloudAwesome.Xrm.Simulate.ServiceProviders;
@@ -33,5 +36,6 @@ public class PluginExecutionContextMock: IPluginExecutionContext
     public Guid OperationId { get; } = Guid.NewGuid();
     public DateTime OperationCreatedOn => _dataService.SystemTime;
     public int Stage { get; set; } = 20; // Defaults to PreOperation
-    public IPluginExecutionContext ParentContext { get; }
+    public IPluginExecutionContext ParentContext { get; } = null!;
+
 }
