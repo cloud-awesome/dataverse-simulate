@@ -25,9 +25,7 @@ public static class ServiceProviderSimulator
         ServiceBus.Clear();
         
         var localServiceProvider = Substitute.For<IServiceProvider>();
-
         
-        // Execution mock will overwrite anything that came from other simulator options
         DataService.ExecutionContext = options?.PluginExecutionContextMock;
         DataService.FakeServiceFailureSettings = options?.FakeServiceFailureSettings;
         

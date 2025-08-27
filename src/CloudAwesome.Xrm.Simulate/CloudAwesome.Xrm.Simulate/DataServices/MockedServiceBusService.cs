@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json;
 using CloudAwesome.Xrm.Simulate.DataStores;
 using Microsoft.Xrm.Sdk;
 
@@ -10,15 +8,6 @@ public class MockedServiceBusService
 {
     private readonly MockedServiceBusStore _serviceBus = new();
     
-    /// <summary>
-    /// Adds a new message to the in memory service bus
-    /// </summary>
-    /// <param name="message"></param>
-    public void Add(string message)
-    {
-        _serviceBus.Messages.Add(message);
-    }
-
     public void Add(IPluginExecutionContext pluginExecutionContext)
     {
         var contextString = SerializeContext(pluginExecutionContext);
