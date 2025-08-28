@@ -47,14 +47,14 @@ public static class Aggregates
             for (int i = 0; i < groupByExpressions.Count; i++)
             {
                 var expr = groupByExpressions[i];
-                var alias = SafeAlias(expr);
+                var alias = GetAliasOrAttributeName(expr);
                 row[alias] = group.Key.Values[i];
             }
 
             // Emit aggregate columns
             foreach (var expr in aggregateExpressions)
             {
-                var alias = SafeAlias(expr);
+                var alias = GetAliasOrAttributeName(expr);
                 object value = ComputeAggregate(expr, group);
                 row[alias] = value;
             }
@@ -201,7 +201,7 @@ public static class Aggregates
         return string.CompareOrdinal(a.ToString(), b.ToString());
     }
 
-    private static string SafeAlias(XrmAttributeExpression expr)
+    private static string GetAliasOrAttributeName(XrmAttributeExpression expr)
         => string.IsNullOrWhiteSpace(expr.Alias) ? expr.AttributeName : expr.Alias;
 
     // --- Grouping support ---
