@@ -8,6 +8,12 @@
 
         <LangVersion>12</LangVersion>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Update="TestData\**\*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
     
     <ItemGroup>
         <PackageReference Include="FluentAssertions" Version="6.11.0" />
