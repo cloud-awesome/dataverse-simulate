@@ -26,7 +26,22 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
                     var query = x.Arg<QueryExpression>();
                     var results = QueryExpressionParser.Parse(query, 
                         dataService.Get(), dataService);
-                    return new EntityCollection(results.ToList());
+                    var resultCollection = new EntityCollection(results.Take(5000).ToList());
+                    
+                    if (query.PageInfo.ReturnTotalRecordCount)
+                    {
+                        resultCollection.TotalRecordCount = results.Take(5000).Count();
+                        if (results.Count() > 5000)
+                        {
+                            resultCollection.TotalRecordCountLimitExceeded = true;
+                        }
+                    }
+                    else
+                    {
+                        resultCollection.TotalRecordCount = -1;
+                    }
+                    
+                    return resultCollection;
                 });
         
         // Handle FetchExpression

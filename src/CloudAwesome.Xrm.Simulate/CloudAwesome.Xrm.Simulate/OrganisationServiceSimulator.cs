@@ -58,10 +58,6 @@ public static class OrganisationServiceSimulator
         }
     }
 
-    
-    
-    
-
     private static RequestHandlerRegistry RegisterServiceRequests()
     {
         var handlerRegistry = new RequestHandlerRegistry();

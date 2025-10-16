@@ -8,6 +8,7 @@ using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Query;
 using NUnit.Framework;
+using Contact = CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities.Contact;
 
 namespace CloudAwesome.Xrm.Simulate.Test.QueryParserTests;
 
@@ -479,5 +480,68 @@ public class QueryExpressionParserTests
         var contacts = _organizationService.RetrieveMultiple(query).Entities.Cast<Contact>().ToList();
 
         contacts.Count().Should().Be(2);
+    }
+
+    [Test]
+    public void ReturnTotalRecord_Is_Negative_One_If_Not_Requested()
+    {
+        _organizationService.Simulated().Data().Add(Daniel.Contact());
+        _organizationService.Simulated().Data().Add(Siobhan.Contact());
+
+        var query = new QueryExpression
+        {
+            EntityName = Contact.EntityLogicalName,
+        };
+
+        var contacts = _organizationService.RetrieveMultiple(query);
+
+        contacts.Entities.ToList().Count.Should().Be(2);
+        contacts.TotalRecordCount.Should().Be(-1);
+    }
+    
+    [Test]
+    public void ReturnTotalRecord_Is_Correct_Value_If_Requested()
+    {
+        _organizationService.Simulated().Data().Add(Daniel.Contact());
+        _organizationService.Simulated().Data().Add(Siobhan.Contact());
+
+        var query = new QueryExpression
+        {
+            EntityName = Contact.EntityLogicalName,
+            PageInfo = new PagingInfo
+            {
+                ReturnTotalRecordCount = true
+            }
+        };
+
+        var contacts = _organizationService.RetrieveMultiple(query);
+
+        contacts.Entities.ToList().Count.Should().Be(2);
+        contacts.TotalRecordCount.Should().Be(2);
+        contacts.TotalRecordCountLimitExceeded.Should().Be(false);
+    }
+    
+    [Test]
+    public void ReturnTotalRecord_Maxes_Out_At_5000()
+    {
+        for (int i = 0; i < 5100; i++)
+        {
+            _organizationService.Simulated().Data().Add(new Contact(new Guid()));    
+        }
+        
+        var query = new QueryExpression
+        {
+            EntityName = Contact.EntityLogicalName,
+            PageInfo = new PagingInfo
+            {
+                ReturnTotalRecordCount = true
+            }
+        };
+
+        var contacts = _organizationService.RetrieveMultiple(query);
+
+        contacts.Entities.ToList().Count.Should().Be(5000);
+        contacts.TotalRecordCount.Should().Be(5000);
+        contacts.TotalRecordCountLimitExceeded.Should().Be(true);
     }
 }
