@@ -394,19 +394,5 @@ public class FetchExpressionParserTests
       
     }
 
-    [Test]
-    [Ignore("To be implemented")]
-    public void Fetch_Query_Returns_Sum_Aggregate()
-    {
-      
-    }
-    
-    [Test]
-    [Ignore("To be implemented")]
-    public void Fetch_Query_Returns_Average_Aggregate()
-    {
-      
-    }
-    
     #endregion
 }
