@@ -13,6 +13,7 @@ on:
 env:
   DOTNET_VERSION: '8.0.x'
   SOLUTION_PATH: 'src/CloudAwesome.Xrm.Simulate/CloudAwesome.Xrm.Simulate.sln'
+  TEST_PROJECT_PATH: 'src\CloudAwesome.Xrm.Simulate\CloudAwesome.Xrm.Simulate.Test\CloudAwesome.Xrm.Simulate.Test.csproj'
 
 jobs:
   validate:
@@ -35,7 +36,7 @@ jobs:
         run: dotnet build "${{ env.SOLUTION_PATH }}" --configuration Release --no-restore
 
       - name: Test with coverage
-        run: dotnet test "${{ env.SOLUTION_PATH }}" --configuration Release --no-build --no-restore --logger trx --results-directory TestResults --collect:"XPlat Code Coverage"
+        run: dotnet test "${{ env.TEST_PROJECT_PATH }}" --configuration Release --no-build --no-restore --logger trx --results-directory TestResults --collect:"XPlat Code Coverage"
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
