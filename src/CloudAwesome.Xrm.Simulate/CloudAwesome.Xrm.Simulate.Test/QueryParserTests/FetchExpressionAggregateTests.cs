@@ -324,7 +324,7 @@ public class FetchExpressionAggregateTests
 			}
 		};
 
-		_organizationService.Simulate(simulatorOptions);
+		_organizationService = _organizationService.Simulate(simulatorOptions);
 		
 		AddMicrosoftSampleData();
 
