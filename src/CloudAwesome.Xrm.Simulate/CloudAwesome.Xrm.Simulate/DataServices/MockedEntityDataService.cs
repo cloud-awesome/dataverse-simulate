@@ -56,16 +56,32 @@ public class MockedEntityDataService
         return entities ?? new List<Entity>();
     }
     
-    public List<T> Get<T>() where T: Entity, new()
+    public List<T> Get<T>() where T : Entity, new()
     {
         var logicalName = new T().LogicalName;
-        
+
         _dataStore.Data.TryGetValue(logicalName, out var entities);
-        
-        return entities?
-                   .Cast<T>()
-                   .ToList()
-               ?? new List<T>();
+
+        if (entities is null)
+        {
+            return new List<T>();
+        }
+
+        var results = new List<T>();
+
+        foreach (var entity in entities)
+        {
+            if (entity is not T typedEntity)
+            {
+                throw new InvalidCastException(
+                    $"Entity with id '{entity.Id}' in collection '{logicalName}' is of type '{entity.GetType().Name}' and cannot be cast to '{typeof(T).Name}'. " +
+                    $"Ensure you are using Early Bound Entities to use this function.");
+            }
+
+            results.Add(typedEntity);
+        }
+
+        return results;
     }
 
     public Entity Get(string logicalName, Guid id)
