@@ -61,7 +61,7 @@ public class EntityDataServiceTests
     }
 
     [Test]
-    public void Simulated_Data_Service_Can_Retrieve_Early_Bound_Entity_Types()
+    public void Simulated_Data_Service_Can_Retrieve_Early_Bound_Entity_Record()
     {
         _organizationService.Simulated().Data().Add(Arthur.Contact());
         
@@ -82,5 +82,17 @@ public class EntityDataServiceTests
         
         getAccount.Should().Throw<InvalidCastException>()
             .WithMessage("*Ensure you are using Early Bound Entities to use this function.");
+    }
+
+    [Test]
+    public void Simulated_Data_Service_Can_Retrieve_Early_Bound_Entity_Types()
+    {
+        _organizationService.Simulated().Data().Add(Arthur.Contact());
+        _organizationService.Simulated().Data().Add(Siobhan.Contact());
+        _organizationService.Simulated().Data().Add(Daniel.Contact());
+        
+        var contacts = _organizationService.Simulated().Data().Get<Contact>();
+        
+        contacts.Count.Should().Be(3);
     }
 }

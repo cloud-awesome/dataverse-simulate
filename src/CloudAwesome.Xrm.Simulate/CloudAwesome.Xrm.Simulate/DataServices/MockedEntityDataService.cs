@@ -55,6 +55,18 @@ public class MockedEntityDataService
         _dataStore.Data.TryGetValue(logicalName, out var entities);
         return entities ?? new List<Entity>();
     }
+    
+    public List<T> Get<T>() where T: Entity, new()
+    {
+        var logicalName = new T().LogicalName;
+        
+        _dataStore.Data.TryGetValue(logicalName, out var entities);
+        
+        return entities?
+                   .Cast<T>()
+                   .ToList()
+               ?? new List<T>();
+    }
 
     public Entity Get(string logicalName, Guid id)
     {
