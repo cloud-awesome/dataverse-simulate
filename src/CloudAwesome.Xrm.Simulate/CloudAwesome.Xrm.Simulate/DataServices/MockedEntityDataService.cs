@@ -73,6 +73,34 @@ public class MockedEntityDataService
 
         return entity;
     }
+    
+    public T Get<T>(Guid id) where T : Entity, new()
+    {
+        var logicalName = new T().LogicalName;
+
+        var entities = this.Get(logicalName);
+
+        if (entities.Count == 0)
+        {
+            throw new Exception($"Entity collection '{logicalName}' not found");
+        }
+
+        var entity = entities.SingleOrDefault(x => x.Id == id);
+
+        if (entity is null)
+        {
+            throw new Exception($"{logicalName} with id '{id}' not found");
+        }
+
+        if (entity is not T typedEntity)
+        {
+            throw new InvalidCastException(
+                $"Entity '{logicalName}' with id '{id}' is not of type '{typeof(T).Name}'. " +
+                $"Ensure you are using Early Bound Entities to use this function.");
+        }
+
+        return typedEntity;
+    }
 
     public Entity Get(EntityReference entityReference)
     {

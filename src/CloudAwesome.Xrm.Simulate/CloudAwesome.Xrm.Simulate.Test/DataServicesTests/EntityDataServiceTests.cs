@@ -1,4 +1,6 @@
-﻿using CloudAwesome.Xrm.Simulate.Test.TestEntities;
+﻿using System;
+using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
+using CloudAwesome.Xrm.Simulate.Test.TestEntities;
 using FluentAssertions;
 using Microsoft.Xrm.Sdk;
 using NUnit.Framework;
@@ -56,5 +58,29 @@ public class EntityDataServiceTests
         contacts.Count.Should().Be(2);
         accounts.Count.Should().Be(1);
         leads.Count.Should().Be(0);
+    }
+
+    [Test]
+    public void Simulated_Data_Service_Can_Retrieve_Early_Bound_Entity_Types()
+    {
+        _organizationService.Simulated().Data().Add(Arthur.Contact());
+        
+        var contact = _organizationService.Simulated().Data().Get<Contact>(Arthur.Contact().Id);
+        
+        contact.Should().NotBeNull();
+        contact.Should().BeOfType<Contact>();
+        contact.Id.Should().Be(Arthur.Contact().Id);
+        contact.FirstName.Should().Be(Arthur.Contact().FirstName);
+    }
+    
+    [Test]
+    public void Simulated_Data_Service_Can_Retrieve_Early_Bound_Entity_Types_Only_If_User_Has_Simulated_Them()
+    {
+        _organizationService.Simulated().Data().Add(Arthur.Account());
+        
+        var getAccount = () => _organizationService.Simulated().Data().Get<Account>(Arthur.Account().Id);
+        
+        getAccount.Should().Throw<InvalidCastException>()
+            .WithMessage("*Ensure you are using Early Bound Entities to use this function.");
     }
 }
