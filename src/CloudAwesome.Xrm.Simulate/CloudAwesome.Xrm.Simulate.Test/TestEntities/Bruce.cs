@@ -30,6 +30,13 @@ public static class Bruce
     /// </summary>
     public static Entity Account()
     {
-        return new Entity("account");
+        return new Entity("account", Guid.Parse("4980d1f5-486c-4e1d-b953-7c334b968ae8"))
+        {
+            Attributes =
+            {
+                ["Id"] = Guid.Parse("4980d1f5-486c-4e1d-b953-7c334b968ae8"),
+                ["name"] = "Stumpy & Co."
+            }
+        };
     }
 }
