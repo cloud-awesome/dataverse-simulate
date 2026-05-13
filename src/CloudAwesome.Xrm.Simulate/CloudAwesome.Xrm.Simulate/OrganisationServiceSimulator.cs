@@ -40,7 +40,7 @@ public static class OrganisationServiceSimulator
         SimulatorOptionsProcessor.SetSystemTime(localDataService, options);
         SimulatorOptionsProcessor.ConfigureFiscalYearSettings(localDataService, options);
         
-        RegisterSimulation(service, localDataService, auditService);
+        RegisterSimulation(service, localDataService, auditService, organizationRequestRegistry);
         
         return service;
     }
@@ -50,7 +50,7 @@ public static class OrganisationServiceSimulator
         return 
             !Contexts.TryGetValue(organizationService, out var context) 
                 ? throw new InvalidOperationException("This IOrganizationService has not been initialised with Simulate().") 
-                : new OrganisationServiceSimulated(context.DataService, context.AuditService);
+                : new OrganisationServiceSimulated(context.DataService, context.AuditService, context.RequestHandlers);
     }
 
     private static RequestHandlerRegistry RegisterServiceRequests()
@@ -67,10 +67,12 @@ public static class OrganisationServiceSimulator
     
     private sealed class SimulationContext(
         MockedEntityDataService dataService,
-        SimulatorAuditService auditService)
+        SimulatorAuditService auditService,
+        RequestHandlerRegistry requestHandlers)
     {
         public MockedEntityDataService DataService { get; } = dataService;
         public SimulatorAuditService AuditService { get; } = auditService;
+        public RequestHandlerRegistry RequestHandlers { get; } = requestHandlers;
     };
 
     private static readonly ConditionalWeakTable<IOrganizationService, SimulationContext> Contexts = new();
@@ -78,9 +80,10 @@ public static class OrganisationServiceSimulator
     private static void RegisterSimulation(
         IOrganizationService service,
         MockedEntityDataService dataService,
-        SimulatorAuditService auditService)
+        SimulatorAuditService auditService,
+        RequestHandlerRegistry requestHandlers)
     {
         Contexts.Remove(service);
-        Contexts.Add(service, new SimulationContext(dataService, auditService));
+        Contexts.Add(service, new SimulationContext(dataService, auditService, requestHandlers));
     }
 }
