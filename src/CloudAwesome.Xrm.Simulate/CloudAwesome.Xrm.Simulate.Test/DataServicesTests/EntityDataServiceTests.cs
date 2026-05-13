@@ -74,7 +74,7 @@ public class EntityDataServiceTests
     }
     
     [Test]
-    public void Simulated_Data_Service_Can_Retrieve_Early_Bound_Entity_Types_Only_If_User_Has_Simulated_Them()
+    public void Simulated_Data_Service_Can_Retrieve_Early_Bound_Entity_Record_Only_If_User_Has_Simulated_Them()
     {
         _organizationService.Simulated().Data().Add(Arthur.Account());
         
@@ -94,5 +94,18 @@ public class EntityDataServiceTests
         var contacts = _organizationService.Simulated().Data().Get<Contact>();
         
         contacts.Count.Should().Be(3);
+    }
+    
+    [Test]
+    public void Simulated_Data_Service_Can_Retrieve_Early_Bound_Entity_Types_Only_If_User_Has_Simulated_Them()
+    {
+        _organizationService.Simulated().Data().Add(Arthur.Account());
+        _organizationService.Simulated().Data().Add(Bruce.Account());
+        _organizationService.Simulated().Data().Add(Siobhan.Account());
+        
+        var getAccounts = () => _organizationService.Simulated().Data().Get<Account>();
+        
+        getAccounts.Should().Throw<InvalidCastException>()
+            .WithMessage("*Ensure you are using Early Bound Entities to use this function.");
     }
 }
