@@ -1,4 +1,5 @@
 using System;
+using CloudAwesome.Xrm.Simulate.ServiceRequests;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
 using CloudAwesome.Xrm.Simulate.Test.TestEntities;
 using FluentAssertions;
@@ -18,8 +19,8 @@ public class CustomOrganizationRequestTests
 	{
 		_organizationService = _organizationService.Simulate();
 	}
-
-	[Test]
+	
+	[Test(Description = "Custom OrganizationRequest implementation can be injected to the simulation and impact data")]
 	public void Add_Handles_Custom_Request_Through_Execute()
 	{
 		var account = new Entity("account")
@@ -53,28 +54,18 @@ public class CustomOrganizationRequestTests
 		_organizationService.Simulated().Data().Get(account.ToEntityReference()).Should().BeSameAs(account);
 	}
 
-	[Test]
+	[Test(Description = "Custom OrganizationRequest that takes in custom parameters. " +
+	                    "Request implementation is external to the test, " +
+							"proving an implementation can be written once and reused across tests.")]
 	public void Custom_Handler_With_Multiple_Parameters_Can_Be_Added()
 	{
 		_organizationService.Simulated().Data().Add(Arthur.Contact());
 		_organizationService
 			.Simulated()
 			.CustomOrgRequests()
-			.Add<ParameteredTestCustomRequest>((request, context) => 
-			{
-				var contact = request.Target.ToEntity<Contact>();
-				var retrievedContact = context.Data.Get<Contact>(contact.Id);
-				
-				retrievedContact.FirstName = request.NewFirstName;
-				context.Data.Update(retrievedContact);
-			
-				return new OrganizationResponse
-				{
-					ResponseName = request.RequestName
-				}; 
-			});
+			.Add<UpdateFirstNameCustomRequest>(UpdateContactFirstName);
 
-		var response = _organizationService.Execute(new ParameteredTestCustomRequest
+		var response = _organizationService.Execute(new UpdateFirstNameCustomRequest
 		{
 			Target = Arthur.Contact(),
 			NewFirstName = "test"
@@ -82,12 +73,16 @@ public class CustomOrganizationRequestTests
 		
 		var contact = _organizationService.Simulated().Data().Get<Contact>(Arthur.Contact().Id);
 		
-		response.ResponseName.Should().Be("cloudawesome_ParameteredTestCustom");
+		response.ResponseName.Should().Be("cloudawesome_UpdateFirstNameCustomRequest");
 		contact.FirstName.Should().Be("test");
+
+		_organizationService.Simulated().Audit().Get()
+			.Should().ContainSingle()
+			.Which.Message.Should().Be("cloudawesome_UpdateFirstNameCustomRequest");
 	}
 
 	[Test]
-	public void Add_Throws_When_Request_Already_Has_Built_In_Handler()
+	public void Add_Throws_Exception_When_Request_Already_Has_Built_In_Handler()
 	{
 		var sut = () => _organizationService
 			.Simulated()
@@ -100,7 +95,7 @@ public class CustomOrganizationRequestTests
 	}
 
 	[Test]
-	public void Add_Throws_When_Custom_Request_Is_Already_Registered()
+	public void Add_Throws_Exception_When_Custom_Request_Is_Already_Registered()
 	{
 		_organizationService
 			.Simulated()
@@ -137,11 +132,11 @@ public class CustomOrganizationRequestTests
 		}
 	}
 	
-	private sealed class ParameteredTestCustomRequest : OrganizationRequest
+	private sealed class UpdateFirstNameCustomRequest : OrganizationRequest
 	{
-		public ParameteredTestCustomRequest()
+		public UpdateFirstNameCustomRequest()
 		{
-			RequestName = "cloudawesome_ParameteredTestCustom";
+			RequestName = "cloudawesome_UpdateFirstNameCustomRequest";
 		}
 
 		public Entity Target
@@ -155,5 +150,22 @@ public class CustomOrganizationRequestTests
 			get => (string)Parameters["NewFirstName"];
 			init => Parameters["NewFirstName"] = value;
 		}
+	}
+	
+	private OrganizationResponse UpdateContactFirstName(UpdateFirstNameCustomRequest request, 
+		CustomOrganizationRequestContext context)
+	{
+		context.Audit.Add(request.RequestName, Contact.EntityLogicalName, request.Target.Id);
+		
+		var contact = request.Target.ToEntity<Contact>();
+		var retrievedContact = context.Data.Get<Contact>(contact.Id);
+		
+		retrievedContact.FirstName = request.NewFirstName;
+		context.Data.Update(retrievedContact);
+			
+		return new OrganizationResponse
+		{
+			ResponseName = request.RequestName
+		}; 
 	}
 }
