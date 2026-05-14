@@ -12,6 +12,19 @@ public class RequestHandlerRegistry
 		_handlers[typeof(TRequest)] = handler;
 	}
 
+	public void RegisterCustomHandler<TRequest>(IRequestHandler handler) where TRequest : OrganizationRequest
+	{
+		var requestType = typeof(TRequest);
+
+		if (_handlers.ContainsKey(requestType))
+		{
+			throw new InvalidOperationException(
+				$"A handler for '{requestType.Name}' is already registered and cannot be replaced by a custom organization request handler.");
+		}
+
+		_handlers[requestType] = handler;
+	}
+
 	public IRequestHandler GetHandler(OrganizationRequest request)
 	{
 		return _handlers[request.GetType()];
