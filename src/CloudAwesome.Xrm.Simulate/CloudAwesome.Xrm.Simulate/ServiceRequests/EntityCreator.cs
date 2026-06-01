@@ -3,7 +3,6 @@ using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.SecurityModel;
 using Microsoft.Xrm.Sdk;
-using Microsoft.Xrm.Sdk.Messages;
 using NSubstitute;
 
 namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
@@ -26,6 +25,8 @@ public sealed class EntityCreator
 
     internal Guid Create(Entity e, ISimulatorOptions? options)
     {
+        RequestFailureHandler.Handle(options, RequestMessage);
+        
         if (!PermissionsCalculator.ValidateEntityPermission(e.LogicalName, RequestMessage, options))
         {
             // Exactly which type of error is thrown by crm?

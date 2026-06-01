@@ -15,6 +15,8 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 /// </remarks>
 public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEntityMultipleRetriever
 {
+    private const string RequestMessage = "RetrieveMultiple";
+    
     public void MockRequest(IOrganizationService organizationService, 
         ISimulatorOptions? options = null)
     {
@@ -23,6 +25,8 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
             .Returns(
                 x =>
                 {
+                    RequestFailureHandler.Handle(options, RequestMessage);
+                    
                     var query = x.Arg<QueryExpression>();
                     var results = QueryExpressionParser.Parse(query, 
                         dataService.Get(), dataService);
@@ -49,6 +53,8 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
             .Returns(
                 x =>
                 {
+                    RequestFailureHandler.Handle(options, RequestMessage);
+                    
                     var query = x.Arg<FetchExpression>();
                     var results = FetchExpressionParser.Parse(query,
                         dataService.Get(), dataService);
@@ -61,6 +67,8 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
             .Returns(
                 x =>
                 {
+                    RequestFailureHandler.Handle(options, RequestMessage);
+                        
                     var query = x.Arg<QueryByAttribute>();
                     var results = QueryByAttributeParser.Parse(query,
                         dataService.Get(), dataService);

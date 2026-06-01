@@ -22,6 +22,8 @@ public class EntityAssociator(MockedEntityDataService dataService): IEntityAssoc
                 var relationship = callInfo.Arg<Relationship>();
                 var relatedRefs = callInfo.Arg<EntityReferenceCollection>();
 
+                RequestFailureHandler.Handle(options, RequestMessage, targetId);
+                
                 // Retrieve target (will throw if entity set or record does not exist)
                 var target = dataService.Get(entityName, targetId);
 

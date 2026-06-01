@@ -11,5 +11,7 @@ public class FakeServiceFailureSettings
     public bool PluginExecutionContext { get; set; } = false;
 
     public bool OrganizationServiceFactory { get; set; } = false;
+    
+    public List<RequestFailureSetting> RequestFailureSettings { get; set; } = new();
 
 }

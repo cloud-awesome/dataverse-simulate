@@ -21,6 +21,8 @@ public class EntityRetriever
                 var id = x.Arg<Guid>();
                 var columnSet = x.Arg<ColumnSet>();
 
+                RequestFailureHandler.Handle(options, RequestMessage, id);
+                
                 if (dataService.Get(entityName).Count == 0)
                 {
                     // TODO - Confirm the exception thrown by live CRM

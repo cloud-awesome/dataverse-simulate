@@ -8,6 +8,8 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 
 public class EntityUpdater(MockedEntityDataService dataService) : IEntityUpdater
 {
+    private const string RequestMessage = "Update";
+    
     public void MockRequest(IOrganizationService organizationService, 
         ISimulatorOptions? options = null)
     {
@@ -26,7 +28,9 @@ public class EntityUpdater(MockedEntityDataService dataService) : IEntityUpdater
                 var entity = x.Arg<Entity>();
                 
                 var e = dataService.Get(entity.LogicalName)
-                    .SingleOrDefault(x => x.Id == entity.Id);
+                    .SingleOrDefault(z => z.Id == entity.Id);
+                
+                RequestFailureHandler.Handle(options, RequestMessage, entity.Id);
                 
                 var processorType = new ProcessorType(e.LogicalName, ProcessorMessage.Create);
                 if (options?.EntityProcessors?.TryGetValue(processorType, out var processor) == true)
