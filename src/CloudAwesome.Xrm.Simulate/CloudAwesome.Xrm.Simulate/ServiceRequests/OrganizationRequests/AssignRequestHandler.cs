@@ -7,11 +7,15 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests.OrganizationRequests;
 
 public class AssignRequestHandler: IRequestHandler
 {
+	private const string RequestMessage = "Assign";
+	
 	public OrganizationResponse Handle(OrganizationRequest request, MockedEntityDataService dataService,
 		SimulatorAuditService auditService, ISimulatorOptions? options = null)
 	{
 		var assignRequest = (AssignRequest) request;
 
+		RequestFailureHandler.Handle(options, RequestMessage, assignRequest.Target.Id);
+		
 		var entity = dataService.Get(assignRequest.Target);
 
 		switch (assignRequest.Assignee.LogicalName)
