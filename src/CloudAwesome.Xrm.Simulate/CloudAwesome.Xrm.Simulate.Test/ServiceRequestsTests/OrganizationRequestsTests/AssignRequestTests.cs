@@ -1,4 +1,5 @@
 ﻿using System;
+using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
 using FluentAssertions;
 using Microsoft.Crm.Sdk.Messages;
@@ -73,6 +74,99 @@ public class AssignRequestTests
 		
 		lead.ModifiedOn.Should().Be(new DateTime(2024, 03, 10, 14, 30, 00));
 		lead.ModifiedBy.Id.Should().Be(_options.AuthenticatedUser!.Id);
+	}
+
+	[Test]
+	public void Assign_Request_Fails_When_Configured()
+	{
+		var options = new SimulatorOptions
+		{
+			FakeServiceFailureSettings = new FakeServiceFailureSettings
+			{
+				RequestFailureSettings = [ new RequestFailureSetting("Assign") ]
+			}
+		};
+		
+		_organizationService = _organizationService.Simulate(options);
+		_organizationService.Simulated().Data().Add(_targetUser);
+		_organizationService.Simulated().Data().Add(_targetTeam);
+		_organizationService.Simulated().Data().Add(_lead);
+		
+		var assignRequest = new AssignRequest
+		{
+			Assignee = _targetUser.ToEntityReference(),
+			Target = _lead.ToEntityReference()
+		};
+		
+		var sut = () => _organizationService.Execute(assignRequest);
+		
+		sut.Should().Throw<Exception>();
+	}
+	
+	[Test]
+	public void Assign_Request_Fails_On_Specific_Record_When_Configured()
+	{
+		var options = new SimulatorOptions
+		{
+			FakeServiceFailureSettings = new FakeServiceFailureSettings
+			{
+				RequestFailureSettings = 
+					[
+						new RequestFailureSetting("Assign")
+						{
+							FailingRecords = [ _lead.Id ]
+						}
+					]
+			}
+		};
+		
+		_organizationService = _organizationService.Simulate(options);
+		_organizationService.Simulated().Data().Add(_targetUser);
+		_organizationService.Simulated().Data().Add(_targetTeam);
+		_organizationService.Simulated().Data().Add(_lead);
+		
+		var assignRequest = new AssignRequest
+		{
+			Assignee = _targetUser.ToEntityReference(),
+			Target = _lead.ToEntityReference()
+		};
+		
+		var sut = () => _organizationService.Execute(assignRequest);
+		
+		sut.Should().Throw<Exception>();
+	}
+	
+	[Test]
+	public void Assign_Request_Succeeds_When_Specific_Record_Not_Configured()
+	{
+		var options = new SimulatorOptions
+		{
+			FakeServiceFailureSettings = new FakeServiceFailureSettings
+			{
+				RequestFailureSettings = 
+				[
+					new RequestFailureSetting("Assign")
+					{
+						FailingRecords = [ Guid.NewGuid() ]
+					}
+				]
+			},
+		};
+		
+		_organizationService = _organizationService.Simulate(options);
+		_organizationService.Simulated().Data().Add(_targetUser);
+		_organizationService.Simulated().Data().Add(_targetTeam);
+		_organizationService.Simulated().Data().Add(_lead);
+		
+		var assignRequest = new AssignRequest
+		{
+			Assignee = _targetUser.ToEntityReference(),
+			Target = _lead.ToEntityReference()
+		};
+		
+		var sut = () => _organizationService.Execute(assignRequest);
+
+		sut.Should().NotThrow();
 	}
 	
 	private readonly SystemUser _targetUser = new SystemUser

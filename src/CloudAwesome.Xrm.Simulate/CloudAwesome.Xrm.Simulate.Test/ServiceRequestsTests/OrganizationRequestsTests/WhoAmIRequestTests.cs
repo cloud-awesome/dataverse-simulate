@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
 using FluentAssertions;
 using Microsoft.Crm.Sdk.Messages;
@@ -101,5 +102,36 @@ public class WhoAmIRequestTests
 		org.Should().NotBeNull();
 		org!.Id.Should().Be(_options.Organization!.Id);
 		org!.Name.Should().Be("Cloud Awesome");
+	}
+
+	[Test]
+	public void Request_Fails_When_Configured()
+	{
+		var options = new SimulatorOptions
+		{
+			AuthenticatedUser = new SystemUser
+			{
+				Id = Guid.NewGuid(),
+				FullName = "Daphne Moon"
+			},
+			BusinessUnit = new BusinessUnit
+			{
+				Id = Guid.NewGuid(),
+				Name = "Root BU"
+			},
+			Organization = new Organization
+			{
+				Id = Guid.NewGuid(),
+				Name = "Cloud Awesome"
+			},
+			FakeServiceFailureSettings = new FakeServiceFailureSettings
+			{
+				RequestFailureSettings = [ new RequestFailureSetting("WhoAmI") ]
+			}
+		};;
+		_organizationService = _organizationService.Simulate(options);
+		
+		var sut = () => _organizationService.Execute(new WhoAmIRequest());
+		sut.Should().Throw<Exception>();
 	}
 }

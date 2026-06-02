@@ -7,6 +7,8 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests.OrganizationRequests;
 
 public class WhoAmIRequestHandler: IRequestHandler
 {
+	private const string RequestMessage = "WhoAmI";
+	
 	public OrganizationResponse Handle(OrganizationRequest request, MockedEntityDataService dataService,
 		SimulatorAuditService auditService, ISimulatorOptions? options = null)
 	{
@@ -14,6 +16,8 @@ public class WhoAmIRequestHandler: IRequestHandler
 		var businessUnitId = dataService.BusinessUnit.Id;
 		var organizationId = dataService.Organization.Id;
 
+		RequestFailureHandler.Handle(options, RequestMessage, userId);
+		
 		var response = new WhoAmIResponse
 		{
 			Results = new ParameterCollection

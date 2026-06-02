@@ -2,6 +2,7 @@
 using CloudAwesome.Xrm.Simulate.DataStores;
 using FluentAssertions;
 using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Query;
 using NUnit.Framework;
 
@@ -74,6 +75,27 @@ public class RetrieveMultipleFailureTests
 		var query = new QueryByAttribute("account");
 		
 		var sut = () => _service.RetrieveMultiple(query);
+		
+		sut.Should().Throw<Exception>();
+	}
+	
+	[Test]
+	public void QueryExpression_To_Execute_Method_Fails_When_Configured()
+	{
+		var options = new SimulatorOptions
+		{
+			FakeServiceFailureSettings = new FakeServiceFailureSettings
+			{
+				RequestFailureSettings = [ new RequestFailureSetting("RetrieveMultiple") ]
+			}
+		};
+		
+		_service = _service.Simulate(options);
+		
+		var query = new QueryExpression("account");
+		var request = new RetrieveMultipleRequest { Query = query };
+		
+		var sut = () => _service.Execute(request);
 		
 		sut.Should().Throw<Exception>();
 	}
