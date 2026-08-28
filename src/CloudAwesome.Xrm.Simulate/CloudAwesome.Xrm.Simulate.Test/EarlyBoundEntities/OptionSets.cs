@@ -2820,5 +2820,33 @@ namespace CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities
 		[System.Runtime.Serialization.EnumMemberAttribute()]
 		TilesView = 1,
 	}
+	
+	/// <summary>
+	/// Value indicating whether security role is auto-assigned based on user license
+	/// </summary>
+	[System.Runtime.Serialization.DataContractAttribute()]
+	public enum SecurityRole_IsAutoAssigned
+	{
+		
+		[System.Runtime.Serialization.EnumMemberAttribute()]
+		No = 0,
+		
+		[System.Runtime.Serialization.EnumMemberAttribute()]
+		Yes = 1,
+	}
+	
+	/// <summary>
+	/// The role is inherited
+	/// </summary>
+	[System.Runtime.Serialization.DataContractAttribute()]
+	public enum IsInherited
+	{
+		
+		[System.Runtime.Serialization.EnumMemberAttribute()]
+		DirectUserBasicAccessLevelAndTeamPrivileges = 1,
+		
+		[System.Runtime.Serialization.EnumMemberAttribute()]
+		TeamPrivilegesOnly = 0,
+	}
 }
 #pragma warning restore CS1591

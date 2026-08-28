@@ -30,8 +30,4 @@
       <ProjectReference Include="..\CloudAwesome.Xrm.Simulate\CloudAwesome.Xrm.Simulate.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="EarlyBoundEntities\" />
-    </ItemGroup>
-
 </Project>
