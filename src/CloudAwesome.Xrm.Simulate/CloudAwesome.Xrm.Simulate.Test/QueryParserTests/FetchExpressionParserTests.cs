@@ -216,7 +216,8 @@ public class FetchExpressionParserTests
 
         contacts.Entities.Count.Should().Be(1);
         contacts.Entities.FirstOrDefault()?.Attributes["account.name"]
-          .Should().Be(Arthur.Account().Attributes["name"]);
+          .Should().BeOfType<AliasedValue>()
+          .Which.Value.Should().Be(Arthur.Account().Attributes["name"]);
     }
 
     [Test]

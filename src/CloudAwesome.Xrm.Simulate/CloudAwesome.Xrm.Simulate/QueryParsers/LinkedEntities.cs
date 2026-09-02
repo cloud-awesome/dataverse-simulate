@@ -25,9 +25,7 @@ public static class LinkedEntities
 
             linkedRecords = Filter.Apply(linkedEntity.LinkCriteria, linkedRecords.AsQueryable(), dataService).ToList();
             linkedRecords = Apply(linkedEntity.LinkEntities.ToList(), linkedRecords, data, dataService).ToList();
-            records = JoinEntities(records, linkedRecords, 
-                linkedEntity.LinkFromAttributeName, linkedEntity.LinkToAttributeName,
-                linkedEntity.EntityAlias).ToList();
+            records = JoinEntities(records, linkedRecords, linkedEntity).ToList();
         }
 
         return records.AsQueryable();
@@ -38,26 +36,49 @@ public static class LinkedEntities
         return value is EntityReference entityReference ? entityReference.Id : value;
     }
 
-    private static IEnumerable<Entity> JoinEntities(IEnumerable<Entity> primaryEntities, 
-        IEnumerable<Entity> linkedEntities, string primaryKey, string linkedKey, string alias)
+    private static IEnumerable<Entity> JoinEntities(IEnumerable<Entity> primaryEntities,
+        IEnumerable<Entity> linkedEntities, LinkEntity linkedEntity)
     {
         var result = from primary in primaryEntities
             join linked in linkedEntities
-                on GetJoinKeyValue(primary.Attributes[primaryKey]) equals GetJoinKeyValue(linked.Attributes[linkedKey])
-            select MergeEntities(primary, linked, alias);
+                on GetJoinKeyValue(primary.Attributes[linkedEntity.LinkFromAttributeName]) equals
+                GetJoinKeyValue(linked.Attributes[linkedEntity.LinkToAttributeName])
+            select MergeEntities(primary, linked, linkedEntity);
 
         return result;
     }
 
-    private static Entity MergeEntities(Entity primaryEntity, Entity linkedEntity, string? alias)
+    private static Entity MergeEntities(Entity primaryEntity, Entity linkedEntity, LinkEntity linkEntity)
     {
-        foreach (var attribute in linkedEntity.Attributes)
+        foreach (var attribute in GetProjectedAttributes(linkedEntity, linkEntity.Columns))
         {
-            var attributeKey = alias is null ? attribute.Key : $"{alias}.{attribute.Key}";
-            primaryEntity.Attributes[attributeKey] = attribute.Value;
+            var attributeKey = string.IsNullOrWhiteSpace(linkEntity.EntityAlias)
+                ? attribute.Key
+                : $"{linkEntity.EntityAlias}.{attribute.Key}";
+            primaryEntity.Attributes[attributeKey] = new AliasedValue(
+                linkEntity.LinkToEntityName,
+                attribute.Key,
+                attribute.Value);
         }
 
         return primaryEntity;
+    }
+
+    private static IEnumerable<KeyValuePair<string, object>> GetProjectedAttributes(Entity linkedEntity,
+        ColumnSet? columnSet)
+    {
+        if (columnSet == null || columnSet.AllColumns)
+        {
+            return linkedEntity.Attributes;
+        }
+
+        if (columnSet.Columns.Count == 0)
+        {
+            return Enumerable.Empty<KeyValuePair<string, object>>();
+        }
+
+        return linkedEntity.Attributes
+            .Where(attribute => columnSet.Columns.Contains(attribute.Key));
     }
 
 }
