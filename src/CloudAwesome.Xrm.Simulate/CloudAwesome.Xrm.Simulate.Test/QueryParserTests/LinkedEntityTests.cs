@@ -240,6 +240,31 @@ public class LinkedEntityTests
         storedSource.Contains($"{Alias}.{LinkedNameAttribute}").Should().BeFalse();
     }
 
+    [Test(Description = "Linked query results should be cloned from the stored base row so callers cannot mutate the in-memory data store through a returned row.")]
+    public void LinkedEntity_Should_Return_Cloned_Base_Entity_With_Attributes_And_FormattedValues()
+    {
+        var sourceId = Guid.NewGuid();
+        var linkedId = Guid.NewGuid();
+        var source = AddSource(linkedId, sourceId);
+        source.FormattedValues[SourceNameAttribute] = "Source row formatted";
+        AddLinked(linkedId, "Visible value");
+
+        var result = _organizationService.RetrieveMultiple(
+                BuildLinkedQuery(new ColumnSet(true), new ColumnSet(LinkedNameAttribute))).Entities
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        result.Should().NotBeSameAs(source);
+        result.LogicalName.Should().Be(SourceEntityName);
+        result.Id.Should().Be(sourceId);
+        result[SourceNameAttribute].Should().Be("Source row");
+        result.FormattedValues[SourceNameAttribute].Should().Be("Source row formatted");
+
+        result[SourceNameAttribute] = "Changed by consumer";
+        source[SourceNameAttribute].Should().Be("Source row");
+    }
+
     [Test(Description = "An inner link should return one base result for each matching linked row, preserving each linked row's aliased value.")]
     public void Inner_LinkEntity_Should_Return_One_Result_Per_Matching_Linked_Record()
     {

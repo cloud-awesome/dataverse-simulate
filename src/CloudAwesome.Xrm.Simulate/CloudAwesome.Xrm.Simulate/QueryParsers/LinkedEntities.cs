@@ -21,7 +21,9 @@ public static class LinkedEntities
                 continue;
             }
 
-            var linkedRecords = data[linkedEntity.LinkToEntityName];
+            var linkedRecords = data[linkedEntity.LinkToEntityName]
+                .Select(EntityCloner.Clone)
+                .ToList();
 
             linkedRecords = Filter.Apply(linkedEntity.LinkCriteria, linkedRecords.AsQueryable(), dataService).ToList();
             linkedRecords = Apply(linkedEntity.LinkEntities.ToList(), linkedRecords, data, dataService).ToList();

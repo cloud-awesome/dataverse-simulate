@@ -20,7 +20,10 @@ public static class QueryExpressionParser
             return Enumerable.Empty<Entity>();
         }
 
-        var records = data[query.EntityName].AsQueryable();
+        var records = data[query.EntityName]
+            .Select(EntityCloner.Clone)
+            .ToList()
+            .AsQueryable();
 
         records = Filter.Apply(query.Criteria, records, dataService);
         records = Columns.Apply(query.ColumnSet, records);
