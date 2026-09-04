@@ -49,15 +49,37 @@ internal static class EntityCloner
 
         foreach (var column in columnSet.Columns)
         {
-            projected[column] = entity[column];
+            CopyAttribute(entity, projected, column);
+        }
 
-            if (entity.FormattedValues.TryGetValue(column, out var formattedValue))
-            {
-                projected.FormattedValues[column] = formattedValue;
-            }
+        foreach (var attribute in entity.Attributes.Where(attribute => IsPrimaryIdAttribute(entity, attribute)))
+        {
+            CopyAttribute(entity, projected, attribute.Key);
+        }
+
+        foreach (var attribute in entity.Attributes.Where(attribute => attribute.Value is AliasedValue))
+        {
+            CopyAttribute(entity, projected, attribute.Key);
         }
 
         return projected;
+    }
+
+    private static void CopyAttribute(Entity source, Entity target, string attributeName)
+    {
+        target[attributeName] = source[attributeName];
+
+        if (source.FormattedValues.TryGetValue(attributeName, out var formattedValue))
+        {
+            target.FormattedValues[attributeName] = formattedValue;
+        }
+    }
+
+    private static bool IsPrimaryIdAttribute(Entity entity, KeyValuePair<string, object> attribute)
+    {
+        return attribute.Value is Guid id &&
+               id == entity.Id &&
+               attribute.Key.EndsWith("id", StringComparison.OrdinalIgnoreCase);
     }
 
     private static Entity CreateEmptyEntity(Entity entity)

@@ -199,13 +199,14 @@ public class LinkedEntityTests
     public void LinkedEntity_Should_Not_Require_Join_Column_In_Base_ColumnSet()
     {
         var linkedId = Guid.NewGuid();
-        AddSource(linkedId);
+        var source = AddSource(linkedId);
         AddLinked(linkedId, "Visible value");
 
         var query = BuildLinkedQuery(new ColumnSet(SourceNameAttribute), new ColumnSet(LinkedNameAttribute));
         var result = _organizationService.RetrieveMultiple(query).Entities.Should().ContainSingle().Subject;
 
         result.Contains(SourceLookupAttribute).Should().BeFalse();
+        result[SourceIdAttribute].Should().Be(source.Id);
         result[SourceNameAttribute].Should().Be("Source row");
         AssertAliasedValue<string>(result, LinkedNameAttribute).Should().Be("Visible value");
     }

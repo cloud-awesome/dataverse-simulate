@@ -121,10 +121,38 @@ public class QueryExpressionParserTests
         // Assert
         contacts.Entities.Count.Should().Be(1);
         contacts.Entities.FirstOrDefault()?.Attributes["firstname"].Should().Be("Arthur");
+        contacts.Entities.FirstOrDefault()?.Attributes[Contact.PrimaryIdAttribute].Should().Be(Arthur.Contact().Id);
         
         var retrieveLastName = () => 
             (contacts.Entities.FirstOrDefault()?.Attributes["lastname"]);
         retrieveLastName.Should().Throw<KeyNotFoundException>();
+    }
+
+    [Test]
+    public void Retrieve_Multiple_Returns_Primary_Id_Attribute_When_Not_In_ColumnSet()
+    {
+        var recordId = Guid.NewGuid();
+        var record = new Entity("ca_primaryprojection") { Id = recordId };
+        record["ca_primaryprojectionid"] = recordId;
+        record["ca_name"] = "Primary projection";
+        record["ca_hidden"] = "Not requested";
+
+        _organizationService.Simulated().Data().Add(record);
+
+        var query = new QueryExpression
+        {
+            EntityName = "ca_primaryprojection",
+            ColumnSet = new ColumnSet("ca_name")
+        };
+
+        var result = _organizationService.RetrieveMultiple(query).Entities
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        result.Id.Should().Be(recordId);
+        result["ca_primaryprojectionid"].Should().Be(recordId);
+        result.Contains("ca_hidden").Should().BeFalse();
     }
 
     [Test]
@@ -447,6 +475,37 @@ public class QueryExpressionParserTests
         contacts[0].FirstName.Should().Be(Siobhan.Contact().FirstName);
         contacts[1].FirstName.Should().Be(Daniel.Contact().FirstName);
     } 
+
+    [Test]
+    public void Retrieve_Multiple_Can_Order_By_Attribute_Not_Returned_In_ColumnSet()
+    {
+        var late = new Entity("ca_orderprojection") { Id = Guid.NewGuid() };
+        late["ca_name"] = "Late";
+        late["ca_sort"] = 2;
+
+        var early = new Entity("ca_orderprojection") { Id = Guid.NewGuid() };
+        early["ca_name"] = "Early";
+        early["ca_sort"] = 1;
+
+        _organizationService.Simulated().Data().Add(late);
+        _organizationService.Simulated().Data().Add(early);
+
+        var query = new QueryExpression
+        {
+            EntityName = "ca_orderprojection",
+            ColumnSet = new ColumnSet("ca_name"),
+            Orders =
+            {
+                new OrderExpression("ca_sort", OrderType.Ascending)
+            }
+        };
+
+        var results = _organizationService.RetrieveMultiple(query).Entities;
+
+        results.Select(entity => entity.GetAttributeValue<string>("ca_name"))
+            .Should().ContainInOrder("Early", "Late");
+        results.Should().OnlyContain(entity => !entity.Contains("ca_sort"));
+    }
     
     [Test]
     public void Retrieve_Multiple_Accurately_Respects_Distinct_Equals_True()
