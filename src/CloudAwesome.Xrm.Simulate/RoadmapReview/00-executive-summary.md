@@ -64,7 +64,7 @@ Add higher-value Dataverse behavior that advanced test suites need:
 
 ### Phase 3 - Project maturity
 
-Make the project easier to adopt, contribute to, and trust:
+Make the project easier to adopt and trust:
 
 - Add GitHub Actions for build, unit tests, integration test gating, package validation, code coverage, and release publishing.
 - Add package metadata, README, license, repository URL, symbol/source package generation, and deterministic versioning.
