@@ -223,7 +223,8 @@ public static class FetchExpressionParser
             LinkFromAttributeName = linkEntityNode.Attributes["from"]?.Value,
             LinkToEntityName = linkEntityNode.Attributes["name"]?.Value,
             LinkToAttributeName = linkEntityNode.Attributes["to"]?.Value,
-            EntityAlias = linkEntityNode.Attributes["alias"]?.Value
+            EntityAlias = linkEntityNode.Attributes["alias"]?.Value,
+            JoinOperator = ParseJoinOperator(linkEntityNode.Attributes["link-type"]?.Value)
         };
 
         foreach (XmlNode attrNode in linkEntityNode.SelectNodes("attribute"))
@@ -247,6 +248,17 @@ public static class FetchExpressionParser
         linkEntity.LinkCriteria = ParseFilter(linkEntityNode.SelectSingleNode("filter"));
     
         return linkEntity;
+    }
+
+    private static JoinOperator ParseJoinOperator(string? linkType)
+    {
+        return linkType?.ToLowerInvariant() switch
+        {
+            null or "" => JoinOperator.Inner,
+            "inner" => JoinOperator.Inner,
+            "outer" => JoinOperator.LeftOuter,
+            _ => throw new NotSupportedException($"FetchXML link-type '{linkType}' is not supported.")
+        };
     }
     
     private static readonly Dictionary<string, ConditionOperator> OperatorMappings = new Dictionary<string, ConditionOperator>(StringComparer.OrdinalIgnoreCase)

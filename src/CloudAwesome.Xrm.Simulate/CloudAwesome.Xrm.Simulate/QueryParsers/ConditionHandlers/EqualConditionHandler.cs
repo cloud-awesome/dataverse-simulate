@@ -12,8 +12,7 @@ public class EqualConditionHandler : IConditionHandler
     public bool Evaluate(Entity entity, ConditionExpression condition, MockedEntityDataService dataService)
     {
         var attributeValue = entity.GetAttributeValue<object>(condition.AttributeName);
-        if (attributeValue is OptionSetValue value) attributeValue = value.Value;
-        
-        return Equals(attributeValue, condition.Values[0]);
+
+        return QueryValueComparer.EqualsByDataverseValue(attributeValue, condition.Values[0]);
     }
 }

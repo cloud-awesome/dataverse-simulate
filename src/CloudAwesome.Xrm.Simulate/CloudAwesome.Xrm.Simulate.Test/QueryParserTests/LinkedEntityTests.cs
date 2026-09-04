@@ -315,6 +315,22 @@ public class LinkedEntityTests
         _organizationService.RetrieveMultiple(query).Entities.Should().BeEmpty();
     }
 
+    [Test(Description = "Unsupported QueryExpression join operators should fail clearly instead of falling back to inner join behavior.")]
+    public void Unsupported_LinkEntity_JoinOperator_Should_Throw_NotSupportedException()
+    {
+        var linkedId = Guid.NewGuid();
+        AddSource(linkedId);
+        AddLinked(linkedId, "Visible value");
+
+        var query = BuildLinkedQuery(new ColumnSet(SourceNameAttribute), new ColumnSet(LinkedNameAttribute));
+        query.LinkEntities[0].JoinOperator = JoinOperator.Exists;
+
+        var retrieve = () => _organizationService.RetrieveMultiple(query);
+
+        retrieve.Should().Throw<NotSupportedException>()
+            .WithMessage("*Exists*");
+    }
+
     [Test(Description = "Multiple links from one base row should preserve independent aliases without overwriting each other.")]
     public void Multiple_LinkEntities_Should_Preserve_Separate_Aliased_Values()
     {
