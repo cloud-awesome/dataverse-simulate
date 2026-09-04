@@ -179,6 +179,12 @@ FetchXML-specific work:
 
 After linked values become `AliasedValue`, later pipeline stages must unwrap them where appropriate.
 
+### Phase 8: Integration and Parity tests
+
+Complete the development work on the dataverse parity test scenario framework (currently in another branch) and merge.
+
+Choose suitable test scenarios to include in integration parity tests, specifically targeting various QueryBase scenarios.
+
 Required checks:
 
 1. Ordering by an aliased linked attribute should compare `AliasedValue.Value`.
