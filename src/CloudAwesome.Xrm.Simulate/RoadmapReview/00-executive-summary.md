@@ -54,7 +54,8 @@ Focus on the features most likely to unblock users moving from FakeXrmEasy or wr
 
 Add higher-value Dataverse behavior that advanced test suites need:
 
-- Plugin pipeline simulation: registered steps, stage/mode/depth, pre/post images, shared variables, parent context, transaction behavior, and cascading plugin execution.
+- Plugin pipeline simulation: registered steps, stage/mode/depth, pre/post images, shared variables, parent context, transaction behavior. 
+  - (N.B. Ensure however, that the "pipeline" remains unit-specific for when a unit queries execution context etc. We aren't, and never will, build out a cascading execution pipeline. This framework is intended for unit testing only, not trying to rebuild the dataverse execution pipeline.)
 - Metadata-aware validation: required fields, primary id/name behavior, state/status, option set validation, lookup target validation, alternate keys, formatted values, and attribute type handling.
 - Relationship metadata and cascade behavior for associate/disassociate/delete/assign.
 - Row version and optimistic concurrency behavior.
