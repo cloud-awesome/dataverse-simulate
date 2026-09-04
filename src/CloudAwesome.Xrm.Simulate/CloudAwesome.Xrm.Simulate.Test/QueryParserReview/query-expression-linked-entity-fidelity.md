@@ -158,7 +158,6 @@ Expected rules:
 1. `new ColumnSet("name")` returns only `alias.name`.
 2. `new ColumnSet(false)` returns no linked attributes, while still allowing the join to filter base rows.
 3. `new ColumnSet(true)` returns all populated attributes from the linked row as aliased values.
-4. Primary ID attributes should only be included if selected or if `AllColumns` is true.
 
 Alias behavior to confirm with an integration test before freezing:
 
