@@ -1,6 +1,6 @@
 # dataverse-simulate
 
-> A Dataverse test-double framework for isolated and in-process testing of code that depends on Dataverse APIs and plug-in services
+> A Dataverse test-double framework for isolated and in-process unit testing of code that depends on Dataverse APIs and plug-in services
 
 View [full documentation](https://docs.cloudawesome.uk/dataverse-simulate), source code on [GitHub](https://github.com/Cloud-Awesome/dataverse-simulate), and add to your project from [NuGet](https://www.nuget.org/packages/CloudAwesome.Xrm.Simulate).
 
