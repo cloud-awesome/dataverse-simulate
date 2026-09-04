@@ -19,10 +19,12 @@ The current data store is a dictionary of logical name to `List<Entity>`. That i
 
 Recommended internal model:
 
-- `SimulationContext`: current user, organization, clock, options, data store, metadata store, relationship store, security evaluator, request dispatcher, audit store, and plugin pipeline.
+- `SimulationContext`: current user, organization, clock, options, data store, metadata store, relationship store, security evaluator, request dispatcher, audit store, and plugin pipeline. (Potentially equates to the existing `SimulatorOptions`)
 - `EntityStore`: records by logical name and id, with alternate key indexes later.
 - `RelationshipStore`: relationship instances separate from `Entity.RelatedEntities`.
 - `MetadataStore`: table, attribute, relationship, option set, and state/status metadata.
+
+The above are agreed, the below need more discussion prior to implementation: 
 - `RequestPipeline`: validation, security, pre-operation processors/plugins, core operation, post-operation processors/plugins, audit, and response construction.
 - `QueryEngine`: shared internal query model for QueryExpression, FetchXML, and QueryByAttribute.
 
