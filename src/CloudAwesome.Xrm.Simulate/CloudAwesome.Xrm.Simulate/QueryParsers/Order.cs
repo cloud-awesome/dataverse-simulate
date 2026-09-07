@@ -36,17 +36,24 @@ public static class Order
             if (i == 0)
             {
                 orderedRecords = order.OrderType == OrderType.Ascending
-                    ? records.OrderBy(entity => entity.GetAttributeValue<object>(orderAttributeOrAlias))
-                    : records.OrderByDescending(entity => entity.GetAttributeValue<object>(orderAttributeOrAlias));
+                    ? records.OrderBy(entity => GetOrderValue(entity, orderAttributeOrAlias))
+                    : records.OrderByDescending(entity => GetOrderValue(entity, orderAttributeOrAlias));
             }
             else
             {
                 orderedRecords = order.OrderType == OrderType.Ascending
-                    ? orderedRecords.ThenBy(entity => entity.GetAttributeValue<object>(orderAttributeOrAlias))
-                    : orderedRecords.ThenByDescending(entity => entity.GetAttributeValue<object>(orderAttributeOrAlias));
+                    ? orderedRecords.ThenBy(entity => GetOrderValue(entity, orderAttributeOrAlias))
+                    : orderedRecords.ThenByDescending(entity => GetOrderValue(entity, orderAttributeOrAlias));
             }
         }
             
         return orderedRecords ?? records;
+    }
+
+    private static object GetOrderValue(Entity entity, string attributeName)
+    {
+        var value = entity.GetAttributeValue<object>(attributeName);
+
+        return value is AliasedValue aliasedValue ? aliasedValue.Value : value;
     }
 }

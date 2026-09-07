@@ -174,6 +174,8 @@ Maturity roadmap:
 - Transaction scope and rollback behavior.
 - Async plugin behavior as recordable simulated output, with live parity optional.
 
+(N.B. To clarify, the "plugin pipeline parity" all still relates to testing of distinct code/plugin units. This framework does not and will never implement a plugin/event in-memory registration mechanism mirroring the dataverse event pipeline. This parity is useful when (for example), code under test validates data passed through from the `ExecutionContext`, but, intentionally, we will never support plugin a (which calls Account Create) automatically triggering plugin b because it is registered on the Account Create message.)
+
 ## Parity matrix
 
 Add a generated or manually maintained matrix with statuses:

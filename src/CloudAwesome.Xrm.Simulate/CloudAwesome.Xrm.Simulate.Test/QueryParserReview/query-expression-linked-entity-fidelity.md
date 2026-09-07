@@ -158,7 +158,6 @@ Expected rules:
 1. `new ColumnSet("name")` returns only `alias.name`.
 2. `new ColumnSet(false)` returns no linked attributes, while still allowing the join to filter base rows.
 3. `new ColumnSet(true)` returns all populated attributes from the linked row as aliased values.
-4. Primary ID attributes should only be included if selected or if `AllColumns` is true.
 
 Alias behavior to confirm with an integration test before freezing:
 
@@ -179,6 +178,12 @@ FetchXML-specific work:
 ### Phase 7: Ordering, Distinct, Aggregates, And Paging
 
 After linked values become `AliasedValue`, later pipeline stages must unwrap them where appropriate.
+
+### Phase 8: Integration and Parity tests
+
+Complete the development work on the dataverse parity test scenario framework (currently in another branch) and merge.
+
+Choose suitable test scenarios to include in integration parity tests, specifically targeting various QueryBase scenarios.
 
 Required checks:
 

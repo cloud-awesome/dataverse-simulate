@@ -216,7 +216,8 @@ public class FetchExpressionParserTests
 
         contacts.Entities.Count.Should().Be(1);
         contacts.Entities.FirstOrDefault()?.Attributes["account.name"]
-          .Should().Be(Arthur.Account().Attributes["name"]);
+          .Should().BeOfType<AliasedValue>()
+          .Which.Value.Should().Be(Arthur.Account().Attributes["name"]);
     }
 
     [Test]
@@ -232,7 +233,7 @@ public class FetchExpressionParserTests
                           <attribute name=""firstname"" />
                           <attribute name=""parentcustomerid"" />
                           <order attribute=""firstname"" descending=""false"" />
-                          <link-entity name=""account"" to=""Id"" from=""parentcustomerid"" visible=""false"" link-type=""outer"" alias=""account"">
+                          <link-entity name=""account"" to=""Id"" from=""parentcustomerid"" visible=""false"" link-type=""inner"" alias=""account"">
                             <attribute name=""name"" />
                             <attribute name=""Id"" />
                             <filter type=""and"">
@@ -362,7 +363,7 @@ public class FetchExpressionParserTests
                           <attribute name=""firstname"" />
                           <attribute name=""parentcustomerid"" />
                           <order attribute=""firstname"" descending=""false"" />
-                          <link-entity name=""account"" to=""Id"" from=""parentcustomerid"" visible=""false"" link-type=""outer"" alias=""account"">
+                          <link-entity name=""account"" to=""Id"" from=""parentcustomerid"" visible=""false"" link-type=""inner"" alias=""account"">
                             <attribute name=""name"" />
                             <attribute name=""Id"" />
                             <filter type=""and"">

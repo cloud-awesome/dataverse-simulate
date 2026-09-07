@@ -152,6 +152,8 @@ Assertions:
 - Access rights responses.
 - Error messages and fault codes.
 
+The previous phases can consume OotB entities, create and tear down test data. This phase will probably require the dataverse-customisation (dvcli) to generate some customisations, including security roles etc. We still want to avoid a "gold" data set in a sandbox environment at all costs.
+
 ## CI integration
 
 Run integration tests in three modes:
