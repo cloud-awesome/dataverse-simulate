@@ -220,9 +220,9 @@ public static class FetchExpressionParser
         var linkEntity = new LinkEntity()
         {
             LinkFromEntityName = baseEntityName,
-            LinkFromAttributeName = linkEntityNode.Attributes["from"]?.Value,
+            LinkFromAttributeName = linkEntityNode.Attributes["to"]?.Value,
             LinkToEntityName = linkEntityNode.Attributes["name"]?.Value,
-            LinkToAttributeName = linkEntityNode.Attributes["to"]?.Value,
+            LinkToAttributeName = linkEntityNode.Attributes["from"]?.Value,
             EntityAlias = linkEntityNode.Attributes["alias"]?.Value,
             JoinOperator = ParseJoinOperator(linkEntityNode.Attributes["link-type"]?.Value)
         };
