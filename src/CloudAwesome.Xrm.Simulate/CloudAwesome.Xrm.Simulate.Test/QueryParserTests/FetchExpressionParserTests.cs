@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System;
 using System.Linq;
 using CloudAwesome.Xrm.Simulate.QueryParsers;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
@@ -309,6 +310,37 @@ public class FetchExpressionParserTests
       var contacts = _organizationService.RetrieveMultiple(query).Entities.Cast<Contact>().ToList();
 
       contacts.Count().Should().Be(1);
+    }
+
+    [Test(Description = "FetchXML distinct should compare the selected output attributes rather than hidden source attributes or record identity.")]
+    public void Fetch_Query_Distinct_Uses_Selected_Attributes()
+    {
+      var first = new Entity("ca_fetchdistinctprojection") { Id = Guid.NewGuid() };
+      first["ca_fetchdistinctprojectionid"] = first.Id;
+      first["ca_name"] = "Duplicate value";
+      first["ca_hidden"] = "First hidden value";
+
+      var second = new Entity("ca_fetchdistinctprojection") { Id = Guid.NewGuid() };
+      second["ca_fetchdistinctprojectionid"] = second.Id;
+      second["ca_name"] = "Duplicate value";
+      second["ca_hidden"] = "Second hidden value";
+
+      _organizationService.Simulated().Data().Add(first);
+      _organizationService.Simulated().Data().Add(second);
+
+      var fetch = @"<fetch version=""1.0"" output-format=""xml-platform"" mapping=""logical"" distinct=""true"">
+                        <entity name=""ca_fetchdistinctprojection"">
+                          <attribute name=""ca_name"" />
+                        </entity>
+                      </fetch>";
+
+      var query = new FetchExpression { Query = fetch };
+      var results = _organizationService.RetrieveMultiple(query).Entities;
+
+      results.Should().ContainSingle();
+      results[0]["ca_name"].Should().Be("Duplicate value");
+      results[0].Contains("ca_hidden").Should().BeFalse();
+      results[0].Contains("ca_fetchdistinctprojectionid").Should().BeFalse();
     }
     
     [Test]

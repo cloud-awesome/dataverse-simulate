@@ -35,7 +35,7 @@ internal static class EntityCloner
         return clone;
     }
 
-    public static Entity Project(Entity entity, ColumnSet? columnSet)
+    public static Entity Project(Entity entity, ColumnSet? columnSet, bool includePrimaryId = true)
     {
         if (columnSet == null || columnSet.AllColumns || columnSet.Columns.Count == 0)
         {
@@ -52,9 +52,12 @@ internal static class EntityCloner
             CopyAttribute(entity, projected, column);
         }
 
-        foreach (var attribute in entity.Attributes.Where(attribute => IsPrimaryIdAttribute(entity, attribute)))
+        if (includePrimaryId)
         {
-            CopyAttribute(entity, projected, attribute.Key);
+            foreach (var attribute in entity.Attributes.Where(attribute => IsPrimaryIdAttribute(entity, attribute)))
+            {
+                CopyAttribute(entity, projected, attribute.Key);
+            }
         }
 
         foreach (var attribute in entity.Attributes.Where(attribute => attribute.Value is AliasedValue))

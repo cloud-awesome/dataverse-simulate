@@ -523,6 +523,37 @@ public class QueryExpressionParserTests
 
         contacts.Count().Should().Be(1);
     }
+
+    [Test(Description = "QueryExpression distinct should compare the selected output columns rather than hidden source attributes or record identity.")]
+    public void Retrieve_Multiple_Distinct_Uses_Selected_ColumnSet()
+    {
+        var first = new Entity("ca_distinctprojection") { Id = Guid.NewGuid() };
+        first["ca_distinctprojectionid"] = first.Id;
+        first["ca_name"] = "Duplicate value";
+        first["ca_hidden"] = "First hidden value";
+
+        var second = new Entity("ca_distinctprojection") { Id = Guid.NewGuid() };
+        second["ca_distinctprojectionid"] = second.Id;
+        second["ca_name"] = "Duplicate value";
+        second["ca_hidden"] = "Second hidden value";
+
+        _organizationService.Simulated().Data().Add(first);
+        _organizationService.Simulated().Data().Add(second);
+
+        var query = new QueryExpression
+        {
+            EntityName = "ca_distinctprojection",
+            ColumnSet = new ColumnSet("ca_name"),
+            Distinct = true
+        };
+
+        var results = _organizationService.RetrieveMultiple(query).Entities;
+
+        results.Should().ContainSingle();
+        results[0]["ca_name"].Should().Be("Duplicate value");
+        results[0].Contains("ca_hidden").Should().BeFalse();
+        results[0].Contains("ca_distinctprojectionid").Should().BeFalse();
+    }
     
     [Test]
     public void Retrieve_Multiple_Accurately_Respects_Distinct_Equals_False()

@@ -29,9 +29,17 @@ public static class QueryExpressionParser
         records = LinkedEntities.Apply(query.LinkEntities.ToList(), records.ToList(), data, dataService);
         records = Aggregates.Apply(query.ColumnSet, records, query.EntityName, dataService.FiscalYearSettings);
         records = Order.Apply(query.Orders, records);
+        if (query.Distinct)
+        {
+            records = Columns.Apply(query.ColumnSet, records, includePrimaryId: false);
+        }
+
         records = Distinct.Apply(query.Distinct, records);
         records = TopCount.Apply(query.TopCount, records.ToList());
-        records = Columns.Apply(query.ColumnSet, records);
+        if (!query.Distinct)
+        {
+            records = Columns.Apply(query.ColumnSet, records);
+        }
 
         return records;
     }
