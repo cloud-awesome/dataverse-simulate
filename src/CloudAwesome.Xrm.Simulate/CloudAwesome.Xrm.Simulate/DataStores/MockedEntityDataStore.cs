@@ -7,6 +7,8 @@ internal class MockedEntityDataStore
 {
     public Dictionary<string, List<Entity>> Data { get; private set; }
 
+    internal MockedRelationshipDataStore Relationships { get; } = new();
+
     public EntityReference AuthenticatedUser { get; internal set; } = new EntityReference("systemuser", Guid.NewGuid());
 
     public EntityReference BusinessUnit { get; internal set; } = new EntityReference("businessunit", Guid.NewGuid());

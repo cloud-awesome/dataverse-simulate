@@ -185,12 +185,33 @@ public class MockedEntityDataService
         }
     }
 
+    internal IReadOnlyCollection<SimulatedRelationship> GetRelationships()
+    {
+        return _dataStore.Relationships.Get();
+    }
+
+    internal IReadOnlyCollection<SimulatedRelationship> GetRelationships(EntityReference target, Relationship relationship)
+    {
+        return _dataStore.Relationships.Get(target, relationship);
+    }
+
+    internal void Associate(EntityReference target, Relationship relationship, EntityReferenceCollection relatedEntities)
+    {
+        _dataStore.Relationships.Associate(target, relationship, relatedEntities);
+    }
+
+    internal void Disassociate(EntityReference target, Relationship relationship, EntityReferenceCollection relatedEntities)
+    {
+        _dataStore.Relationships.Disassociate(target, relationship, relatedEntities);
+    }
+
     /// <summary>
     /// Clears all data created, updated or deleted in a test and resets the in memory database to an empty set
     /// </summary>
     public void Reinitialise()
     {
         _dataStore.Data.Clear();
+        _dataStore.Relationships.Clear();
         
         this.FiscalYearSettings = new FiscalYearSettings();
         this.ExecutionContext = new PluginExecutionContextMock();
@@ -211,6 +232,7 @@ public class MockedEntityDataService
          */
         
         _dataStore.Data.Clear();
+        _dataStore.Relationships.Clear();
     }
 
     /// <summary>

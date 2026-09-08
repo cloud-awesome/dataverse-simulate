@@ -58,7 +58,9 @@ public static class OrganisationServiceSimulator
         var handlerRegistry = new RequestHandlerRegistry();
 
         handlerRegistry.RegisterHandler<CreateRequest>(new CreateRequestHandler());
+        handlerRegistry.RegisterHandler<AssociateRequest>(new AssociateRequestHandler());
         handlerRegistry.RegisterHandler<AssignRequest>(new AssignRequestHandler());
+        handlerRegistry.RegisterHandler<DisassociateRequest>(new DisassociateRequestHandler());
         handlerRegistry.RegisterHandler<RetrieveMultipleRequest>(new RetrieveMultipleHandler());
         handlerRegistry.RegisterHandler<WhoAmIRequest>(new WhoAmIRequestHandler());
         

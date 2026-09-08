@@ -22,31 +22,23 @@ public class EntityAssociator(MockedEntityDataService dataService): IEntityAssoc
                 var relationship = callInfo.Arg<Relationship>();
                 var relatedRefs = callInfo.Arg<EntityReferenceCollection>();
 
-                RequestFailureHandler.Handle(options, RequestMessage, targetId);
-                
-                // Retrieve target (will throw if entity set or record does not exist)
-                var target = dataService.Get(entityName, targetId);
-
-                // Ensure a collection exists for this relationship on the target
-                if (!target.RelatedEntities.Contains(relationship))
-                {
-                    target.RelatedEntities.Add(relationship, new EntityCollection());
-                }
-
-                var relatedCollection = target.RelatedEntities[relationship];
-
-                // For each related reference, resolve entity and add if not already present
-                foreach (var er in relatedRefs)
-                {
-                    // Will throw if related entity not found
-                    var relatedEntity = dataService.Get(er);
-
-                    // Avoid duplicates by Id
-                    if (!relatedCollection.Entities.Any(e => e.Id == relatedEntity.Id))
-                    {
-                        relatedCollection.Entities.Add(relatedEntity);
-                    }
-                }
+                this.Associate(entityName, targetId, relationship, relatedRefs, options);
             });
+    }
+
+    internal void Associate(string entityName, Guid targetId,
+        Relationship relationship, EntityReferenceCollection relatedRefs,
+        ISimulatorOptions? options = null)
+    {
+        RequestFailureHandler.Handle(options, RequestMessage, targetId);
+
+        var target = dataService.Get(entityName, targetId).ToEntityReference();
+
+        foreach (var relatedRef in relatedRefs)
+        {
+            dataService.Get(relatedRef);
+        }
+
+        dataService.Associate(target, relationship, relatedRefs);
     }
 }
