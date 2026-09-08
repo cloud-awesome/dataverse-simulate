@@ -20,7 +20,8 @@ The goal should be "Dataverse-compatible enough that a failing simulated test is
 - [x] `EntityRetriever` has a parity bug for partial-column retrieves. The all-columns branch filters by id, but the selected-column branch projects all rows and then returns `FirstOrDefault()`, so it can return the wrong record.
 - [x] `EntityUpdater` currently finds the existing entity, removes it, sets `modifiedon` on the incoming entity, then adds the old entity back. This means updates do not persist incoming attributes. It also uses `ProcessorMessage.Create` rather than update and can dereference a missing entity before throwing the intended error.
 - [x] `EntityDisassociator` is not implemented beyond failure injection.
-- [ ] `EntityCreator` needs duplicate id validation, required system field behavior, state/status defaults, relationship handling, and real Dataverse exception behavior.
+- [x] `EntityCreator` needs duplicate id validation, required system field behavior, state/status defaults, relationship handling, and real Dataverse exception behavior.
+  - `EntityCreator` delaying metadata behaviour and validation until the simulated metadata layer exists (c.f. [05-metadata-simulation](05-metadata-simulation.md)) 
 - [ ] `EntityDeleter` needs missing-table and missing-row behavior that matches live Dataverse and should account for cascading behavior once metadata exists.
 - [x] `Associate` currently stores resolved related entities in `RelatedEntities`; Dataverse does not simply mutate the target entity payload this way. The roadmap should move relationships into a relationship store driven by relationship metadata.
 
