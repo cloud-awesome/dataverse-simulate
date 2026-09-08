@@ -45,6 +45,8 @@ public sealed class EntityCreator
         
         // Pre-process
         e = this.PreProcess(e, options);
+
+        this.ValidateDuplicateId(e);
         
         // Custom processing
         var processorType = new ProcessorType(e.LogicalName, ProcessorMessage.Create);
@@ -62,8 +64,9 @@ public sealed class EntityCreator
     
     internal Entity PreProcess(Entity e, ISimulatorOptions? options)
     {
-        e.SetAttributeIfEmpty($"{e.LogicalName}id", Guid.NewGuid());
-        e.Id = (Guid)e.Attributes[$"{e.LogicalName}id"];
+        var primaryIdAttribute = $"{e.LogicalName}id";
+        e.SetAttributeIfEmpty(primaryIdAttribute, e.Id != Guid.Empty ? e.Id : Guid.NewGuid());
+        e.Id = (Guid)e.Attributes[primaryIdAttribute];
         
         e.SetAttributeIfEmpty(EntityConstants.CreatedOn, dataService.SystemTime);
         e.SetAttributeFromSourceIfPopulated(EntityConstants.CreatedOn, 
@@ -75,5 +78,14 @@ public sealed class EntityCreator
         e.SetAttributeIfEmpty(EntityConstants.OwnerId, dataService.AuthenticatedUser);
 
         return e;
+    }
+
+    private void ValidateDuplicateId(Entity e)
+    {
+        if (dataService.Get(e.LogicalName).Any(existing => existing.Id == e.Id))
+        {
+            throw new InvalidOperationException(
+                $"A record with id '{e.Id}' already exists for entity '{e.LogicalName}'.");
+        }
     }
 }

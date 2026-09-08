@@ -55,6 +55,89 @@ public class CreateTests
     }
 
     [Test]
+    public void Create_Record_With_Duplicate_Id_Should_Throw()
+    {
+        var contactId = Guid.NewGuid();
+        _organizationService.Create(new Entity(Contact.EntityLogicalName)
+        {
+            [Contact.PrimaryIdAttribute] = contactId,
+            [Contact.Fields.FirstName] = "Original"
+        });
+
+        var createDuplicate = () => _organizationService.Create(new Entity(Contact.EntityLogicalName)
+        {
+            [Contact.PrimaryIdAttribute] = contactId,
+            [Contact.Fields.FirstName] = "Duplicate"
+        });
+
+        createDuplicate.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage($"A record with id '{contactId}' already exists for entity '{Contact.EntityLogicalName}'.");
+    }
+
+    [Test]
+    public void Create_Record_With_Duplicate_Entity_Id_Should_Throw()
+    {
+        var contactId = Guid.NewGuid();
+        _organizationService.Create(new Entity(Contact.EntityLogicalName, contactId)
+        {
+            [Contact.Fields.FirstName] = "Original"
+        });
+
+        var createDuplicate = () => _organizationService.Create(new Entity(Contact.EntityLogicalName, contactId)
+        {
+            [Contact.Fields.FirstName] = "Duplicate"
+        });
+
+        createDuplicate.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage($"A record with id '{contactId}' already exists for entity '{Contact.EntityLogicalName}'.");
+    }
+
+    [Test]
+    public void Create_Record_With_Same_Id_For_Different_Entity_Should_Save_Record()
+    {
+        var id = Guid.NewGuid();
+        _organizationService.Create(new Entity(Contact.EntityLogicalName)
+        {
+            [Contact.PrimaryIdAttribute] = id
+        });
+
+        var accountId = _organizationService.Create(new Entity(Account.EntityLogicalName)
+        {
+            [Account.PrimaryIdAttribute] = id
+        });
+
+        accountId.Should().Be(id);
+        _organizationService.Simulated().Data().Get(Contact.EntityLogicalName).Should().ContainSingle();
+        _organizationService.Simulated().Data().Get(Account.EntityLogicalName).Should().ContainSingle();
+    }
+
+    [Test]
+    public void Calling_Create_Method_Via_Execute_Method_With_Duplicate_Id_Should_Throw()
+    {
+        var contactId = Guid.NewGuid();
+        _organizationService.Create(new Entity(Contact.EntityLogicalName)
+        {
+            [Contact.PrimaryIdAttribute] = contactId
+        });
+
+        var createRequest = new CreateRequest
+        {
+            Target = new Entity(Contact.EntityLogicalName)
+            {
+                [Contact.PrimaryIdAttribute] = contactId
+            }
+        };
+
+        var createDuplicate = () => _organizationService.Execute(createRequest);
+
+        createDuplicate.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage($"A record with id '{contactId}' already exists for entity '{Contact.EntityLogicalName}'.");
+    }
+
+    [Test]
     public void Create_Contact_Sets_System_DateTime_Metadata()
     {
         var mockSystemTime = new MockSystemTime(new DateTime(2020, 8, 16));

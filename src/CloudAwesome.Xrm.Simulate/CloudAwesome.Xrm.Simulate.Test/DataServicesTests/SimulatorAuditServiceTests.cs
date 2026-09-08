@@ -87,7 +87,7 @@ public class SimulatorAuditServiceTests
 		var retrievedEntity = 
 			_organizationService.Retrieve(Arthur.Contact().LogicalName, Arthur.Contact().Id, new ColumnSet());
 		
-		_organizationService.Create(Arthur.Contact());
+		_organizationService.Create(Siobhan.Contact());
 		_organizationService.Create(Arthur.Account());
 
 		var allAudits = _organizationService.Simulated().Audit().Get();
