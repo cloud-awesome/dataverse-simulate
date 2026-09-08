@@ -1,5 +1,4 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
-using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using Microsoft.Xrm.Sdk;
 using NSubstitute;
@@ -31,31 +30,21 @@ public class EntityUpdater(MockedEntityDataService dataService) : IEntityUpdater
                     .SingleOrDefault(z => z.Id == entity.Id);
                 
                 RequestFailureHandler.Handle(options, RequestMessage, entity.Id);
-                
-                var processorType = new ProcessorType(e.LogicalName, ProcessorMessage.Create);
-                if (options?.EntityProcessors?.TryGetValue(processorType, out var processor) == true)
-                {
-                    e = processor.Process(e);
-                }
-                
-                if (e != null)
-                {
-                    dataService.Delete(e);
-                }
-                else
+
+                if (e == null)
                 {
                     // TODO - Handle if the entity doesn't exist in memory
                     //      - Check the exact exception that would be thrown in .gather
                     throw new InvalidOperationException("Record not found in database ...");
                 }
                 
-                entity.Attributes[EntityConstants.ModifiedOn] = dataService.SystemTime;
-                
-                // TODO - This won't work, just deleting and re-creating.
-                //      - Need to loop through those attributes passed through,
-                //      - As only 1 attribute could be updated in the message...  
-                // Also need to handle createdon date etc... 
-                dataService.Add(e);
+                var processorType = new ProcessorType(entity.LogicalName, ProcessorMessage.Update);
+                if (options?.EntityProcessors?.TryGetValue(processorType, out var processor) == true)
+                {
+                    entity = processor.Process(entity);
+                }
+
+                dataService.Update(entity);
             });
         
     }

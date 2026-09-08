@@ -34,27 +34,28 @@ public class EntityRetriever
                 {
                     // TODO - Confirm the exception thrown by live CRM when record not found
                     entity = dataService.Get(entityName)
-                                 .SingleOrDefault(x => x.Id == id) 
+                                 .SingleOrDefault(e => e.Id == id) 
                              ?? throw new InvalidOperationException("No data for this entity");
                 }
                 else
                 {
                     // TODO - Confirm the exception thrown by live CRM when record not found
                     entity = dataService.Get(entityName)
-                                 .Select(x =>
+                                 .Where(e => e.Id == id)
+                                 .Select(record =>
                                  {
-                                     var e = new Entity(x.LogicalName) { Id = x.Id };
+                                     var e = new Entity(record.LogicalName) { Id = record.Id };
                                      foreach (var column in columnSet.Columns)
                                      {
-                                         e[column] = x[column];
+                                         e[column] = record[column];
                                      }
 
                                      // Always return the primary GUID, even if it's not requested
-                                     e[$"{x.LogicalName}id"] = x.Id; 
+                                     e[$"{record.LogicalName}id"] = record.Id; 
                     
                                      return e;
                                  })
-                                 .FirstOrDefault() 
+                                 .SingleOrDefault() 
                              ?? throw new InvalidOperationException("No data for this entity");
                 }
                     

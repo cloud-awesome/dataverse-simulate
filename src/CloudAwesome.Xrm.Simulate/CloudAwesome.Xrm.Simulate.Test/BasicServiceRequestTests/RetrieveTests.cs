@@ -60,6 +60,22 @@ public class RetrieveTests
     }
 
     [Test]
+    public void Retrieve_Existing_Record_With_Defined_ColumnSet_Filters_By_Id()
+    {
+        var secondContactId = Guid.NewGuid();
+        var secondContact = Siobhan.Contact();
+        secondContact.Id = secondContactId;
+        _organizationService.Simulated().Data().Add(secondContact);
+
+        var retrievedContact =
+            _organizationService.Retrieve("contact", secondContactId,
+                new ColumnSet(Contact.Fields.FirstName));
+
+        retrievedContact.Id.Should().Be(secondContactId);
+        retrievedContact.Attributes["firstname"].Should().Be(Siobhan.Contact().FirstName);
+    }
+
+    [Test]
     public void Retrieve_Existing_Record_Always_Returns_Primary_Guid()
     {
         var retrievedContact =
