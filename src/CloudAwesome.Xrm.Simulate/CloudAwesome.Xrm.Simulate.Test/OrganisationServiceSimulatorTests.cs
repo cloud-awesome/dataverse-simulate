@@ -101,4 +101,73 @@ public class OrganisationServiceSimulatorTests
         accounts.Count.Should().Be(1);
         leads.Count.Should().Be(0);
     }
+
+    [Test]
+    public void Simulating_Service_With_PreInitialised_Relationships_Is_Correctly_Initialised()
+    {
+        var relationship = new Relationship(Account.Fields.Account_Primary_Contact);
+        var options = new SimulatorOptions
+        {
+            InitialiseData = new Dictionary<string, List<Entity>>
+            {
+                {
+                    Contact.EntityLogicalName,
+                    [Arthur.Contact()]
+                },
+                {
+                    "account",
+                    [Arthur.Account()]
+                }
+            },
+            InitialiseRelationships =
+            [
+                new SimulatedRelationship
+                {
+                    Target = Arthur.Contact().ToEntityReference(),
+                    Relationship = relationship,
+                    RelatedEntities =
+                    [
+                        Arthur.Account().ToEntityReference()
+                    ]
+                }
+            ]
+        };
+
+        var orgService = _organizationService.Simulate(options);
+
+        orgService.Simulated().Data()
+            .GetRelationships(Arthur.Contact().ToEntityReference(), relationship)
+            .Should().ContainSingle();
+    }
+
+    [Test]
+    public void Simulating_Service_With_PreInitialised_Relationships_Should_Throw_If_Record_Does_Not_Exist()
+    {
+        var options = new SimulatorOptions
+        {
+            InitialiseData = new Dictionary<string, List<Entity>>
+            {
+                {
+                    Contact.EntityLogicalName,
+                    [Arthur.Contact()]
+                }
+            },
+            InitialiseRelationships =
+            [
+                new SimulatedRelationship
+                {
+                    Target = Arthur.Contact().ToEntityReference(),
+                    Relationship = new Relationship(Account.Fields.Account_Primary_Contact),
+                    RelatedEntities =
+                    [
+                        Arthur.Account().ToEntityReference()
+                    ]
+                }
+            ]
+        };
+
+        var simulate = () => _organizationService.Simulate(options);
+
+        simulate.Should().Throw<Exception>();
+    }
 }

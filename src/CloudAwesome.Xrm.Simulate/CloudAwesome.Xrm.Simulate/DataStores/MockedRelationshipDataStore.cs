@@ -4,14 +4,14 @@ namespace CloudAwesome.Xrm.Simulate.DataStores;
 
 internal sealed class MockedRelationshipDataStore
 {
-    private readonly HashSet<SimulatedRelationship> _relationships = new();
+    private readonly HashSet<StoredRelationship> _relationships = new();
 
-    internal IReadOnlyCollection<SimulatedRelationship> Get()
+    internal IReadOnlyCollection<StoredRelationship> Get()
     {
         return _relationships.ToList();
     }
 
-    internal IReadOnlyCollection<SimulatedRelationship> Get(EntityReference target, Relationship relationship)
+    internal IReadOnlyCollection<StoredRelationship> Get(EntityReference target, Relationship relationship)
     {
         return _relationships
             .Where(r =>
@@ -21,10 +21,7 @@ internal sealed class MockedRelationshipDataStore
             .ToList();
     }
 
-    internal void Associate(
-        EntityReference target,
-        Relationship relationship,
-        IEnumerable<EntityReference> relatedEntities)
+    internal void Associate( EntityReference target, Relationship relationship, IEnumerable<EntityReference> relatedEntities)
     {
         foreach (var relatedEntity in relatedEntities)
         {
@@ -48,12 +45,12 @@ internal sealed class MockedRelationshipDataStore
         _relationships.Clear();
     }
 
-    private static SimulatedRelationship ToStoredRelationship(
+    private static StoredRelationship ToStoredRelationship(
         EntityReference target,
         Relationship relationship,
         EntityReference relatedEntity)
     {
-        return new SimulatedRelationship(
+        return new StoredRelationship(
             relationship.SchemaName,
             relationship.PrimaryEntityRole,
             target.LogicalName,
@@ -62,7 +59,7 @@ internal sealed class MockedRelationshipDataStore
             relatedEntity.Id);
     }
 
-    private static bool RelationshipMatches(SimulatedRelationship stored, Relationship relationship)
+    private static bool RelationshipMatches(StoredRelationship stored, Relationship relationship)
     {
         return stored.SchemaName == relationship.SchemaName &&
                stored.PrimaryEntityRole == relationship.PrimaryEntityRole;

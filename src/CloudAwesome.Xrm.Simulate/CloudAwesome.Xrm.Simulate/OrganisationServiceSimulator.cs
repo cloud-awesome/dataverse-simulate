@@ -34,6 +34,7 @@ public static class OrganisationServiceSimulator
         new OrganisationRequestExecutor(localDataService, auditService, organizationRequestRegistry).MockRequest(service, options);
         
         SimulatorOptionsProcessor.InitialiseMockedData(localDataService, options);
+        SimulatorOptionsProcessor.InitialiseMockedRelationships(localDataService, options);
         SimulatorOptionsProcessor.ConfigureUsersBusinessUnit(localDataService, options);
         SimulatorOptionsProcessor.ConfigureOrganization(localDataService, options);
         SimulatorOptionsProcessor.ConfigureAuthenticatedUser(localDataService, options);

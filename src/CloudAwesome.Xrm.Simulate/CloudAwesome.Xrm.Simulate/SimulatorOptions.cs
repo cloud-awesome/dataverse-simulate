@@ -23,6 +23,8 @@ public class SimulatorOptions: ISimulatorOptions
     public FakeServiceFailureSettings? FakeServiceFailureSettings { get; set; }
     
     public Dictionary<string, List<Entity>>? InitialiseData { get; set; }
+
+    public List<SimulatedRelationship>? InitialiseRelationships { get; set; }
     
     public ISecurityModel? SimulatedSecurityModel { get; set; }
 

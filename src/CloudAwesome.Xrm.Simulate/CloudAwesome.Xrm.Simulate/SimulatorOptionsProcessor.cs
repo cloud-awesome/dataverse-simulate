@@ -49,6 +49,20 @@ public static class SimulatorOptionsProcessor
 			dataService.Add(options.InitialiseData);
 		}
 	}
+
+	internal static void InitialiseMockedRelationships(MockedEntityDataService dataService,
+		ISimulatorOptions? options)
+	{
+		if (options?.InitialiseRelationships is null)
+		{
+			return;
+		}
+
+		foreach (var relationship in options.InitialiseRelationships)
+		{
+			dataService.SetRelationship(relationship);
+		}
+	}
 	
 	internal static EntityReference ConfigureUsersBusinessUnit(MockedEntityDataService dataService,
 		ISimulatorOptions? options)
