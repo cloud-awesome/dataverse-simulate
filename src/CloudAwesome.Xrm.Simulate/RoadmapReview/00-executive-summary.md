@@ -42,7 +42,7 @@ Before adding large new features, fix known incorrect behavior in existing surfa
 
 ### Phase 1 - Core parity
 
-Focus on the features most likely to unblock users moving from FakeXrmEasy or writing plugin/integration unit tests:
+Focus on the features most likely to unblock users writing plugin/integration unit tests:
 
 - Complete common `IOrganizationService` method parity: `Associate`, `Disassociate`, CRUD, retrieve, `RetrieveMultiple`, and audit behavior.
 - Add first-class handlers for high-value `OrganizationRequest` types: `RetrieveRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest`, `UpsertRequest`, `ExecuteMultipleRequest`, `ExecuteTransactionRequest`, `SetStateRequest`, `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest`, `AddMembersTeamRequest`, `RemoveMembersTeamRequest`, queue requests, and metadata retrieval requests.
