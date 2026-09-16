@@ -30,8 +30,8 @@ public sealed class EntityCreator
         
         if (!PermissionsCalculator.ValidateEntityPermission(e.LogicalName, RequestMessage, options))
         {
-            // Exactly which type of error is thrown by crm?
-            throw new Exception("Tester...");
+            throw new InvalidOperationException(
+                $"Create permission denied for entity '{e.LogicalName}' by the simulated security model.");
         }
         
         var entityMetadata = MetadataValidator.ValidateCreate(e, options);

@@ -37,21 +37,18 @@ public class EntityRetriever
                 
         if (dataService.Get(entityName).Count == 0)
         {
-            // TODO - Confirm the exception thrown by live CRM
-            throw new InvalidOperationException("No data for this entity");
+            throw DataverseServiceFaults.ObjectDoesNotExist(entityName, id);
         }
                 
         Entity entity;
         if (columnSet.AllColumns)
         {
-            // TODO - Confirm the exception thrown by live CRM when record not found
             entity = dataService.Get(entityName)
                          .SingleOrDefault(e => e.Id == id) 
-                     ?? throw new InvalidOperationException("No data for this entity");
+                     ?? throw DataverseServiceFaults.ObjectDoesNotExist(entityName, id);
         }
         else
         {
-            // TODO - Confirm the exception thrown by live CRM when record not found
             entity = dataService.Get(entityName)
                          .Where(e => e.Id == id)
                          .Select(record =>
@@ -71,7 +68,7 @@ public class EntityRetriever
                              return e;
                          })
                          .SingleOrDefault() 
-                     ?? throw new InvalidOperationException("No data for this entity");
+                     ?? throw DataverseServiceFaults.ObjectDoesNotExist(entityName, id);
         }
                     
         auditService.Add(RequestMessage, entity.LogicalName, entity.Id);

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ServiceModel;
 using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
 using FluentAssertions;
@@ -169,6 +170,27 @@ public class AssignRequestTests
 		sut.Should().NotThrow();
 	}
 	
+	[Test]
+	public void Assign_Missing_Target_Throws_Dataverse_Not_Found_Fault()
+	{
+		var missingLeadId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+		var assignRequest = new AssignRequest
+		{
+			Assignee = _targetUser.ToEntityReference(),
+			Target = new EntityReference(Lead.EntityLogicalName, missingLeadId)
+		};
+
+		var assignMissingLead = () => _organizationService.Execute(assignRequest);
+
+		var exception = assignMissingLead.Should()
+			.Throw<FaultException<OrganizationServiceFault>>()
+			.WithMessage("Entity 'Lead' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist")
+			.Which;
+
+		exception.Detail.ErrorCode.Should().Be(-2147220969);
+		exception.Detail.Message.Should().Be("Entity 'Lead' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist");
+	}
+
 	private readonly SystemUser _targetUser = new SystemUser
 	{
 		Id = Guid.NewGuid(),

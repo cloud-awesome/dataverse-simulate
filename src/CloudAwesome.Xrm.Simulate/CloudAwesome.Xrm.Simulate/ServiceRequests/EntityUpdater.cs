@@ -42,9 +42,7 @@ public class EntityUpdater(MockedEntityDataService dataService) : IEntityUpdater
 
         if (e == null)
         {
-            // TODO - Handle if the entity doesn't exist in memory
-            //      - Check the exact exception that would be thrown in .gather
-            throw new InvalidOperationException("Record not found in database ...");
+            throw DataverseServiceFaults.ObjectDoesNotExist(entity.LogicalName, entity.Id);
         }
                 
         var processorType = new ProcessorType(entity.LogicalName, ProcessorMessage.Update);

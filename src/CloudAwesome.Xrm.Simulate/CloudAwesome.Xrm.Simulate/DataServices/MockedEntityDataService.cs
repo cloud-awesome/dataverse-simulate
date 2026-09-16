@@ -1,6 +1,7 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.ServiceProviders;
+using CloudAwesome.Xrm.Simulate.ServiceRequests;
 using Microsoft.Xrm.Sdk;
 
 namespace CloudAwesome.Xrm.Simulate.DataServices;
@@ -89,14 +90,14 @@ public class MockedEntityDataService
         var entities = this.Get(logicalName);
         if (entities.Count == 0)
         {
-            throw new Exception("Entity collection not found");
+            throw DataverseServiceFaults.ObjectDoesNotExist(logicalName, id);
         }
         
         var entity = entities.SingleOrDefault(x => x.Id == id);
 
         if (entity is null)
         {
-            throw new Exception("Entity not found");
+            throw DataverseServiceFaults.ObjectDoesNotExist(logicalName, id);
         }
 
         return entity;
@@ -110,14 +111,14 @@ public class MockedEntityDataService
 
         if (entities.Count == 0)
         {
-            throw new Exception($"Entity collection '{logicalName}' not found");
+            throw DataverseServiceFaults.ObjectDoesNotExist(logicalName, id);
         }
 
         var entity = entities.SingleOrDefault(x => x.Id == id);
 
         if (entity is null)
         {
-            throw new Exception($"{logicalName} with id '{id}' not found");
+            throw DataverseServiceFaults.ObjectDoesNotExist(logicalName, id);
         }
 
         if (entity is not T typedEntity)
@@ -146,9 +147,7 @@ public class MockedEntityDataService
 
         if (entity == null)
         {
-            // TODO - Handle if the entity doesn't exist in memory
-            //      - Check the exact exception that would be thrown in .gather
-            throw new InvalidOperationException("Record not found in database ...");
+            throw DataverseServiceFaults.ObjectDoesNotExist(logicalName, id);
         }
         
         _dataStore.Data[logicalName].Remove(entity);
@@ -176,12 +175,12 @@ public class MockedEntityDataService
             }
             else
             {
-                throw new Exception("Entity not found.");
+                throw DataverseServiceFaults.ObjectDoesNotExist(entity.LogicalName, entity.Id);
             }
         }
         else
         {
-            throw new Exception("Entity collection not found.");
+            throw DataverseServiceFaults.ObjectDoesNotExist(entity.LogicalName, entity.Id);
         }
     }
 

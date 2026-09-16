@@ -33,6 +33,8 @@ public class CreateRequestHandlerTests
 		_organizationService = _organizationService.Simulate(options);
 
 		var sut = () => _organizationService.Create(Arthur.Contact());
-		sut.Should().Throw<Exception>();
+		sut.Should()
+			.Throw<InvalidOperationException>()
+			.WithMessage("Create permission denied for entity 'contact' by the simulated security model.");
 	}
 }

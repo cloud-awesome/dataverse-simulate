@@ -2,14 +2,12 @@
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using Microsoft.Xrm.Sdk;
 using NSubstitute;
-using System.ServiceModel;
 
 namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 
 public sealed class EntityDeleter(MockedEntityDataService dataService) : IEntityDeleter
 {
     private const string RequestMessage = "Delete";
-    private const int ObjectDoesNotExistErrorCode = -2147220969;
     
     public void MockRequest(IOrganizationService organizationService, 
         ISimulatorOptions? options = null)
@@ -41,20 +39,6 @@ public sealed class EntityDeleter(MockedEntityDataService dataService) : IEntity
             return;
         }
 
-        var message = $"Entity '{GetEntityDisplayName(logicalName)}' With Id = {id} Does Not Exist";
-        var fault = new OrganizationServiceFault
-        {
-            ErrorCode = ObjectDoesNotExistErrorCode,
-            Message = message
-        };
-
-        throw new FaultException<OrganizationServiceFault>(fault, new FaultReason(message));
-    }
-
-    private static string GetEntityDisplayName(string logicalName)
-    {
-        return string.IsNullOrEmpty(logicalName)
-            ? logicalName
-            : char.ToUpperInvariant(logicalName[0]) + logicalName[1..];
+        throw DataverseServiceFaults.ObjectDoesNotExist(logicalName, id);
     }
 }

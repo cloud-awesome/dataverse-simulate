@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ServiceModel;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
 using CloudAwesome.Xrm.Simulate.Test.TestEntities;
 using FluentAssertions;
@@ -88,5 +89,22 @@ public class RetrieveTests
         missingAttribute.Should().NotThrow<KeyNotFoundException>();
         
         retrievedContact.Attributes["contactid"].Should().Be(_contactId);
+    }
+
+    [Test]
+    public void Retrieve_Missing_Record_Throws_Dataverse_Not_Found_Fault()
+    {
+        var missingContactId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+
+        var retrieveMissingContact = () =>
+            _organizationService.Retrieve(Contact.EntityLogicalName, missingContactId, new ColumnSet(true));
+
+        var exception = retrieveMissingContact.Should()
+            .Throw<FaultException<OrganizationServiceFault>>()
+            .WithMessage("Entity 'Contact' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist")
+            .Which;
+
+        exception.Detail.ErrorCode.Should().Be(-2147220969);
+        exception.Detail.Message.Should().Be("Entity 'Contact' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist");
     }
 }
