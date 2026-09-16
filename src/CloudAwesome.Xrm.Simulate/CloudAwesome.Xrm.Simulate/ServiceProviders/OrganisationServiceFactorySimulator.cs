@@ -7,9 +7,10 @@ namespace CloudAwesome.Xrm.Simulate.ServiceProviders;
 
 public static class OrganisationServiceFactorySimulator
 {
-    private static readonly IOrganizationService Service = null!;
-    
-    public static IOrganizationServiceFactory? Create(MockedEntityDataService dataService, ISimulatorOptions? options)
+    public static IOrganizationServiceFactory? Create(
+        MockedEntityDataService dataService,
+        SimulatorAuditService auditService,
+        ISimulatorOptions? options)
     {
         if (dataService.FakeServiceFailureSettings is { OrganizationServiceFactory: true })
         {
@@ -19,7 +20,10 @@ public static class OrganisationServiceFactorySimulator
         var serviceFactory = Substitute.For<IOrganizationServiceFactory>();
 
         serviceFactory.CreateOrganizationService(Arg.Any<Guid>())
-            .Returns(x => Service.Simulate(options, dataService));
+            .Returns(x => OrganisationServiceSimulator.SimulateWithExistingState(
+                options,
+                dataService,
+                auditService));
 
         return serviceFactory;
     }

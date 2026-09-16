@@ -6,7 +6,9 @@ using NSubstitute;
 
 namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 
-public class EntityUpdater(MockedEntityDataService dataService) : IEntityUpdater
+public class EntityUpdater(
+    MockedEntityDataService dataService,
+    SimulatorAuditService auditService) : IEntityUpdater
 {
     private const string RequestMessage = "Update";
     
@@ -55,5 +57,6 @@ public class EntityUpdater(MockedEntityDataService dataService) : IEntityUpdater
         }
 
         dataService.Update(entity);
+        auditService.Add(RequestMessage, entity.LogicalName, entity.Id);
     }
 }

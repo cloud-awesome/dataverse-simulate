@@ -78,8 +78,7 @@ public sealed class EntityCreator
     {
         if (dataService.Get(e.LogicalName).Any(existing => existing.Id == e.Id))
         {
-            throw new InvalidOperationException(
-                $"A record with id '{e.Id}' already exists for entity '{e.LogicalName}'.");
+            throw DataverseServiceFaults.DuplicateKey();
         }
     }
 }

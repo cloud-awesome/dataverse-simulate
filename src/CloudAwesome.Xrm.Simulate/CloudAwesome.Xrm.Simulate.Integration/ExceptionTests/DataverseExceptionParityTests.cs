@@ -15,6 +15,7 @@ namespace CloudAwesome.Xrm.Simulate.Gather;
 public sealed class DataverseExceptionParityTests : IntegrationBaseFixture
 {
     private const string AccountLogicalName = "account";
+    private const string AccountIdAttribute = "accountid";
     private const string AccountNameAttribute = "name";
     private static readonly Guid MissingAccountId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
@@ -76,6 +77,25 @@ public sealed class DataverseExceptionParityTests : IntegrationBaseFixture
             }));
     }
 
+    [Test]
+    public void Create_Duplicate_Id_Should_Match_Live_Dataverse_Fault()
+    {
+        AssertDuplicateCreateExceptionParity(
+            nameof(Create_Duplicate_Id_Should_Match_Live_Dataverse_Fault),
+            (service, id) => service.Create(Account(id, "Duplicate Account")));
+    }
+
+    [Test]
+    public void CreateRequest_Duplicate_Id_Should_Match_Live_Dataverse_Fault()
+    {
+        AssertDuplicateCreateExceptionParity(
+            nameof(CreateRequest_Duplicate_Id_Should_Match_Live_Dataverse_Fault),
+            (service, id) => service.Execute(new CreateRequest
+            {
+                Target = Account(id, "Duplicate Account")
+            }));
+    }
+
     private static void AssertMissingRecordExceptionParity(
         string scenarioName,
         Action<IOrganizationService> act)
@@ -84,6 +104,32 @@ public sealed class DataverseExceptionParityTests : IntegrationBaseFixture
         {
             Name = scenarioName,
             Act = service => CaptureFault(service, act)
+        };
+
+        DataverseParityHarness.Execute(scenario);
+    }
+
+    private static void AssertDuplicateCreateExceptionParity(
+        string scenarioName,
+        Action<IOrganizationService, Guid> act)
+    {
+        var duplicateAccountId = Guid.Empty;
+        var scenario = new DataverseParityScenario<DataverseFaultSnapshot>
+        {
+            Name = scenarioName,
+            ArrangeLive = context =>
+            {
+                duplicateAccountId = Guid.NewGuid();
+                context.Service.Create(Account(duplicateAccountId, "Original Account"));
+                context.Cleanup.TrackForDelete(AccountLogicalName, duplicateAccountId);
+            },
+            ArrangeSimulated = context =>
+            {
+                context.Simulation.Data().Add(Account(duplicateAccountId, "Original Account"));
+            },
+            Act = service => CaptureFault(
+                service,
+                serviceUnderTest => act(serviceUnderTest, duplicateAccountId))
         };
 
         DataverseParityHarness.Execute(scenario);
@@ -116,6 +162,15 @@ public sealed class DataverseExceptionParityTests : IntegrationBaseFixture
     private static EntityReference MissingAccountReference()
     {
         return new EntityReference(AccountLogicalName, MissingAccountId);
+    }
+
+    private static Entity Account(Guid id, string name)
+    {
+        return new Entity(AccountLogicalName, id)
+        {
+            [AccountIdAttribute] = id,
+            [AccountNameAttribute] = name
+        };
     }
 
     private sealed record DataverseFaultSnapshot(

@@ -2,6 +2,7 @@
 using CloudAwesome.Xrm.Simulate.Test.TestEntities;
 using FluentAssertions;
 using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Query;
 using NUnit.Framework;
 
@@ -77,6 +78,51 @@ public class SimulatorAuditServiceTests
 		audit?.Id.Should().Be(retrievedEntity.Id);
 		audit?.Message.Should().Be("Retrieve");
 		audit?.EntityLogicalName.Should().Be(retrievedEntity.LogicalName);
+	}
+
+	[Test]
+	public void Update_Request_Should_Add_Single_Audit_Record()
+	{
+		var contact = Arthur.Contact();
+		_organizationService.Simulated().Data().Add(contact);
+
+		_organizationService.Update(new Entity(contact.LogicalName, contact.Id)
+		{
+			["firstname"] = "Updated"
+		});
+
+		var audits = _organizationService.Simulated().Audit().Get();
+
+		audits.Count.Should().Be(1);
+		var audit = audits.SingleOrDefault();
+
+		audit?.Id.Should().Be(contact.Id);
+		audit?.Message.Should().Be("Update");
+		audit?.EntityLogicalName.Should().Be(contact.LogicalName);
+	}
+
+	[Test]
+	public void UpdateRequest_Should_Add_Single_Audit_Record()
+	{
+		var contact = Arthur.Contact();
+		_organizationService.Simulated().Data().Add(contact);
+
+		_organizationService.Execute(new UpdateRequest
+		{
+			Target = new Entity(contact.LogicalName, contact.Id)
+			{
+				["firstname"] = "Updated"
+			}
+		});
+
+		var audits = _organizationService.Simulated().Audit().Get();
+
+		audits.Count.Should().Be(1);
+		var audit = audits.SingleOrDefault();
+
+		audit?.Id.Should().Be(contact.Id);
+		audit?.Message.Should().Be("Update");
+		audit?.EntityLogicalName.Should().Be(contact.LogicalName);
 	}
 	
 	[Test]

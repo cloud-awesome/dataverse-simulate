@@ -6,6 +6,7 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 internal static class DataverseServiceFaults
 {
 	internal const int ObjectDoesNotExistErrorCode = -2147220969;
+	internal const int DuplicateKeyErrorCode = -2147220937;
 
 	internal static FaultException<OrganizationServiceFault> ObjectDoesNotExist(
 		string logicalName,
@@ -20,6 +21,18 @@ internal static class DataverseServiceFaults
 		var fault = new OrganizationServiceFault
 		{
 			ErrorCode = ObjectDoesNotExistErrorCode,
+			Message = message
+		};
+
+		return new FaultException<OrganizationServiceFault>(fault, new FaultReason(message));
+	}
+
+	internal static FaultException<OrganizationServiceFault> DuplicateKey()
+	{
+		const string message = "Cannot insert duplicate key.";
+		var fault = new OrganizationServiceFault
+		{
+			ErrorCode = DuplicateKeyErrorCode,
 			Message = message
 		};
 
