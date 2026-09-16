@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ServiceModel;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.ServiceRequests;
 using FluentAssertions;
@@ -76,16 +77,22 @@ public class UpdateTests
     }
 
     [Test]
-    public void Update_Missing_Record_Throws_Record_Not_Found_Exception()
+    public void Update_Missing_Record_Throws_Dataverse_Not_Found_Fault()
     {
-        var updateMissingAccount = () => _organizationService.Update(new Entity(AccountLogicalName, Guid.NewGuid())
+        var missingAccountId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+
+        var updateMissingAccount = () => _organizationService.Update(new Entity(AccountLogicalName, missingAccountId)
         {
             [NameAttribute] = "Updated Account"
         });
 
-        updateMissingAccount.Should()
-            .Throw<InvalidOperationException>()
-            .WithMessage("Record not found in database ...");
+        var exception = updateMissingAccount.Should()
+            .Throw<FaultException<OrganizationServiceFault>>()
+            .WithMessage("Entity 'account' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist")
+            .Which;
+
+        exception.Detail.ErrorCode.Should().Be(-2147220969);
+        exception.Detail.Message.Should().Be("Entity 'account' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist");
     }
 
     private sealed class AccountOnUpdateProcessor : IEntityProcessor

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.ServiceModel;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.ServiceRequests;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
@@ -71,8 +72,9 @@ public class CreateTests
         });
 
         createDuplicate.Should()
-            .Throw<InvalidOperationException>()
-            .WithMessage($"A record with id '{contactId}' already exists for entity '{Contact.EntityLogicalName}'.");
+            .Throw<FaultException<OrganizationServiceFault>>()
+            .WithMessage("Cannot insert duplicate key.")
+            .Which.Detail.ErrorCode.Should().Be(-2147220937);
     }
 
     [Test]
@@ -90,8 +92,9 @@ public class CreateTests
         });
 
         createDuplicate.Should()
-            .Throw<InvalidOperationException>()
-            .WithMessage($"A record with id '{contactId}' already exists for entity '{Contact.EntityLogicalName}'.");
+            .Throw<FaultException<OrganizationServiceFault>>()
+            .WithMessage("Cannot insert duplicate key.")
+            .Which.Detail.ErrorCode.Should().Be(-2147220937);
     }
 
     [Test]
@@ -133,8 +136,9 @@ public class CreateTests
         var createDuplicate = () => _organizationService.Execute(createRequest);
 
         createDuplicate.Should()
-            .Throw<InvalidOperationException>()
-            .WithMessage($"A record with id '{contactId}' already exists for entity '{Contact.EntityLogicalName}'.");
+            .Throw<FaultException<OrganizationServiceFault>>()
+            .WithMessage("Cannot insert duplicate key.")
+            .Which.Detail.ErrorCode.Should().Be(-2147220937);
     }
 
     [Test]

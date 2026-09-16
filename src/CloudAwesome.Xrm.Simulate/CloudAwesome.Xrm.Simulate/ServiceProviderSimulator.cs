@@ -43,7 +43,10 @@ public static class ServiceProviderSimulator
                     _ when argType == typeof(IPluginExecutionContext) =>
                         PluginExecutionContextSimulator.Create(context.DataService, localOptions),
                     _ when argType == typeof(IOrganizationServiceFactory) =>
-                        OrganisationServiceFactorySimulator.Create(context.DataService, localOptions),
+                        OrganisationServiceFactorySimulator.Create(
+                            context.DataService,
+                            context.SimulatorAuditService,
+                            localOptions),
                     _ when argType == typeof(ITracingService) =>
                         TracingServiceSimulator.Create(context.DataService, context.LoggingService, localOptions),
                     _ when argType == typeof(ILogger) =>

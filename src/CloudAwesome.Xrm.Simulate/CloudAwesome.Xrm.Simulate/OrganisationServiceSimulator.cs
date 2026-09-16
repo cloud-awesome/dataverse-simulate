@@ -15,34 +15,57 @@ public static class OrganisationServiceSimulator
     public static IOrganizationService Simulate(this IOrganizationService organizationService, 
         ISimulatorOptions? options = null, MockedEntityDataService? dataService = null)
     {
+        return SimulateCore(options, dataService, auditService: null, initialiseState: true);
+    }
+
+    internal static IOrganizationService SimulateWithExistingState(
+        ISimulatorOptions? options,
+        MockedEntityDataService dataService,
+        SimulatorAuditService auditService)
+    {
+        return SimulateCore(options, dataService, auditService, initialiseState: false);
+    }
+
+    private static IOrganizationService SimulateCore(
+        ISimulatorOptions? options,
+        MockedEntityDataService? dataService,
+        SimulatorAuditService? auditService,
+        bool initialiseState)
+    {
         var localOptions = options ?? new SimulatorOptions();
         var localDataService = dataService ?? new MockedEntityDataService();
-        var auditService = new SimulatorAuditService();
+        var localAuditService = auditService ?? new SimulatorAuditService();
         var service = Substitute.For<IOrganizationService>();
-        
-        localDataService.Reinitialise();
-        auditService.Clear();
 
-        new EntityCreator(localDataService, auditService).MockRequest(service, localOptions);
-        new EntityRetriever(localDataService, auditService).MockRequest(service, localOptions);
+        if (initialiseState)
+        {
+            localDataService.Reinitialise();
+            localAuditService.Clear();
+        }
+
+        new EntityCreator(localDataService, localAuditService).MockRequest(service, localOptions);
+        new EntityRetriever(localDataService, localAuditService).MockRequest(service, localOptions);
         new EntityMultipleRetriever(localDataService).MockRequest(service, localOptions);
-        new EntityUpdater(localDataService).MockRequest(service, localOptions);
+        new EntityUpdater(localDataService, localAuditService).MockRequest(service, localOptions);
         new EntityDeleter(localDataService).MockRequest(service, localOptions);
         new EntityAssociator(localDataService).MockRequest(service, localOptions);
         new EntityDisassociator(localDataService).MockRequest(service, localOptions);
 
         var organizationRequestRegistry = RegisterServiceRequests();
-        new OrganisationRequestExecutor(localDataService, auditService, organizationRequestRegistry).MockRequest(service, localOptions);
+        new OrganisationRequestExecutor(localDataService, localAuditService, organizationRequestRegistry).MockRequest(service, localOptions);
+
+        if (initialiseState)
+        {
+            SimulatorOptionsProcessor.InitialiseMockedData(localDataService, localOptions);
+            SimulatorOptionsProcessor.InitialiseMockedRelationships(localDataService, localOptions);
+            SimulatorOptionsProcessor.ConfigureUsersBusinessUnit(localDataService, localOptions);
+            SimulatorOptionsProcessor.ConfigureOrganization(localDataService, localOptions);
+            SimulatorOptionsProcessor.ConfigureAuthenticatedUser(localDataService, localOptions);
+            SimulatorOptionsProcessor.SetSystemTime(localDataService, localOptions);
+            SimulatorOptionsProcessor.ConfigureFiscalYearSettings(localDataService, localOptions);
+        }
         
-        SimulatorOptionsProcessor.InitialiseMockedData(localDataService, localOptions);
-        SimulatorOptionsProcessor.InitialiseMockedRelationships(localDataService, localOptions);
-        SimulatorOptionsProcessor.ConfigureUsersBusinessUnit(localDataService, localOptions);
-        SimulatorOptionsProcessor.ConfigureOrganization(localDataService, localOptions);
-        SimulatorOptionsProcessor.ConfigureAuthenticatedUser(localDataService, localOptions);
-        SimulatorOptionsProcessor.SetSystemTime(localDataService, localOptions);
-        SimulatorOptionsProcessor.ConfigureFiscalYearSettings(localDataService, localOptions);
-        
-        RegisterSimulation(service, localDataService, auditService, organizationRequestRegistry, localOptions);
+        RegisterSimulation(service, localDataService, localAuditService, organizationRequestRegistry, localOptions);
         
         return service;
     }

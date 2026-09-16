@@ -27,6 +27,18 @@ public class RequestHandlerRegistry
 
 	public IRequestHandler GetHandler(OrganizationRequest request)
 	{
-		return _handlers[request.GetType()];
+		var requestType = request.GetType();
+		if (_handlers.TryGetValue(requestType, out var handler))
+		{
+			return handler;
+		}
+
+		var requestName = string.IsNullOrWhiteSpace(request.RequestName)
+			? "<not set>"
+			: request.RequestName;
+
+		throw new NotSupportedException(
+			$"OrganizationRequest type '{requestType.Name}' with request name '{requestName}' is not supported by CloudAwesome.Xrm.Simulate. " +
+			"Register a custom organization request handler with Simulated().CustomOrgRequests().Add<TRequest>() to handle this request in tests.");
 	}
 }

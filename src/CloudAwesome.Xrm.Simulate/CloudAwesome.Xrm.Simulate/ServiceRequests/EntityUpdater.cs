@@ -6,7 +6,9 @@ using NSubstitute;
 
 namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 
-public class EntityUpdater(MockedEntityDataService dataService) : IEntityUpdater
+public class EntityUpdater(
+    MockedEntityDataService dataService,
+    SimulatorAuditService auditService) : IEntityUpdater
 {
     private const string RequestMessage = "Update";
     
@@ -42,9 +44,10 @@ public class EntityUpdater(MockedEntityDataService dataService) : IEntityUpdater
 
         if (e == null)
         {
-            // TODO - Handle if the entity doesn't exist in memory
-            //      - Check the exact exception that would be thrown in .gather
-            throw new InvalidOperationException("Record not found in database ...");
+            throw DataverseServiceFaults.ObjectDoesNotExist(
+                entity.LogicalName,
+                entity.Id,
+                DataverseFaultEntityNameFormat.LogicalName);
         }
                 
         var processorType = new ProcessorType(entity.LogicalName, ProcessorMessage.Update);
@@ -54,5 +57,6 @@ public class EntityUpdater(MockedEntityDataService dataService) : IEntityUpdater
         }
 
         dataService.Update(entity);
+        auditService.Add(RequestMessage, entity.LogicalName, entity.Id);
     }
 }

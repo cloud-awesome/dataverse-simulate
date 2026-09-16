@@ -54,7 +54,7 @@ This leaves a large surface uncovered. Priority requests:
 
 Unsupported requests should not fall through to a raw dictionary lookup. Add one of these behaviors:
 
-- Default: throw a clear `NotSupportedException` with request type and request name.
+- [x] Default: throw a clear `NotSupportedException` with request type and request name.
 - Optional strict-live mode: throw a Dataverse-shaped `OrganizationServiceFault` where known.
 - Optional test escape hatch: allow unknown requests to be configured to fail, no-op, or route to a custom handler.
 

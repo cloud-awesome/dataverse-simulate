@@ -15,7 +15,7 @@ public class UpdateRequestHandler : IRequestHandler
     {
         var updateRequest = (UpdateRequest)request;
 
-        new EntityUpdater(dataService).Update(updateRequest.Target, options);
+        new EntityUpdater(dataService, auditService).Update(updateRequest.Target, options);
 
         return new UpdateResponse { ResponseName = "Update" };
     }

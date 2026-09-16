@@ -30,8 +30,8 @@ public sealed class EntityCreator
         
         if (!PermissionsCalculator.ValidateEntityPermission(e.LogicalName, RequestMessage, options))
         {
-            // Exactly which type of error is thrown by crm?
-            throw new Exception("Tester...");
+            throw new InvalidOperationException(
+                $"Create permission denied for entity '{e.LogicalName}' by the simulated security model.");
         }
         
         var entityMetadata = MetadataValidator.ValidateCreate(e, options);
@@ -78,8 +78,7 @@ public sealed class EntityCreator
     {
         if (dataService.Get(e.LogicalName).Any(existing => existing.Id == e.Id))
         {
-            throw new InvalidOperationException(
-                $"A record with id '{e.Id}' already exists for entity '{e.LogicalName}'.");
+            throw DataverseServiceFaults.DuplicateKey();
         }
     }
 }

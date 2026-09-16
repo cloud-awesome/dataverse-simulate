@@ -9,6 +9,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.PluginTelemetry;
+using Microsoft.Xrm.Sdk.Query;
 using NUnit.Framework;
 
 namespace CloudAwesome.Xrm.Simulate.Test;
@@ -132,6 +133,43 @@ public class ServiceProviderSimulatorTests
             serviceProvider.GetService(typeof(IOrganizationServiceFactory))!;
 
         factory.Should().NotBeNull();
+    }
+
+    [Test]
+    public void OrganizationServiceFactory_Service_Should_Preserve_ServiceProvider_Data_State()
+    {
+        var account = new Entity("account", Guid.NewGuid())
+        {
+            ["name"] = "Seeded after provider simulation"
+        };
+        var serviceProvider = _serviceProvider.Simulate();
+        serviceProvider.Simulated().Data().Add(account);
+
+        var factory = (IOrganizationServiceFactory)
+            serviceProvider.GetService(typeof(IOrganizationServiceFactory))!;
+        var service = factory.CreateOrganizationService(Guid.NewGuid());
+
+        var retrieved = service.Retrieve("account", account.Id, new ColumnSet(true));
+
+        retrieved.Id.Should().Be(account.Id);
+        serviceProvider.Simulated().Data().Get("account").Should().ContainSingle(x => x.Id == account.Id);
+    }
+
+    [Test]
+    public void OrganizationServiceFactory_Service_Should_Write_Audits_To_ServiceProvider_State()
+    {
+        var serviceProvider = _serviceProvider.Simulate();
+        var factory = (IOrganizationServiceFactory)
+            serviceProvider.GetService(typeof(IOrganizationServiceFactory))!;
+        var service = factory.CreateOrganizationService(Guid.NewGuid());
+
+        var createdId = service.Create(new Entity("task")
+        {
+            ["subject"] = "Follow up"
+        });
+
+        serviceProvider.Simulated().Audits().Get("Create")
+            .Should().ContainSingle(audit => audit.Id == createdId && audit.EntityLogicalName == "task");
     }
     
     [Test]
