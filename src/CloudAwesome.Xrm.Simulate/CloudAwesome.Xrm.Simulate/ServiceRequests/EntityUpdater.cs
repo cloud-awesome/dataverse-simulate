@@ -1,5 +1,6 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.Metadata;
 using Microsoft.Xrm.Sdk;
 using NSubstitute;
 
@@ -32,6 +33,8 @@ public class EntityUpdater(MockedEntityDataService dataService) : IEntityUpdater
 
     internal void Update(Entity entity, ISimulatorOptions? options)
     {
+        MetadataValidator.ValidateUpdate(entity, options);
+
         var e = dataService.Get(entity.LogicalName)
             .SingleOrDefault(z => z.Id == entity.Id);
                 

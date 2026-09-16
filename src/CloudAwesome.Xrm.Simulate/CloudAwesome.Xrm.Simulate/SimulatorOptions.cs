@@ -1,5 +1,6 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.Metadata;
 using CloudAwesome.Xrm.Simulate.ServiceProviders;
 using CloudAwesome.Xrm.Simulate.ServiceRequests;
 using Microsoft.Xrm.Sdk;
@@ -29,4 +30,6 @@ public class SimulatorOptions: ISimulatorOptions
     public ISecurityModel? SimulatedSecurityModel { get; set; }
 
     public FiscalYearSettings? FiscalYearSettings { get; set; }
+
+    public SimulatedMetadata? Metadata { get; set; }
 }

@@ -1,5 +1,6 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.Metadata;
 using CloudAwesome.Xrm.Simulate.QueryParsers;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
@@ -18,8 +19,11 @@ public class RetrieveMultipleHandler: IRequestHandler
 		
 		RequestFailureHandler.Handle(options, RequestMessage);
 		
+		var query = (QueryExpression)retrieveMultipleRequest.Query;
+		MetadataValidator.ValidateQuery(query, options);
+		
 		var results = QueryExpressionParser.Parse(
-			(QueryExpression) retrieveMultipleRequest.Query,
+			query,
 			dataService.Get(), dataService);
 		
 		return new RetrieveMultipleResponse
