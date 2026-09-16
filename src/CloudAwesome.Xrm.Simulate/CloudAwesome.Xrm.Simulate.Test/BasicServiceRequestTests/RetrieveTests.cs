@@ -101,10 +101,10 @@ public class RetrieveTests
 
         var exception = retrieveMissingContact.Should()
             .Throw<FaultException<OrganizationServiceFault>>()
-            .WithMessage("Entity 'Contact' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist")
+            .WithMessage("Entity 'contact' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist")
             .Which;
 
         exception.Detail.ErrorCode.Should().Be(-2147220969);
-        exception.Detail.Message.Should().Be("Entity 'Contact' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist");
+        exception.Detail.Message.Should().Be("Entity 'contact' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist");
     }
 }

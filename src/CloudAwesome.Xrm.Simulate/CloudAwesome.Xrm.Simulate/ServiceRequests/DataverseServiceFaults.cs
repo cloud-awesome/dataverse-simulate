@@ -7,9 +7,16 @@ internal static class DataverseServiceFaults
 {
 	internal const int ObjectDoesNotExistErrorCode = -2147220969;
 
-	internal static FaultException<OrganizationServiceFault> ObjectDoesNotExist(string logicalName, Guid id)
+	internal static FaultException<OrganizationServiceFault> ObjectDoesNotExist(
+		string logicalName,
+		Guid id,
+		DataverseFaultEntityNameFormat entityNameFormat = DataverseFaultEntityNameFormat.DisplayName)
 	{
-		var message = $"Entity '{GetEntityDisplayName(logicalName)}' With Id = {id} Does Not Exist";
+		var entityName = entityNameFormat == DataverseFaultEntityNameFormat.LogicalName
+			? logicalName
+			: GetEntityDisplayName(logicalName);
+
+		var message = $"Entity '{entityName}' With Id = {id} Does Not Exist";
 		var fault = new OrganizationServiceFault
 		{
 			ErrorCode = ObjectDoesNotExistErrorCode,
@@ -25,4 +32,10 @@ internal static class DataverseServiceFaults
 			? logicalName
 			: char.ToUpperInvariant(logicalName[0]) + logicalName[1..];
 	}
+}
+
+internal enum DataverseFaultEntityNameFormat
+{
+	DisplayName,
+	LogicalName
 }

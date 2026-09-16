@@ -42,7 +42,10 @@ public class EntityUpdater(MockedEntityDataService dataService) : IEntityUpdater
 
         if (e == null)
         {
-            throw DataverseServiceFaults.ObjectDoesNotExist(entity.LogicalName, entity.Id);
+            throw DataverseServiceFaults.ObjectDoesNotExist(
+                entity.LogicalName,
+                entity.Id,
+                DataverseFaultEntityNameFormat.LogicalName);
         }
                 
         var processorType = new ProcessorType(entity.LogicalName, ProcessorMessage.Update);

@@ -37,7 +37,10 @@ public class EntityRetriever
                 
         if (dataService.Get(entityName).Count == 0)
         {
-            throw DataverseServiceFaults.ObjectDoesNotExist(entityName, id);
+            throw DataverseServiceFaults.ObjectDoesNotExist(
+                entityName,
+                id,
+                DataverseFaultEntityNameFormat.LogicalName);
         }
                 
         Entity entity;
@@ -45,7 +48,10 @@ public class EntityRetriever
         {
             entity = dataService.Get(entityName)
                          .SingleOrDefault(e => e.Id == id) 
-                     ?? throw DataverseServiceFaults.ObjectDoesNotExist(entityName, id);
+                     ?? throw DataverseServiceFaults.ObjectDoesNotExist(
+                         entityName,
+                         id,
+                         DataverseFaultEntityNameFormat.LogicalName);
         }
         else
         {
@@ -68,7 +74,10 @@ public class EntityRetriever
                              return e;
                          })
                          .SingleOrDefault() 
-                     ?? throw DataverseServiceFaults.ObjectDoesNotExist(entityName, id);
+                     ?? throw DataverseServiceFaults.ObjectDoesNotExist(
+                         entityName,
+                         id,
+                         DataverseFaultEntityNameFormat.LogicalName);
         }
                     
         auditService.Add(RequestMessage, entity.LogicalName, entity.Id);

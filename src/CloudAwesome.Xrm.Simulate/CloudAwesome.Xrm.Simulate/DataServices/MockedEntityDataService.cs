@@ -175,12 +175,18 @@ public class MockedEntityDataService
             }
             else
             {
-                throw DataverseServiceFaults.ObjectDoesNotExist(entity.LogicalName, entity.Id);
+                throw DataverseServiceFaults.ObjectDoesNotExist(
+                    entity.LogicalName,
+                    entity.Id,
+                    DataverseFaultEntityNameFormat.LogicalName);
             }
         }
         else
         {
-            throw DataverseServiceFaults.ObjectDoesNotExist(entity.LogicalName, entity.Id);
+            throw DataverseServiceFaults.ObjectDoesNotExist(
+                entity.LogicalName,
+                entity.Id,
+                DataverseFaultEntityNameFormat.LogicalName);
         }
     }
 

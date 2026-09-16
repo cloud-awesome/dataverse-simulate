@@ -88,11 +88,11 @@ public class UpdateTests
 
         var exception = updateMissingAccount.Should()
             .Throw<FaultException<OrganizationServiceFault>>()
-            .WithMessage("Entity 'Account' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist")
+            .WithMessage("Entity 'account' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist")
             .Which;
 
         exception.Detail.ErrorCode.Should().Be(-2147220969);
-        exception.Detail.Message.Should().Be("Entity 'Account' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist");
+        exception.Detail.Message.Should().Be("Entity 'account' With Id = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa Does Not Exist");
     }
 
     private sealed class AccountOnUpdateProcessor : IEntityProcessor
