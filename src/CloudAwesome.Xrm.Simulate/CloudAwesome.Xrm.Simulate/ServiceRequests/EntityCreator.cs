@@ -34,16 +34,6 @@ public sealed class EntityCreator
             throw new Exception("Tester...");
         }
         
-        /*
-         * Validate the entity first... (And decide on the correct Exception to throw if not)
-         * Set state and status
-         * Anything required with entity.RowVersion?
-         * How about entity.FormattedValues? And ExtensionData? KeyAttributes?
-         * Does the entity already exist with that GUID? Throw exception.
-         * work through e.RelatedEntities
-         * Set triggers if plugins are registered
-         */
-        
         var entityMetadata = MetadataValidator.ValidateCreate(e, options);
 
         // Pre-process
