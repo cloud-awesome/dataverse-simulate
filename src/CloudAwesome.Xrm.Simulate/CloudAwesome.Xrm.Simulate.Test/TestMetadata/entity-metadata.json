@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schemas.cloudawesome.dev/dataverse-simulate/metadata/v1/dataverse-simulate.metadata.schema.json",
+  "contractVersion": "1.0",
+  "generatedOnUtc": "2026-09-16T13:41:07.674667+00:00",
+  "source": {
+    "publisher": "CloudAwesome.Dataverse.Cli",
+    "publisherVersion": "0.0.0.8"
+  },
+  "entityFiles": [
+    {
+      "logicalName": "account",
+      "path": "entities/account.json"
+    },
+    {
+      "logicalName": "contact",
+      "path": "entities/contact.json"
+    },
+    {
+      "logicalName": "lead",
+      "path": "entities/lead.json"
+    }
+  ]
+}

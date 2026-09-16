@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schemas.cloudawesome.dev/dataverse-simulate/metadata/v1/dataverse-simulate.metadata-manifest.schema.json",
+  "output": {
+    "path": "./GeneratedMetadata/dataverse-metadata.json",
+    "splitFilesPerEntity": false,
+    "includeGeneratedOnUtc": true
+  },
+  "entities": {
+    "include": [
+      "account",
+      "contact",
+      "lead"
+    ],
+    "includeRelatedEntities": false,
+    "includeIntersectEntities": true
+  },
+  "metadata": {
+    "includeAttributes": true,
+    "includeRelationships": true,
+    "includeAlternateKeys": true,
+    "includeOptionLabels": false,
+    "includeUnpublished": false
+  }
+}
