@@ -51,6 +51,16 @@ public class MetadataSimulationTests
             .Throw<SimulatedMetadataException>()
             .WithMessage("Metadata does not define entity 'notarealtable'.");
     }
+    
+    [Test]
+    public void Metadata_Can_Be_Loaded_After_Simulation()
+    {
+        IOrganizationService organizationService = null!;
+        organizationService = organizationService.Simulate();
+        
+        organizationService.Simulated().Metadata().Load(MetadataPath);
+        organizationService.Simulated().Metadata().IsLoaded.Should().BeTrue();
+    }
 
     [Test]
     public void Create_With_Metadata_Rejects_Unknown_Attribute()
