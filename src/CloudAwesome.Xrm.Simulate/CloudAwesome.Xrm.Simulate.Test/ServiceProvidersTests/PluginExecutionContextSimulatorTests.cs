@@ -135,7 +135,7 @@ public class PluginExecutionContextSimulatorTests
             }
         };
         
-        _serviceProvider.Simulated().Data().Reinitialise(executionContextMock);
+        service.Simulated().Data().Reinitialise(executionContextMock);
         
         var executionContext = (IPluginExecutionContext)service.GetService(typeof(IPluginExecutionContext))!;
 
@@ -171,7 +171,7 @@ public class PluginExecutionContextSimulatorTests
             }
         };
         
-        _serviceProvider.Simulated().Data().Reinitialise(executionContextMock);
+        service.Simulated().Data().Reinitialise(executionContextMock);
         
         var executionContext = (IPluginExecutionContext)service.GetService(typeof(IPluginExecutionContext))!;
 

@@ -26,6 +26,73 @@ public class ServiceProviderSimulatorTests
     }
 
     [Test]
+    public void Simulated_Service_Providers_Should_Keep_Seeded_Data_Instance_Scoped()
+    {
+        var firstAccount = new Entity("account", Guid.NewGuid())
+        {
+            ["name"] = "First provider account"
+        };
+        var secondContact = new Entity("contact", Guid.NewGuid())
+        {
+            ["firstname"] = "Second"
+        };
+
+        var firstProvider = _serviceProvider.Simulate(new SimulatorOptions
+        {
+            InitialiseData = new Dictionary<string, List<Entity>>
+            {
+                ["account"] = [firstAccount]
+            }
+        });
+        var secondProvider = _serviceProvider.Simulate(new SimulatorOptions
+        {
+            InitialiseData = new Dictionary<string, List<Entity>>
+            {
+                ["contact"] = [secondContact]
+            }
+        });
+
+        firstProvider.Simulated().Data().Get("account").Should().ContainSingle(x => x.Id == firstAccount.Id);
+        firstProvider.Simulated().Data().Get("contact").Should().BeEmpty();
+        secondProvider.Simulated().Data().Get("contact").Should().ContainSingle(x => x.Id == secondContact.Id);
+        secondProvider.Simulated().Data().Get("account").Should().BeEmpty();
+    }
+
+    [Test]
+    public void Resolved_Services_Should_Write_To_Their_Original_Service_Provider_State()
+    {
+        var firstProvider = _serviceProvider.Simulate();
+        var firstTracingService = (ITracingService)firstProvider.GetService(typeof(ITracingService))!;
+        var secondProvider = _serviceProvider.Simulate();
+        var secondTracingService = (ITracingService)secondProvider.GetService(typeof(ITracingService))!;
+
+        firstTracingService.Trace("first provider trace");
+        secondTracingService.Trace("second provider trace");
+
+        firstProvider.Simulated().Logs().Get().Should().Equal("first provider trace");
+        secondProvider.Simulated().Logs().Get().Should().Equal("second provider trace");
+    }
+
+    [Test]
+    public void Resolved_Telemetry_Services_Should_Write_To_Their_Original_Service_Provider_State()
+    {
+        var firstProvider = _serviceProvider.Simulate();
+        var firstLogger = (ILogger)firstProvider.GetService(typeof(ILogger))!;
+        var secondProvider = _serviceProvider.Simulate();
+        var secondLogger = (ILogger)secondProvider.GetService(typeof(ILogger))!;
+
+        firstLogger.LogInformation("first provider telemetry");
+        secondLogger.LogInformation("second provider telemetry");
+
+        firstProvider.Simulated().Telemetry().Get(LogLevel.Information)
+            .Select(x => x.MessageFormat)
+            .Should().Equal("first provider telemetry");
+        secondProvider.Simulated().Telemetry().Get(LogLevel.Information)
+            .Select(x => x.MessageFormat)
+            .Should().Equal("second provider telemetry");
+    }
+
+    [Test]
     public void GetService_Can_Return_Mocked_IPluginExecutionContext()
     {
         var serviceProvider = _serviceProvider.Simulate();

@@ -25,7 +25,7 @@ public class TracingServiceSimulatorTests
 
         _tracingService.Trace(TraceMessage);
 
-        var traces = _serviceProvider.Simulated().Logs().Get();
+        var traces = service.Simulated().Logs().Get();
 
         traces.Count.Should().Be(1);
         traces.FirstOrDefault()!.Should().Be(TraceMessage);
@@ -40,7 +40,7 @@ public class TracingServiceSimulatorTests
         _tracingService.Trace(TraceMessage);
         _tracingService.Trace($"Second logging: {TraceMessage}");
 
-        var traces = _serviceProvider.Simulated().Logs().Get();
+        var traces = service.Simulated().Logs().Get();
 
         traces.Count.Should().Be(2);
     }
@@ -53,7 +53,7 @@ public class TracingServiceSimulatorTests
         
         _tracingService.Trace(MessageFormat, _id, _dateTime);
         
-        var traces = _serviceProvider.Simulated().Logs().Get();
+        var traces = service.Simulated().Logs().Get();
 
         traces.Count.Should().Be(1);
         traces.FirstOrDefault()!.Should().Be(String.Format(MessageFormat, _id, _dateTime));

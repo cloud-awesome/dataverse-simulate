@@ -4,14 +4,14 @@
 
 ### Scope and isolation
 
-`OrganisationServiceSimulator` uses an instance-scoped context stored in a `ConditionalWeakTable`, which is a good direction. `ServiceProviderSimulator`, however, uses static shared data, logging, telemetry, service bus, and audit stores. That makes parallel tests and multiple simulated service providers risky.
+`OrganisationServiceSimulator` and `ServiceProviderSimulator` use instance-scoped contexts stored in `ConditionalWeakTable` instances. This keeps simulated data, logging, telemetry, service bus, and audit stores isolated per simulated instance.
 
 Recommendation:
 
-- Move `ServiceProviderSimulator` to the same per-instance context pattern as `OrganisationServiceSimulator`.
-- Ensure `.Simulated()` throws when called on an object that was not created by `.Simulate()`.
-- Avoid static mutable stores except immutable defaults.
-- Add parallel test cases to prove two simulated service providers cannot affect each other.
+- [x] Move `ServiceProviderSimulator` to the same per-instance context pattern as `OrganisationServiceSimulator`.
+- [x] Ensure `.Simulated()` throws when called on an object that was not created by `.Simulate()`.
+- [x] Avoid static mutable stores except immutable defaults.
+- [x] Add test cases to prove two simulated service providers cannot affect each other.
 
 ### Core model
 
@@ -54,7 +54,7 @@ Roadmap:
 
 Local test run:
 
-- Unit tests: `382` passed, `5` skipped.
+- Unit tests: `457` passed, `5` skipped.
 - Integration tests: `1` passed.
 - Build warnings: numerous nullable warnings and a few warnings pointing at known incomplete behavior.
 
@@ -72,7 +72,7 @@ Add tests before or during fixes for:
 - Unsupported `Execute` requests throw a clear simulator exception.
 - Request handlers return the same response parameter names as SDK responses expect.
 - Direct methods and equivalent `OrganizationRequest` handlers behave identically.
-- Service provider simulations are isolated per instance.
+- [x] Service provider simulations are isolated per instance.
 - Query filters and links can reference attributes not in the final column set.
 - Query projection returns primary id behavior correctly.
 - Aliased link values use `AliasedValue`.
