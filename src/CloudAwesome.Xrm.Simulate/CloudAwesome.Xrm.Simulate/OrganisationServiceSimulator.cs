@@ -15,6 +15,7 @@ public static class OrganisationServiceSimulator
     public static IOrganizationService Simulate(this IOrganizationService organizationService, 
         ISimulatorOptions? options = null, MockedEntityDataService? dataService = null)
     {
+        var localOptions = options ?? new SimulatorOptions();
         var localDataService = dataService ?? new MockedEntityDataService();
         var auditService = new SimulatorAuditService();
         var service = Substitute.For<IOrganizationService>();
@@ -22,26 +23,26 @@ public static class OrganisationServiceSimulator
         localDataService.Reinitialise();
         auditService.Clear();
 
-        new EntityCreator(localDataService, auditService).MockRequest(service, options);
-        new EntityRetriever(localDataService, auditService).MockRequest(service, options);
-        new EntityMultipleRetriever(localDataService).MockRequest(service, options);
-        new EntityUpdater(localDataService).MockRequest(service, options);
-        new EntityDeleter(localDataService).MockRequest(service, options);
-        new EntityAssociator(localDataService).MockRequest(service, options);
-        new EntityDisassociator(localDataService).MockRequest(service, options);
+        new EntityCreator(localDataService, auditService).MockRequest(service, localOptions);
+        new EntityRetriever(localDataService, auditService).MockRequest(service, localOptions);
+        new EntityMultipleRetriever(localDataService).MockRequest(service, localOptions);
+        new EntityUpdater(localDataService).MockRequest(service, localOptions);
+        new EntityDeleter(localDataService).MockRequest(service, localOptions);
+        new EntityAssociator(localDataService).MockRequest(service, localOptions);
+        new EntityDisassociator(localDataService).MockRequest(service, localOptions);
 
         var organizationRequestRegistry = RegisterServiceRequests();
-        new OrganisationRequestExecutor(localDataService, auditService, organizationRequestRegistry).MockRequest(service, options);
+        new OrganisationRequestExecutor(localDataService, auditService, organizationRequestRegistry).MockRequest(service, localOptions);
         
-        SimulatorOptionsProcessor.InitialiseMockedData(localDataService, options);
-        SimulatorOptionsProcessor.InitialiseMockedRelationships(localDataService, options);
-        SimulatorOptionsProcessor.ConfigureUsersBusinessUnit(localDataService, options);
-        SimulatorOptionsProcessor.ConfigureOrganization(localDataService, options);
-        SimulatorOptionsProcessor.ConfigureAuthenticatedUser(localDataService, options);
-        SimulatorOptionsProcessor.SetSystemTime(localDataService, options);
-        SimulatorOptionsProcessor.ConfigureFiscalYearSettings(localDataService, options);
+        SimulatorOptionsProcessor.InitialiseMockedData(localDataService, localOptions);
+        SimulatorOptionsProcessor.InitialiseMockedRelationships(localDataService, localOptions);
+        SimulatorOptionsProcessor.ConfigureUsersBusinessUnit(localDataService, localOptions);
+        SimulatorOptionsProcessor.ConfigureOrganization(localDataService, localOptions);
+        SimulatorOptionsProcessor.ConfigureAuthenticatedUser(localDataService, localOptions);
+        SimulatorOptionsProcessor.SetSystemTime(localDataService, localOptions);
+        SimulatorOptionsProcessor.ConfigureFiscalYearSettings(localDataService, localOptions);
         
-        RegisterSimulation(service, localDataService, auditService, organizationRequestRegistry);
+        RegisterSimulation(service, localDataService, auditService, organizationRequestRegistry, localOptions);
         
         return service;
     }
@@ -51,7 +52,7 @@ public static class OrganisationServiceSimulator
         return 
             !Contexts.TryGetValue(organizationService, out var context) 
                 ? throw new InvalidOperationException("This IOrganizationService has not been initialised with Simulate().") 
-                : new OrganisationServiceSimulated(context.DataService, context.AuditService, context.RequestHandlers);
+                : new OrganisationServiceSimulated(context.DataService, context.AuditService, context.RequestHandlers, context.Options);
     }
 
     private static RequestHandlerRegistry RegisterServiceRequests()
@@ -74,11 +75,13 @@ public static class OrganisationServiceSimulator
     private sealed class SimulationContext(
         MockedEntityDataService dataService,
         SimulatorAuditService auditService,
-        RequestHandlerRegistry requestHandlers)
+        RequestHandlerRegistry requestHandlers,
+        ISimulatorOptions options)
     {
         public MockedEntityDataService DataService { get; } = dataService;
         public SimulatorAuditService AuditService { get; } = auditService;
         public RequestHandlerRegistry RequestHandlers { get; } = requestHandlers;
+        public ISimulatorOptions Options { get; } = options;
     };
 
     private static readonly ConditionalWeakTable<IOrganizationService, SimulationContext> Contexts = new();
@@ -87,9 +90,10 @@ public static class OrganisationServiceSimulator
         IOrganizationService service,
         MockedEntityDataService dataService,
         SimulatorAuditService auditService,
-        RequestHandlerRegistry requestHandlers)
+        RequestHandlerRegistry requestHandlers,
+        ISimulatorOptions options)
     {
         Contexts.Remove(service);
-        Contexts.Add(service, new SimulationContext(dataService, auditService, requestHandlers));
+        Contexts.Add(service, new SimulationContext(dataService, auditService, requestHandlers, options));
     }
 }

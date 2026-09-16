@@ -1,5 +1,6 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.Metadata;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 using NSubstitute;
@@ -32,6 +33,7 @@ public class EntityRetriever
         ISimulatorOptions? options)
     {
         RequestFailureHandler.Handle(options, RequestMessage, id);
+        var entityMetadata = MetadataValidator.ValidateRetrieve(entityName, columnSet, options);
                 
         if (dataService.Get(entityName).Count == 0)
         {
@@ -57,11 +59,14 @@ public class EntityRetriever
                              var e = new Entity(record.LogicalName) { Id = record.Id };
                              foreach (var column in columnSet.Columns)
                              {
-                                 e[column] = record[column];
+                                 if (record.Attributes.Contains(column))
+                                 {
+                                     e[column] = record[column];
+                                 }
                              }
 
                              // Always return the primary GUID, even if it's not requested
-                             e[$"{record.LogicalName}id"] = record.Id; 
+                             e[entityMetadata?.PrimaryIdAttribute ?? $"{record.LogicalName}id"] = record.Id; 
                     
                              return e;
                          })

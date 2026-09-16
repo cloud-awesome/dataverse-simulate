@@ -1,5 +1,6 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.Metadata;
 using CloudAwesome.Xrm.Simulate.QueryParsers;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
@@ -28,6 +29,7 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
                     RequestFailureHandler.Handle(options, RequestMessage);
                     
                     var query = x.Arg<QueryExpression>();
+                    MetadataValidator.ValidateQuery(query, options);
                     var results = QueryExpressionParser.Parse(query, 
                         dataService.Get(), dataService);
                     var resultCollection = new EntityCollection(results.Take(5000).ToList());
@@ -70,6 +72,7 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
                     RequestFailureHandler.Handle(options, RequestMessage);
                         
                     var query = x.Arg<QueryByAttribute>();
+                    MetadataValidator.ValidateQuery(query, options);
                     var results = QueryByAttributeParser.Parse(query,
                         dataService.Get(), dataService);
                 

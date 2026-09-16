@@ -1,6 +1,7 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.Metadata;
 using CloudAwesome.Xrm.Simulate.SecurityModel;
 using Microsoft.Xrm.Sdk;
 using NSubstitute;
@@ -33,18 +34,11 @@ public sealed class EntityCreator
             throw new Exception("Tester...");
         }
         
-        /*
-         * Validate the entity first... (And decide on the correct Exception to throw if not)
-         * Set state and status
-         * Anything required with entity.RowVersion?
-         * How about entity.FormattedValues? And ExtensionData? KeyAttributes?
-         * Does the entity already exist with that GUID? Throw exception.
-         * work through e.RelatedEntities
-         * Set triggers if plugins are registered
-         */
-        
+        var entityMetadata = MetadataValidator.ValidateCreate(e, options);
+
         // Pre-process
-        e = this.PreProcess(e, options);
+        e = this.PreProcess(e, entityMetadata);
+        MetadataValidator.ApplyCreateDefaults(e, entityMetadata);
 
         this.ValidateDuplicateId(e);
         
@@ -62,9 +56,9 @@ public sealed class EntityCreator
         return e.Id;
     }
     
-    internal Entity PreProcess(Entity e, ISimulatorOptions? options)
+    internal Entity PreProcess(Entity e, SimulatedEntityMetadata? entityMetadata = null)
     {
-        var primaryIdAttribute = $"{e.LogicalName}id";
+        var primaryIdAttribute = entityMetadata?.PrimaryIdAttribute ?? $"{e.LogicalName}id";
         e.SetAttributeIfEmpty(primaryIdAttribute, e.Id != Guid.Empty ? e.Id : Guid.NewGuid());
         e.Id = (Guid)e.Attributes[primaryIdAttribute];
         
