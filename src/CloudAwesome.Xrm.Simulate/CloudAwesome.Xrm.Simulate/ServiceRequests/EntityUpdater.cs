@@ -1,6 +1,7 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.SecurityModel;
 using Microsoft.Xrm.Sdk;
 using NSubstitute;
 
@@ -49,6 +50,11 @@ public class EntityUpdater(
                 entity.Id,
                 DataverseFaultEntityNameFormat.LogicalName);
         }
+
+        new SimulatedSecurityEnforcer(dataService).DemandRecordAccess(
+            e,
+            SecurityPrivilege.Write,
+            options);
                 
         var processorType = new ProcessorType(entity.LogicalName, ProcessorMessage.Update);
         if (options?.EntityProcessors?.TryGetValue(processorType, out var processor) == true)
