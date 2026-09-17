@@ -82,13 +82,20 @@ public static class OrganisationServiceSimulator
     {
         var handlerRegistry = new RequestHandlerRegistry();
 
+        handlerRegistry.RegisterHandler<AddMembersTeamRequest>(new AddMembersTeamRequestHandler());
         handlerRegistry.RegisterHandler<CreateRequest>(new CreateRequestHandler());
         handlerRegistry.RegisterHandler<AssociateRequest>(new AssociateRequestHandler());
         handlerRegistry.RegisterHandler<AssignRequest>(new AssignRequestHandler());
         handlerRegistry.RegisterHandler<DeleteRequest>(new DeleteRequestHandler());
         handlerRegistry.RegisterHandler<DisassociateRequest>(new DisassociateRequestHandler());
+        handlerRegistry.RegisterHandler<GrantAccessRequest>(new GrantAccessRequestHandler());
+        handlerRegistry.RegisterHandler<ModifyAccessRequest>(new ModifyAccessRequestHandler());
+        handlerRegistry.RegisterHandler<RemoveMembersTeamRequest>(new RemoveMembersTeamRequestHandler());
+        handlerRegistry.RegisterHandler<RetrievePrincipalAccessRequest>(new RetrievePrincipalAccessRequestHandler());
         handlerRegistry.RegisterHandler<RetrieveRequest>(new RetrieveRequestHandler());
         handlerRegistry.RegisterHandler<RetrieveMultipleRequest>(new RetrieveMultipleHandler());
+        handlerRegistry.RegisterHandler<RetrieveSharedPrincipalsAndAccessRequest>(new RetrieveSharedPrincipalsAndAccessRequestHandler());
+        handlerRegistry.RegisterHandler<RevokeAccessRequest>(new RevokeAccessRequestHandler());
         handlerRegistry.RegisterHandler<UpdateRequest>(new UpdateRequestHandler());
         handlerRegistry.RegisterHandler<WhoAmIRequest>(new WhoAmIRequestHandler());
         

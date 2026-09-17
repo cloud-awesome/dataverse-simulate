@@ -165,11 +165,7 @@ public class SimulatedSecurityModel : ISecurityModel
 
     public SimulatedSecurityModel WithTeamMember(Guid teamId, Guid userId)
     {
-        EnsureIdIsProvided(teamId, nameof(teamId));
-        EnsureIdIsProvided(userId, nameof(userId));
-
-        TeamMemberships.Add(new SimulatedTeamMembership(teamId, userId));
-        return this;
+        return AddTeamMember(teamId, userId);
     }
 
     public SimulatedSecurityModel WithPrincipalObjectAccess(
@@ -177,8 +173,114 @@ public class SimulatedSecurityModel : ISecurityModel
         EntityReference principal,
         AccessRights accessRights)
     {
-        PrincipalObjectAccesses.Add(new SimulatedPrincipalObjectAccess(target, principal, accessRights));
+        return GrantAccess(target, principal, accessRights);
+    }
+
+    public SimulatedSecurityModel AddTeamMember(Guid teamId, Guid userId)
+    {
+        EnsureIdIsProvided(teamId, nameof(teamId));
+        EnsureIdIsProvided(userId, nameof(userId));
+
+        if (TeamMemberships.Any(x => x.TeamId == teamId && x.UserId == userId))
+            return this;
+
+        TeamMemberships.Add(new SimulatedTeamMembership(teamId, userId));
+
         return this;
+    }
+
+    public SimulatedSecurityModel RemoveTeamMember(Guid teamId, Guid userId)
+    {
+        EnsureIdIsProvided(teamId, nameof(teamId));
+        EnsureIdIsProvided(userId, nameof(userId));
+
+        var memberships = TeamMemberships
+            .Where(x => x.TeamId == teamId && x.UserId == userId)
+            .ToList();
+
+        foreach (var membership in memberships)
+        {
+            TeamMemberships.Remove(membership);
+        }
+
+        return this;
+    }
+
+    public SimulatedSecurityModel GrantAccess(
+        EntityReference target,
+        EntityReference principal,
+        AccessRights accessRights)
+    {
+        ValidateAccessArguments(target, principal);
+
+        var existingAccess = FindPrincipalObjectAccess(target, principal);
+        if (existingAccess is null)
+        {
+            PrincipalObjectAccesses.Add(new SimulatedPrincipalObjectAccess(target, principal, accessRights));
+        }
+        else
+        {
+            existingAccess.AccessRights |= accessRights;
+        }
+
+        return this;
+    }
+
+    public SimulatedSecurityModel ModifyAccess(
+        EntityReference target,
+        EntityReference principal,
+        AccessRights accessRights)
+    {
+        ValidateAccessArguments(target, principal);
+
+        var existingAccess = FindPrincipalObjectAccess(target, principal);
+        if (existingAccess is null)
+        {
+            PrincipalObjectAccesses.Add(new SimulatedPrincipalObjectAccess(target, principal, accessRights));
+        }
+        else
+        {
+            existingAccess.AccessRights = accessRights;
+        }
+
+        return this;
+    }
+
+    public SimulatedSecurityModel RevokeAccess(EntityReference target, EntityReference principal)
+    {
+        ValidateAccessArguments(target, principal);
+
+        var existingAccesses = PrincipalObjectAccesses
+            .Where(x => PrincipalMatches(x.Target, target) && PrincipalMatches(x.Principal, principal))
+            .ToList();
+
+        foreach (var access in existingAccesses)
+        {
+            PrincipalObjectAccesses.Remove(access);
+        }
+
+        return this;
+    }
+
+    public AccessRights GetPrincipalAccess(EntityReference target, EntityReference principal)
+    {
+        ValidateAccessArguments(target, principal);
+        Validate();
+
+        return GetPrincipalObjectAccesses(target, principal)
+            .Aggregate(default(AccessRights), (rights, access) => rights | access.AccessRights);
+    }
+
+    public IReadOnlyList<SimulatedPrincipalObjectAccess> GetSharedPrincipalsAndAccess(EntityReference target)
+    {
+        if (target.Id == Guid.Empty || string.IsNullOrWhiteSpace(target.LogicalName))
+            throw new ArgumentException("Target must include a logical name and id.", nameof(target));
+
+        Validate();
+
+        return PrincipalObjectAccesses
+            .Where(x => PrincipalMatches(x.Target, target))
+            .ToList();
     }
 
     public SimulatedSecurityModel Validate()
@@ -502,6 +604,23 @@ public class SimulatedSecurityModel : ISecurityModel
                 throw new SimulatedSecurityModelException(
                     $"{source} references unsupported principal type '{principal.LogicalName}'.");
         }
+    }
+
+    private SimulatedPrincipalObjectAccess? FindPrincipalObjectAccess(
+        EntityReference target,
+        EntityReference principal)
+    {
+        return PrincipalObjectAccesses.SingleOrDefault(x =>
+            PrincipalMatches(x.Target, target) && PrincipalMatches(x.Principal, principal));
+    }
+
+    private static void ValidateAccessArguments(EntityReference target, EntityReference principal)
+    {
+        if (target.Id == Guid.Empty || string.IsNullOrWhiteSpace(target.LogicalName))
+            throw new ArgumentException("Target must include a logical name and id.", nameof(target));
+
+        if (principal.Id == Guid.Empty || string.IsNullOrWhiteSpace(principal.LogicalName))
+            throw new ArgumentException("Principal must include a logical name and id.", nameof(principal));
     }
 
     private static Dictionary<Guid, T> BuildUniqueIdIndex<T>(
