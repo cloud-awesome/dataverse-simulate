@@ -276,6 +276,18 @@ public class SimulatedSecurityModel : ISecurityModel
         return permissionsByEntity.Values.ToList();
     }
 
+    public IReadOnlyList<EntityPermission> GetEffectiveEntityPermissionsForPrincipal(EntityReference principal)
+    {
+        Validate();
+
+        return principal.LogicalName switch
+        {
+            "systemuser" => GetEffectiveEntityPermissionsForUser(principal.Id),
+            "team" => GetEffectiveEntityPermissionsForTeam(principal.Id),
+            _ => []
+        };
+    }
+
     public EntityPermission? GetEffectiveEntityPermissionForUser(Guid userId, string entityLogicalName)
     {
         if (string.IsNullOrWhiteSpace(entityLogicalName))
@@ -288,6 +300,41 @@ public class SimulatedSecurityModel : ISecurityModel
                 StringComparison.OrdinalIgnoreCase));
     }
 
+    public EntityPermission? GetEffectiveEntityPermissionForPrincipal(EntityReference principal, string entityLogicalName)
+    {
+        if (string.IsNullOrWhiteSpace(entityLogicalName))
+            throw new ArgumentException("Entity logical name must be provided.", nameof(entityLogicalName));
+
+        return GetEffectiveEntityPermissionsForPrincipal(principal)
+            .SingleOrDefault(x => string.Equals(
+                x.LogicalName,
+                entityLogicalName,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    public Guid? GetPrincipalBusinessUnitId(EntityReference principal)
+    {
+        Validate();
+
+        return principal.LogicalName switch
+        {
+            "systemuser" when _usersById.TryGetValue(principal.Id, out var user) => user.BusinessUnitId,
+            "team" when _teamsById.TryGetValue(principal.Id, out var team) => team.BusinessUnitId,
+            _ => null
+        };
+    }
+
+    public IReadOnlyList<SimulatedPrincipalObjectAccess> GetPrincipalObjectAccesses(
+        EntityReference target,
+        EntityReference principal)
+    {
+        Validate();
+
+        return PrincipalObjectAccesses
+            .Where(x => PrincipalMatches(x.Target, target) && PrincipalMatches(x.Principal, principal))
+            .ToList();
+    }
+
     private IEnumerable<Guid> GetOwnerTeamIdsForUser(Guid userId)
     {
         return TeamMemberships
@@ -295,6 +342,21 @@ public class SimulatedSecurityModel : ISecurityModel
             .Select(x => x.TeamId)
             .Where(teamId => _teamsById.TryGetValue(teamId, out var team) && team.TeamType == SimulatedTeamType.Owner)
             .Distinct();
+    }
+
+    private IReadOnlyList<EntityPermission> GetEffectiveEntityPermissionsForTeam(Guid teamId)
+    {
+        var permissionsByEntity = new Dictionary<string, EntityPermission>(StringComparer.OrdinalIgnoreCase);
+
+        if (!_teamsById.TryGetValue(teamId, out var team) || team.TeamType != SimulatedTeamType.Owner)
+            return [];
+
+        foreach (var role in GetRolesAssignedToPrincipal(new EntityReference("team", teamId)))
+        {
+            MergeRole(permissionsByEntity, role);
+        }
+
+        return permissionsByEntity.Values.ToList();
     }
 
     private IEnumerable<SimulatedSecurityRole> GetRolesAssignedToPrincipal(EntityReference principal)
