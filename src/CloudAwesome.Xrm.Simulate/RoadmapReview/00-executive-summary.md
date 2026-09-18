@@ -45,7 +45,11 @@ Before adding large new features, fix known incorrect behavior in existing surfa
 Focus on the features most likely to unblock users writing plugin/integration unit tests:
 
 - Complete common `IOrganizationService` method parity: `Associate`, `Disassociate`, CRUD, retrieve, `RetrieveMultiple`, and audit behavior.
-- Add first-class handlers for high-value `OrganizationRequest` types: `RetrieveRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest`, `UpsertRequest`, `ExecuteMultipleRequest`, `ExecuteTransactionRequest`, `SetStateRequest`, `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest`, `AddMembersTeamRequest`, `RemoveMembersTeamRequest`, queue requests, and metadata retrieval requests.
+- Add first-class handlers for high-value `OrganizationRequest` types: 
+  - `RetrieveRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest`, `UpsertRequest`, `ExecuteMultipleRequest`, `ExecuteTransactionRequest`, `SetStateRequest`, 
+  - `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest`, `AddMembersTeamRequest`, `RemoveMembersTeamRequest`, 
+  - queue requests, and 
+  - metadata retrieval requests.
 - Rework query execution so filtering, joining, ordering, distinct, paging, projection, and aggregation match Dataverse behavior instead of LINQ convenience behavior.
 - Treat security as a query and request pipeline concern, not just a create-time permission guard.
 - Establish live parity fixtures for exceptions, response shapes, and edge cases.
