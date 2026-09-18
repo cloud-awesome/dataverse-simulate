@@ -13,6 +13,12 @@ The roadmap is organized around the four areas requested:
 3. Integration testing against a live sandbox
 4. Benchmarking
 
+Companion deep dives have since been added for metadata simulation, the security model, and queue simulation:
+
+- [05-metadata-simulation](05-metadata-simulation.md)
+- [06-security-model](06-security-model.md)
+- [07-queue-simulation](07-queue-simulation.md)
+
 ## Current position
 
 The project already has a strong base for an open-source Dataverse test double:
@@ -45,7 +51,11 @@ Before adding large new features, fix known incorrect behavior in existing surfa
 Focus on the features most likely to unblock users writing plugin/integration unit tests:
 
 - Complete common `IOrganizationService` method parity: `Associate`, `Disassociate`, CRUD, retrieve, `RetrieveMultiple`, and audit behavior.
-- Add first-class handlers for high-value `OrganizationRequest` types: `RetrieveRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest`, `UpsertRequest`, `ExecuteMultipleRequest`, `ExecuteTransactionRequest`, `SetStateRequest`, `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest`, `AddMembersTeamRequest`, `RemoveMembersTeamRequest`, queue requests, and metadata retrieval requests.
+- Add first-class handlers for high-value `OrganizationRequest` types: 
+  - `RetrieveRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest`, `UpsertRequest`, `ExecuteMultipleRequest`, `ExecuteTransactionRequest`, `SetStateRequest`, 
+  - `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest`, `AddMembersTeamRequest`, `RemoveMembersTeamRequest`, 
+  - [queue requests](07-queue-simulation.md), and 
+  - metadata retrieval requests.
 - Rework query execution so filtering, joining, ordering, distinct, paging, projection, and aggregation match Dataverse behavior instead of LINQ convenience behavior.
 - Treat security as a query and request pipeline concern, not just a create-time permission guard.
 - Establish live parity fixtures for exceptions, response shapes, and edge cases.

@@ -1,5 +1,6 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.Queues;
 using CloudAwesome.Xrm.Simulate.ServiceProviders;
 using CloudAwesome.Xrm.Simulate.ServiceRequests;
 using Microsoft.Xrm.Sdk;
@@ -31,4 +32,6 @@ public interface ISimulatorOptions
     public FiscalYearSettings? FiscalYearSettings { get; set; }
 
     public SimulatedMetadata? Metadata { get; set; }
+
+    public SimulatedQueueModel? Queues { get; set; }
 }

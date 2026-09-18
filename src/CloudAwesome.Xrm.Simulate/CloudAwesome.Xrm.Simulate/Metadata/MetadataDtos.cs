@@ -46,6 +46,8 @@ internal sealed class MetadataEntityDto
 
     public bool IsIntersect { get; set; }
 
+    public bool? IsValidForQueue { get; set; }
+
     public List<string> ValidMessages { get; set; } = [];
 
     public List<MetadataAttributeDto> Attributes { get; set; } = [];

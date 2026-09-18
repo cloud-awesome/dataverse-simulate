@@ -1,4 +1,7 @@
-﻿namespace CloudAwesome.Xrm.Simulate.DataServices;
+using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.Queues;
+
+namespace CloudAwesome.Xrm.Simulate.DataServices;
 
 public class ServiceProviderSimulated
 {
@@ -7,15 +10,32 @@ public class ServiceProviderSimulated
     private readonly MockedTelemetryService _telemetryService;
     private readonly MockedServiceBusService _serviceBus;
     private readonly SimulatorAuditService _simulatorAuditService;
+    private readonly ISimulatorOptions _options;
 
-    public ServiceProviderSimulated(MockedEntityDataService dataService, MockedLoggingService loggingService, 
-        MockedTelemetryService telemetryService, SimulatorAuditService simulatorAuditService, MockedServiceBusService serviceBus)
+    public ServiceProviderSimulated(
+        MockedEntityDataService dataService,
+        MockedLoggingService loggingService,
+        MockedTelemetryService telemetryService,
+        SimulatorAuditService simulatorAuditService,
+        MockedServiceBusService serviceBus)
+        : this(dataService, loggingService, telemetryService, simulatorAuditService, serviceBus, new SimulatorOptions())
+    {
+    }
+
+    public ServiceProviderSimulated(
+        MockedEntityDataService dataService,
+        MockedLoggingService loggingService,
+        MockedTelemetryService telemetryService,
+        SimulatorAuditService simulatorAuditService,
+        MockedServiceBusService serviceBus,
+        ISimulatorOptions options)
     {
         _dataService = dataService;
         _loggingService = loggingService;
         _telemetryService = telemetryService;
         _simulatorAuditService = simulatorAuditService;
         _serviceBus = serviceBus;
+        _options = options;
     }
 
     public MockedEntityDataService Data()
@@ -41,5 +61,10 @@ public class ServiceProviderSimulated
     public MockedServiceBusService ServiceBus()
     {
         return _serviceBus;
+    }
+
+    public SimulatedQueueService Queues()
+    {
+        return new SimulatedQueueService(_dataService, _simulatorAuditService, _options);
     }
 }
