@@ -5,6 +5,7 @@ using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
 using CloudAwesome.Xrm.Simulate.Queues;
 using FluentAssertions;
+using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
 using NUnit.Framework;
 
@@ -354,6 +355,127 @@ public class QueueSimulationTests
         addToQueue.Should()
             .Throw<SimulatedMetadataException>()
             .WithMessage("Entity 'lead' is not enabled for queues.");
+    }
+
+    [Test]
+    public void Execute_AddToQueueRequest_CreatesQueueItemAndReturnsTypedResponse()
+    {
+        var queueId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+        var queueItemId = Guid.NewGuid();
+        var organizationService = CreateQueueBackedService(queueId, accountId);
+
+        var response = (AddToQueueResponse)organizationService.Execute(new AddToQueueRequest
+        {
+            Target = new EntityReference("account", accountId),
+            DestinationQueueId = queueId,
+            QueueItemProperties = new Entity("queueitem", queueItemId)
+            {
+                ["title"] = "Request title"
+            }
+        });
+
+        response.ResponseName.Should().Be("AddToQueue");
+        response.QueueItemId.Should().Be(queueItemId);
+        organizationService.Simulated().Data().Get("queueitem", queueItemId)
+            .GetAttributeValue<string>("title")
+            .Should()
+            .Be("Request title");
+    }
+
+    [Test]
+    public void Execute_RemoveFromQueueRequest_DeletesQueueItem()
+    {
+        var queueId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+        var queueItemId = Guid.NewGuid();
+        var organizationService = CreateQueueBackedService(queueId, accountId, queueItemId);
+
+        var response = (RemoveFromQueueResponse)organizationService.Execute(new RemoveFromQueueRequest
+        {
+            QueueItemId = queueItemId
+        });
+
+        response.ResponseName.Should().Be("RemoveFromQueue");
+        organizationService.Simulated().Data().Get("queueitem").Should().BeEmpty();
+    }
+
+    [Test]
+    public void Execute_PickFromQueueRequest_SetsWorker()
+    {
+        var queueId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+        var queueItemId = Guid.NewGuid();
+        var organizationService = CreateQueueBackedService(queueId, accountId, queueItemId);
+        var workerId = organizationService.Simulated().Data().AuthenticatedUser.Id;
+
+        var response = (PickFromQueueResponse)organizationService.Execute(new PickFromQueueRequest
+        {
+            QueueItemId = queueItemId,
+            WorkerId = workerId,
+            RemoveQueueItem = false
+        });
+
+        response.ResponseName.Should().Be("PickFromQueue");
+        organizationService.Simulated().Data().Get("queueitem", queueItemId)
+            .GetAttributeValue<EntityReference>("workerid")
+            .Id
+            .Should()
+            .Be(workerId);
+    }
+
+    [Test]
+    public void Execute_ReleaseToQueueRequest_ClearsWorker()
+    {
+        var queueId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+        var queueItemId = Guid.NewGuid();
+        var organizationService = CreateQueueBackedService(queueId, accountId, queueItemId);
+        var workerId = organizationService.Simulated().Data().AuthenticatedUser.Id;
+        organizationService.Simulated().Queues().PickFromQueue(queueItemId, workerId, removeQueueItem: false);
+
+        var response = (ReleaseToQueueResponse)organizationService.Execute(new ReleaseToQueueRequest
+        {
+            QueueItemId = queueItemId
+        });
+
+        response.ResponseName.Should().Be("ReleaseToQueue");
+        organizationService.Simulated().Data().Get("queueitem", queueItemId)
+            .Attributes["workerid"]
+            .Should()
+            .BeNull();
+    }
+
+    [Test]
+    public void Execute_RouteToRequest_MovesQueueItem()
+    {
+        var sourceQueueId = Guid.NewGuid();
+        var destinationQueueId = Guid.NewGuid();
+        var queueItemId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+        IOrganizationService organizationService = null!;
+
+        organizationService = organizationService.Simulate(new SimulatorOptions
+        {
+            InitialiseData = CreateAccountData(accountId),
+            Queues = SimulatedQueueModel.Create()
+                .WithQueue(sourceQueueId, "Source")
+                .WithQueue(destinationQueueId, "Destination")
+                .WithQueueItem(queueItemId, sourceQueueId, new EntityReference("account", accountId))
+        });
+
+        var response = (RouteToResponse)organizationService.Execute(new RouteToRequest
+        {
+            QueueItemId = queueItemId,
+            Target = new EntityReference("queue", destinationQueueId)
+        });
+
+        response.ResponseName.Should().Be("RouteTo");
+        organizationService.Simulated().Data().Get("queueitem", queueItemId)
+            .GetAttributeValue<EntityReference>("queueid")
+            .Id
+            .Should()
+            .Be(destinationQueueId);
     }
 
     private sealed class FixedClock(DateTime now) : IClockSimulator

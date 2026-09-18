@@ -85,6 +85,7 @@ public static class OrganisationServiceSimulator
         var handlerRegistry = new RequestHandlerRegistry();
 
         handlerRegistry.RegisterHandler<AddMembersTeamRequest>(new AddMembersTeamRequestHandler());
+        handlerRegistry.RegisterHandler<AddToQueueRequest>(new AddToQueueRequestHandler());
         handlerRegistry.RegisterHandler<CreateRequest>(new CreateRequestHandler());
         handlerRegistry.RegisterHandler<AssociateRequest>(new AssociateRequestHandler());
         handlerRegistry.RegisterHandler<AssignRequest>(new AssignRequestHandler());
@@ -92,12 +93,16 @@ public static class OrganisationServiceSimulator
         handlerRegistry.RegisterHandler<DisassociateRequest>(new DisassociateRequestHandler());
         handlerRegistry.RegisterHandler<GrantAccessRequest>(new GrantAccessRequestHandler());
         handlerRegistry.RegisterHandler<ModifyAccessRequest>(new ModifyAccessRequestHandler());
+        handlerRegistry.RegisterHandler<PickFromQueueRequest>(new PickFromQueueRequestHandler());
+        handlerRegistry.RegisterHandler<ReleaseToQueueRequest>(new ReleaseToQueueRequestHandler());
         handlerRegistry.RegisterHandler<RemoveMembersTeamRequest>(new RemoveMembersTeamRequestHandler());
+        handlerRegistry.RegisterHandler<RemoveFromQueueRequest>(new RemoveFromQueueRequestHandler());
         handlerRegistry.RegisterHandler<RetrievePrincipalAccessRequest>(new RetrievePrincipalAccessRequestHandler());
         handlerRegistry.RegisterHandler<RetrieveRequest>(new RetrieveRequestHandler());
         handlerRegistry.RegisterHandler<RetrieveMultipleRequest>(new RetrieveMultipleHandler());
         handlerRegistry.RegisterHandler<RetrieveSharedPrincipalsAndAccessRequest>(new RetrieveSharedPrincipalsAndAccessRequestHandler());
         handlerRegistry.RegisterHandler<RevokeAccessRequest>(new RevokeAccessRequestHandler());
+        handlerRegistry.RegisterHandler<RouteToRequest>(new RouteToRequestHandler());
         handlerRegistry.RegisterHandler<UpdateRequest>(new UpdateRequestHandler());
         handlerRegistry.RegisterHandler<WhoAmIRequest>(new WhoAmIRequestHandler());
         
