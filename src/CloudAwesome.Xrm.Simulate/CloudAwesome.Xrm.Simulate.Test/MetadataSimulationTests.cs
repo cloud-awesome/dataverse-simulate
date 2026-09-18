@@ -1,8 +1,12 @@
 using System;
 using System.IO;
+using System.Linq;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.SecurityModel;
 using FluentAssertions;
 using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Messages;
+using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Query;
 using NUnit.Framework;
 
@@ -218,12 +222,125 @@ public class MetadataSimulationTests
             .WithMessage("Metadata for entity 'account' does not define attribute 'notarealcolumn'.");
     }
 
-    private static IOrganizationService CreateMetadataBackedService()
+    [Test]
+    public void RetrieveEntityRequest_Returns_Sdk_Entity_Metadata()
+    {
+        var organizationService = CreateMetadataBackedService();
+
+        var response = (RetrieveEntityResponse)organizationService.Execute(new RetrieveEntityRequest
+        {
+            LogicalName = "account",
+            EntityFilters = EntityFilters.Entity | EntityFilters.Attributes | EntityFilters.Relationships
+        });
+
+        response.ResponseName.Should().Be("RetrieveEntity");
+        response.EntityMetadata.LogicalName.Should().Be("account");
+        response.EntityMetadata.Attributes.Should().Contain(attribute => attribute.LogicalName == "name");
+        response.EntityMetadata.ManyToOneRelationships.Should()
+            .Contain(relationship => relationship.SchemaName == "account_primary_contact");
+    }
+
+    [Test]
+    public void RetrieveAttributeRequest_Returns_Sdk_Attribute_Metadata()
+    {
+        var organizationService = CreateMetadataBackedService();
+
+        var response = (RetrieveAttributeResponse)organizationService.Execute(new RetrieveAttributeRequest
+        {
+            EntityLogicalName = "account",
+            LogicalName = "accountnumber"
+        });
+
+        response.ResponseName.Should().Be("RetrieveAttribute");
+        response.AttributeMetadata.Should().BeOfType<StringAttributeMetadata>();
+        response.AttributeMetadata.LogicalName.Should().Be("accountnumber");
+        ((StringAttributeMetadata)response.AttributeMetadata).MaxLength.Should().Be(20);
+    }
+
+    [Test]
+    public void RetrieveAllEntitiesRequest_Returns_Loaded_Entities()
+    {
+        var organizationService = CreateMetadataBackedService();
+
+        var response = (RetrieveAllEntitiesResponse)organizationService.Execute(new RetrieveAllEntitiesRequest
+        {
+            EntityFilters = EntityFilters.Entity
+        });
+
+        response.ResponseName.Should().Be("RetrieveAllEntities");
+        response.EntityMetadata.Select(entity => entity.LogicalName)
+            .Should()
+            .BeEquivalentTo(["account", "contact", "lead"]);
+    }
+
+    [Test]
+    public void RetrieveRelationshipRequest_Returns_Sdk_Relationship_Metadata()
+    {
+        var organizationService = CreateMetadataBackedService();
+
+        var response = (RetrieveRelationshipResponse)organizationService.Execute(new RetrieveRelationshipRequest
+        {
+            Name = "account_primary_contact"
+        });
+
+        response.ResponseName.Should().Be("RetrieveRelationship");
+        response.RelationshipMetadata.Should().BeOfType<OneToManyRelationshipMetadata>();
+        var relationship = (OneToManyRelationshipMetadata)response.RelationshipMetadata;
+        relationship.ReferencingEntity.Should().Be("account");
+        relationship.ReferencingAttribute.Should().Be("primarycontactid");
+        relationship.ReferencedEntity.Should().Be("contact");
+    }
+
+    [Test]
+    public void Metadata_Retrieval_Requests_Do_Not_Require_Table_Read_Security()
+    {
+        var organizationService = CreateMetadataBackedService(_ => { });
+
+        var retrieveContact = (RetrieveEntityResponse)organizationService.Execute(new RetrieveEntityRequest
+        {
+            LogicalName = "contact",
+            EntityFilters = EntityFilters.Entity
+        });
+        var retrieveAll = (RetrieveAllEntitiesResponse)organizationService.Execute(new RetrieveAllEntitiesRequest
+        {
+            EntityFilters = EntityFilters.Entity
+        });
+
+        retrieveContact.EntityMetadata.LogicalName.Should().Be("contact");
+        retrieveAll.EntityMetadata.Select(entity => entity.LogicalName)
+            .Should()
+            .BeEquivalentTo(["account", "contact", "lead"]);
+    }
+
+    private static IOrganizationService CreateMetadataBackedService(Action<SimulatedSecurityRole>? configureRole = null)
     {
         IOrganizationService organizationService = null!;
-        return organizationService.Simulate(new SimulatorOptions
+        var options = new SimulatorOptions
         {
             Metadata = SimulatedMetadata.Load(MetadataPath)
+        };
+
+        if (configureRole is not null)
+        {
+            var businessUnitId = Guid.NewGuid();
+            var userId = Guid.NewGuid();
+            options.AuthenticatedUser = new Entity("systemuser", userId)
+            {
+                ["businessunitid"] = new EntityReference("businessunit", businessUnitId)
+            };
+            options.SimulatedSecurityModel = SimulatedSecurityModel.Create()
+                .WithBusinessUnit(businessUnitId, "Root")
+                .WithUser(userId, businessUnitId)
+                .WithRole("Metadata Reader", configureRole)
+                .AssignRoleToUser("Metadata Reader", userId);
+            ((SimulatedSecurityModel)options.SimulatedSecurityModel).IgnoreMissingEntities = false;
+        }
+
+        return organizationService.Simulate(new SimulatorOptions
+        {
+            Metadata = options.Metadata,
+            AuthenticatedUser = options.AuthenticatedUser,
+            SimulatedSecurityModel = options.SimulatedSecurityModel
         });
     }
 }

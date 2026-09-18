@@ -97,9 +97,13 @@ public static class OrganisationServiceSimulator
         handlerRegistry.RegisterHandler<ReleaseToQueueRequest>(new ReleaseToQueueRequestHandler());
         handlerRegistry.RegisterHandler<RemoveMembersTeamRequest>(new RemoveMembersTeamRequestHandler());
         handlerRegistry.RegisterHandler<RemoveFromQueueRequest>(new RemoveFromQueueRequestHandler());
+        handlerRegistry.RegisterHandler<RetrieveAllEntitiesRequest>(new RetrieveAllEntitiesRequestHandler());
+        handlerRegistry.RegisterHandler<RetrieveAttributeRequest>(new RetrieveAttributeRequestHandler());
+        handlerRegistry.RegisterHandler<RetrieveEntityRequest>(new RetrieveEntityRequestHandler());
         handlerRegistry.RegisterHandler<RetrievePrincipalAccessRequest>(new RetrievePrincipalAccessRequestHandler());
         handlerRegistry.RegisterHandler<RetrieveRequest>(new RetrieveRequestHandler());
         handlerRegistry.RegisterHandler<RetrieveMultipleRequest>(new RetrieveMultipleHandler());
+        handlerRegistry.RegisterHandler<RetrieveRelationshipRequest>(new RetrieveRelationshipRequestHandler());
         handlerRegistry.RegisterHandler<RetrieveSharedPrincipalsAndAccessRequest>(new RetrieveSharedPrincipalsAndAccessRequestHandler());
         handlerRegistry.RegisterHandler<RevokeAccessRequest>(new RevokeAccessRequestHandler());
         handlerRegistry.RegisterHandler<RouteToRequest>(new RouteToRequestHandler());
