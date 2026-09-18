@@ -146,6 +146,56 @@ public class SimulatedSecurityModel : ISecurityModel
         return this;
     }
 
+    public SimulatedSecurityModel ImportRoleXml(
+        string xmlPath,
+        string? roleName = null,
+        IDictionary<string, string>? logicalNameOverrides = null)
+    {
+        return AddRole(SecurityRoleParser.ParseRoleXml(xmlPath, roleName, logicalNameOverrides));
+    }
+
+    public SimulatedSecurityModel ImportRoleXml(
+        IEnumerable<string> xmlPaths,
+        IDictionary<string, string>? logicalNameOverrides = null)
+    {
+        if (xmlPaths is null) throw new ArgumentNullException(nameof(xmlPaths));
+
+        foreach (var xmlPath in xmlPaths)
+        {
+            ImportRoleXml(xmlPath, logicalNameOverrides: logicalNameOverrides);
+        }
+
+        return this;
+    }
+
+    public SimulatedSecurityModel ImportRoleXmlDirectory(
+        string directoryPath,
+        string searchPattern = "*.xml",
+        bool recursive = false,
+        IDictionary<string, string>? logicalNameOverrides = null)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+            throw new ArgumentException("Directory must be provided.", nameof(directoryPath));
+        if (!Directory.Exists(directoryPath))
+            throw new DirectoryNotFoundException(directoryPath);
+
+        var option = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+        return ImportRoleXml(Directory.EnumerateFiles(directoryPath, searchPattern, option), logicalNameOverrides);
+    }
+
+    public SimulatedSecurityModel AddRole(SimulatedSecurityRole role)
+    {
+        ArgumentNullException.ThrowIfNull(role);
+
+        if (string.IsNullOrWhiteSpace(role.Name))
+            throw new ArgumentException("Role name must be provided.", nameof(role));
+        if (Roles.Any(x => string.Equals(x.Name, role.Name, StringComparison.OrdinalIgnoreCase)))
+            throw new SimulatedSecurityModelException($"A role named '{role.Name}' already exists.");
+
+        Roles.Add(role);
+        return this;
+    }
+
     public SimulatedSecurityModel AssignRoleToUser(string roleName, Guid userId) =>
         AssignRole(roleName, new EntityReference("systemuser", userId));
 
@@ -280,6 +330,34 @@ public class SimulatedSecurityModel : ISecurityModel
 
         return PrincipalObjectAccesses
             .Where(x => PrincipalMatches(x.Target, target))
+            .ToList();
+    }
+
+    public IReadOnlyList<Entity> CreateBusinessUnitEntities()
+    {
+        Validate();
+        return BusinessUnits.Select(x => x.ToEntity()).ToList();
+    }
+
+    public IReadOnlyList<Entity> CreateUserEntities()
+    {
+        Validate();
+        return Users.Select(x => x.ToEntity()).ToList();
+    }
+
+    public IReadOnlyList<Entity> CreateTeamEntities()
+    {
+        Validate();
+        return Teams.Select(x => x.ToEntity()).ToList();
+    }
+
+    public IReadOnlyList<Entity> CreatePrincipalEntities()
+    {
+        Validate();
+        return BusinessUnits
+            .Select(x => x.ToEntity())
+            .Concat(Users.Select(x => x.ToEntity()))
+            .Concat(Teams.Select(x => x.ToEntity()))
             .ToList();
     }
 

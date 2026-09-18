@@ -1,3 +1,5 @@
+using Microsoft.Xrm.Sdk;
+
 namespace CloudAwesome.Xrm.Simulate.SecurityModel;
 
 public sealed class SimulatedUser
@@ -15,5 +17,20 @@ public sealed class SimulatedUser
         Id = id;
         BusinessUnitId = businessUnitId;
         FullName = fullName;
+    }
+
+    public Entity ToEntity()
+    {
+        var entity = new Entity("systemuser", Id)
+        {
+            ["businessunitid"] = new EntityReference("businessunit", BusinessUnitId)
+        };
+
+        if (!string.IsNullOrWhiteSpace(FullName))
+        {
+            entity["fullname"] = FullName;
+        }
+
+        return entity;
     }
 }

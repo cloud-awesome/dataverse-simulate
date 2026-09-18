@@ -1,3 +1,5 @@
+using Microsoft.Xrm.Sdk;
+
 namespace CloudAwesome.Xrm.Simulate.SecurityModel;
 
 public sealed class SimulatedTeam
@@ -21,5 +23,21 @@ public sealed class SimulatedTeam
         BusinessUnitId = businessUnitId;
         Name = name;
         TeamType = teamType;
+    }
+
+    public Entity ToEntity()
+    {
+        var entity = new Entity("team", Id)
+        {
+            ["businessunitid"] = new EntityReference("businessunit", BusinessUnitId),
+            ["teamtype"] = new OptionSetValue(TeamType == SimulatedTeamType.Owner ? 0 : 1)
+        };
+
+        if (!string.IsNullOrWhiteSpace(Name))
+        {
+            entity["name"] = Name;
+        }
+
+        return entity;
     }
 }

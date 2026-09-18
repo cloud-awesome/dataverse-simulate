@@ -61,6 +61,7 @@ public static class OrganisationServiceSimulator
             SimulatorOptionsProcessor.ConfigureUsersBusinessUnit(localDataService, localOptions);
             SimulatorOptionsProcessor.ConfigureOrganization(localDataService, localOptions);
             SimulatorOptionsProcessor.ConfigureAuthenticatedUser(localDataService, localOptions);
+            SimulatorOptionsProcessor.InitialiseSecurityModelEntities(localDataService, localOptions);
             SimulatorOptionsProcessor.SetSystemTime(localDataService, localOptions);
             SimulatorOptionsProcessor.ConfigureFiscalYearSettings(localDataService, localOptions);
         }

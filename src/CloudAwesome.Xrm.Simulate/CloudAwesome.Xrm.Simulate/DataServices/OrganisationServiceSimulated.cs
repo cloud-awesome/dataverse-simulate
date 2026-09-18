@@ -1,5 +1,6 @@
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.SecurityModel;
 using CloudAwesome.Xrm.Simulate.ServiceRequests;
 
 namespace CloudAwesome.Xrm.Simulate.DataServices;
@@ -54,5 +55,10 @@ public class OrganisationServiceSimulated
     public SimulatedMetadataService Metadata()
     {
         return new SimulatedMetadataService(_options);
+    }
+
+    public SimulatedSecurityModelService SecurityModel()
+    {
+        return new SimulatedSecurityModelService(_dataService, _options);
     }
 }

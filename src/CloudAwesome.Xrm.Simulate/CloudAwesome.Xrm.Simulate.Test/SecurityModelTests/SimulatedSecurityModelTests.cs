@@ -200,4 +200,35 @@ public class SimulatedSecurityModelTests
 
         permissions.Should().BeEmpty();
     }
+
+    [Test]
+    public void CreatePrincipalEntities_Returns_Common_Dataverse_System_Rows()
+    {
+        var businessUnitId = Guid.NewGuid();
+        var childBusinessUnitId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+
+        var sut = SimulatedSecurityModel.Create()
+            .WithBusinessUnit(businessUnitId, "Root")
+            .WithBusinessUnit(childBusinessUnitId, "Sales", businessUnitId)
+            .WithUser(userId, childBusinessUnitId, "Test User")
+            .WithOwnerTeam(teamId, childBusinessUnitId, "Sales Team");
+
+        var entities = sut.CreatePrincipalEntities();
+
+        entities.Should().Contain(x => x.LogicalName == "businessunit" && x.Id == businessUnitId);
+        entities.Should().Contain(x =>
+            x.LogicalName == "businessunit" &&
+            x.Id == childBusinessUnitId &&
+            x.GetAttributeValue<EntityReference>("parentbusinessunitid").Id == businessUnitId);
+        entities.Should().Contain(x =>
+            x.LogicalName == "systemuser" &&
+            x.Id == userId &&
+            x.GetAttributeValue<string>("fullname") == "Test User");
+        entities.Should().Contain(x =>
+            x.LogicalName == "team" &&
+            x.Id == teamId &&
+            x.GetAttributeValue<string>("name") == "Sales Team");
+    }
 }

@@ -1,3 +1,5 @@
+using Microsoft.Xrm.Sdk;
+
 namespace CloudAwesome.Xrm.Simulate.SecurityModel;
 
 public sealed class SimulatedBusinessUnit
@@ -15,5 +17,20 @@ public sealed class SimulatedBusinessUnit
         Id = id;
         Name = name;
         ParentBusinessUnitId = parentBusinessUnitId;
+    }
+
+    public Entity ToEntity()
+    {
+        var entity = new Entity("businessunit", Id)
+        {
+            ["name"] = Name
+        };
+
+        if (ParentBusinessUnitId is { } parentBusinessUnitId)
+        {
+            entity["parentbusinessunitid"] = new EntityReference("businessunit", parentBusinessUnitId);
+        }
+
+        return entity;
     }
 }
