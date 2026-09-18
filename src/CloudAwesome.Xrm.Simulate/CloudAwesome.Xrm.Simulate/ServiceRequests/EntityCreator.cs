@@ -27,12 +27,11 @@ public sealed class EntityCreator
     internal Guid Create(Entity e, ISimulatorOptions? options)
     {
         RequestFailureHandler.Handle(options, RequestMessage);
-        
-        if (!PermissionsCalculator.ValidateEntityPermission(e.LogicalName, RequestMessage, options))
-        {
-            throw new InvalidOperationException(
-                $"Create permission denied for entity '{e.LogicalName}' by the simulated security model.");
-        }
+
+        new SimulatedSecurityEnforcer(dataService).DemandTableAccess(
+            e.LogicalName,
+            SecurityPrivilege.Create,
+            options);
         
         var entityMetadata = MetadataValidator.ValidateCreate(e, options);
 

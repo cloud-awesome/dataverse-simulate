@@ -1,6 +1,7 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.SecurityModel;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 using NSubstitute;
@@ -46,17 +47,33 @@ public class EntityRetriever
         Entity entity;
         if (columnSet.AllColumns)
         {
-            entity = dataService.Get(entityName)
+            var fullEntity = dataService.Get(entityName)
                          .SingleOrDefault(e => e.Id == id) 
                      ?? throw DataverseServiceFaults.ObjectDoesNotExist(
                          entityName,
                          id,
                          DataverseFaultEntityNameFormat.LogicalName);
+            new SimulatedSecurityEnforcer(dataService).DemandRecordAccess(
+                fullEntity,
+                SecurityPrivilege.Read,
+                options);
+            entity = fullEntity;
         }
         else
         {
-            entity = dataService.Get(entityName)
-                         .Where(e => e.Id == id)
+            var fullEntity = dataService.Get(entityName)
+                         .SingleOrDefault(e => e.Id == id)
+                     ?? throw DataverseServiceFaults.ObjectDoesNotExist(
+                         entityName,
+                         id,
+                         DataverseFaultEntityNameFormat.LogicalName);
+
+            new SimulatedSecurityEnforcer(dataService).DemandRecordAccess(
+                fullEntity,
+                SecurityPrivilege.Read,
+                options);
+
+            entity = new[] { fullEntity }
                          .Select(record =>
                          {
                              var e = new Entity(record.LogicalName) { Id = record.Id };
@@ -73,11 +90,7 @@ public class EntityRetriever
                     
                              return e;
                          })
-                         .SingleOrDefault() 
-                     ?? throw DataverseServiceFaults.ObjectDoesNotExist(
-                         entityName,
-                         id,
-                         DataverseFaultEntityNameFormat.LogicalName);
+                         .Single();
         }
                     
         auditService.Add(RequestMessage, entity.LogicalName, entity.Id);

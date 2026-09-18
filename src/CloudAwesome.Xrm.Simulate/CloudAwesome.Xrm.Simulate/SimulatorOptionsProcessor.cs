@@ -1,5 +1,6 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.SecurityModel;
 using Microsoft.Xrm.Sdk;
 
 namespace CloudAwesome.Xrm.Simulate;
@@ -61,6 +62,17 @@ public static class SimulatorOptionsProcessor
 		foreach (var relationship in options.InitialiseRelationships)
 		{
 			dataService.SetRelationship(relationship);
+		}
+	}
+
+	internal static void InitialiseSecurityModelEntities(
+		MockedEntityDataService dataService,
+		ISimulatorOptions? options)
+	{
+		if (options?.SimulatedSecurityModel is SimulatedSecurityModel securityModel)
+		{
+			securityModel.Validate();
+			SimulatedSecurityModelDataSeeder.Seed(dataService, securityModel);
 		}
 	}
 	

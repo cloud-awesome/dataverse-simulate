@@ -37,6 +37,28 @@ public class MockedEntityDataService
         }
     }
 
+    public void Upsert(Entity entity)
+    {
+        if (_dataStore.Data.TryGetValue(entity.LogicalName, out var entities))
+        {
+            var existingEntity = entities.SingleOrDefault(x => x.Id == entity.Id);
+            if (existingEntity is not null)
+            {
+                foreach (var attribute in entity.Attributes)
+                {
+                    existingEntity[attribute.Key] = attribute.Value;
+                }
+
+                return;
+            }
+
+            entities.Add(entity);
+            return;
+        }
+
+        _dataStore.Data.Add(entity.LogicalName, [entity]);
+    }
+
     /// <summary>
     /// Get all data currently saved in the in memory store
     /// </summary>

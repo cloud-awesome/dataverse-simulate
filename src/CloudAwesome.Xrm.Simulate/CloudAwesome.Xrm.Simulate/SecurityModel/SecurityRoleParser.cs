@@ -10,9 +10,44 @@ internal static class SecurityRoleParser
 		string xmlPath,
 		IDictionary<string, string>? logicalNameOverrides = null)
 	{
-		var dict = ParseRoleFileToDictionary(xmlPath, logicalNameOverrides);
+		var dict = ParseRoleXml(xmlPath, logicalNameOverrides: logicalNameOverrides)
+            .EntityPermissions
+            .ToDictionary(x => x.LogicalName, x => (EntityPermission)x, StringComparer.OrdinalIgnoreCase);
 		return FromDict(dict);
 	}
+
+    internal static SimulatedSecurityRole ParseRoleXml(
+        string xmlPath,
+        string? roleName = null,
+        IDictionary<string, string>? logicalNameOverrides = null)
+    {
+        if (string.IsNullOrWhiteSpace(xmlPath))
+            throw new ArgumentException("Path must be provided.", nameof(xmlPath));
+        if (!File.Exists(xmlPath))
+            throw new FileNotFoundException("Role XML not found.", xmlPath);
+
+        var doc = XDocument.Load(xmlPath);
+        var parsedRoleName = ResolveRoleName(doc, xmlPath, roleName);
+        var role = new SimulatedSecurityRole(parsedRoleName);
+
+        foreach (var permission in ParseRoleDocumentToDictionary(doc, logicalNameOverrides).Values)
+        {
+            role.EntityPermissions.Add(new SimulatedRolePrivilege
+            {
+                LogicalName = permission.LogicalName,
+                Create = permission.Create,
+                Read = permission.Read,
+                Write = permission.Write,
+                Delete = permission.Delete,
+                Append = permission.Append,
+                AppendTo = permission.AppendTo,
+                Assign = permission.Assign,
+                Share = permission.Share
+            });
+        }
+
+        return role;
+    }
 
 	/// <summary>
 	/// Read and merge multiple role XML files. Highest privilege depth wins.
@@ -27,7 +62,9 @@ internal static class SecurityRoleParser
 
 		foreach (var path in xmlPaths)
 		{
-			var dict = ParseRoleFileToDictionary(path, logicalNameOverrides);
+			var dict = ParseRoleXml(path, logicalNameOverrides: logicalNameOverrides)
+                .EntityPermissions
+                .ToDictionary(x => x.LogicalName, x => (EntityPermission)x, StringComparer.OrdinalIgnoreCase);
 			MergeEntityPermissionDictionaries(acc, dict);
 		}
 
@@ -98,17 +135,10 @@ internal static class SecurityRoleParser
             EntityPermissions = dict.Values.Cast<IEntityPermission>().ToList()
         };
 
-    private static Dictionary<string, EntityPermission> ParseRoleFileToDictionary(
-        string xmlPath,
+    private static Dictionary<string, EntityPermission> ParseRoleDocumentToDictionary(
+        XDocument doc,
         IDictionary<string, string>? logicalNameOverrides)
     {
-        if (string.IsNullOrWhiteSpace(xmlPath))
-            throw new ArgumentException("Path must be provided.", nameof(xmlPath));
-        if (!File.Exists(xmlPath))
-            throw new FileNotFoundException("Role XML not found.", xmlPath);
-
-        var doc = XDocument.Load(xmlPath);
-
         var result = new Dictionary<string, EntityPermission>(StringComparer.OrdinalIgnoreCase);
 
         var rolePrivileges = doc
@@ -145,6 +175,18 @@ internal static class SecurityRoleParser
         }
 
         return result;
+    }
+
+    private static string ResolveRoleName(XDocument doc, string xmlPath, string? roleName)
+    {
+        if (!string.IsNullOrWhiteSpace(roleName))
+            return roleName;
+
+        var xmlRoleName = (string?)doc.Root?.Attribute("name");
+        if (!string.IsNullOrWhiteSpace(xmlRoleName))
+            return xmlRoleName;
+
+        return Path.GetFileNameWithoutExtension(xmlPath);
     }
     
     // Regex matches: prv + Privilege + (optional "To") + Entity
