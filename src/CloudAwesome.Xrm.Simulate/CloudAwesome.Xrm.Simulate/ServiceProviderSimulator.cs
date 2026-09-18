@@ -15,6 +15,7 @@ public static class ServiceProviderSimulator
     {
         var localOptions = options ?? new SimulatorOptions();
         var context = new SimulationContext();
+        context.Options = localOptions;
 
         context.DataService.Reinitialise();
         context.LoggingService.Clear();
@@ -75,7 +76,7 @@ public static class ServiceProviderSimulator
             serviceProvider is null || !Contexts.TryGetValue(serviceProvider, out var context)
                 ? throw new InvalidOperationException("This IServiceProvider has not been initialised with Simulate().")
                 : new ServiceProviderSimulated(context.DataService, context.LoggingService, context.TelemetryService,
-                    context.SimulatorAuditService, context.ServiceBus);
+                    context.SimulatorAuditService, context.ServiceBus, context.Options);
     }
 
     private sealed class SimulationContext
@@ -85,6 +86,7 @@ public static class ServiceProviderSimulator
         public MockedTelemetryService TelemetryService { get; } = new();
         public MockedServiceBusService ServiceBus { get; } = new();
         public SimulatorAuditService SimulatorAuditService { get; } = new();
+        public ISimulatorOptions Options { get; set; } = new SimulatorOptions();
     }
 
     private static readonly ConditionalWeakTable<IServiceProvider, SimulationContext> Contexts = new();

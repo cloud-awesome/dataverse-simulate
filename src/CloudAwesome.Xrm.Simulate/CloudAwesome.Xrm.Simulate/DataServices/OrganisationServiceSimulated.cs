@@ -1,5 +1,6 @@
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.Queues;
 using CloudAwesome.Xrm.Simulate.SecurityModel;
 using CloudAwesome.Xrm.Simulate.ServiceRequests;
 
@@ -60,5 +61,10 @@ public class OrganisationServiceSimulated
     public SimulatedSecurityModelService SecurityModel()
     {
         return new SimulatedSecurityModelService(_dataService, _options);
+    }
+
+    public SimulatedQueueService Queues()
+    {
+        return new SimulatedQueueService(_dataService, _auditService, _options);
     }
 }
