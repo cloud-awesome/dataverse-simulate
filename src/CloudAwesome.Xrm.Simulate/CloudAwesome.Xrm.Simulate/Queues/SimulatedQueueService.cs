@@ -3,6 +3,7 @@ using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
 using CloudAwesome.Xrm.Simulate.QueryParsers;
+using CloudAwesome.Xrm.Simulate.SecurityModel;
 using CloudAwesome.Xrm.Simulate.ServiceRequests;
 using Microsoft.Xrm.Sdk;
 
@@ -33,17 +34,23 @@ public sealed class SimulatedQueueService(
 
         var destinationQueue = new EntityReference(QueueLogicalName, destinationQueueId);
         ValidateQueueReference(destinationQueue, "destination queue");
-        dataService.Get(destinationQueue);
-        dataService.Get(target);
+        var destinationQueueRecord = dataService.Get(destinationQueue);
+        var targetRecord = dataService.Get(target);
         ValidateTargetIsQueueEnabled(target);
         ValidateQueueItemProperties(queueItemProperties);
+
+        var security = new SimulatedSecurityEnforcer(dataService);
+        security.DemandRecordAccess(targetRecord, SecurityPrivilege.Read, options);
+        security.DemandRecordAccess(destinationQueueRecord, SecurityPrivilege.Read, options);
+        security.DemandTableAccess(QueueItemLogicalName, SecurityPrivilege.Create, options);
 
         if (sourceQueueId is not null)
         {
             var sourceQueue = new EntityReference(QueueLogicalName, sourceQueueId.Value);
             ValidateQueueReference(sourceQueue, "source queue");
-            dataService.Get(sourceQueue);
-            RemoveExistingSourceQueueItem(target, sourceQueueId.Value);
+            var sourceQueueRecord = dataService.Get(sourceQueue);
+            security.DemandRecordAccess(sourceQueueRecord, SecurityPrivilege.Read, options);
+            RemoveExistingSourceQueueItem(target, sourceQueueId.Value, security);
         }
 
         var queueItemId = ResolveQueueItemId(queueItemProperties);
@@ -68,6 +75,10 @@ public sealed class SimulatedQueueService(
     public void RemoveFromQueue(Guid queueItemId)
     {
         var queueItem = GetQueueItem(queueItemId);
+        new SimulatedSecurityEnforcer(dataService).DemandRecordAccess(
+            queueItem,
+            SecurityPrivilege.Delete,
+            options);
 
         dataService.Delete(queueItem);
         auditService.Add(RemoveFromQueueMessage, QueueItemLogicalName, queueItemId);
@@ -90,6 +101,10 @@ public sealed class SimulatedQueueService(
 
         var queueItem = GetQueueItem(queueItemId);
         dataService.Get(worker);
+        new SimulatedSecurityEnforcer(dataService).DemandRecordAccess(
+            queueItem,
+            SecurityPrivilege.Write,
+            options);
 
         if (removeQueueItem)
         {
@@ -107,6 +122,10 @@ public sealed class SimulatedQueueService(
     public void ReleaseToQueue(Guid queueItemId)
     {
         var queueItem = GetQueueItem(queueItemId);
+        new SimulatedSecurityEnforcer(dataService).DemandRecordAccess(
+            queueItem,
+            SecurityPrivilege.Write,
+            options);
 
         queueItem["workerid"] = null!;
         Touch(queueItem);
@@ -119,11 +138,15 @@ public sealed class SimulatedQueueService(
         ArgumentNullException.ThrowIfNull(target);
 
         var queueItem = GetQueueItem(queueItemId);
-        dataService.Get(target);
+        var targetRecord = dataService.Get(target);
+        var security = new SimulatedSecurityEnforcer(dataService);
+        security.DemandRecordAccess(queueItem, SecurityPrivilege.Write, options);
+        security.DemandRecordAccess(targetRecord, SecurityPrivilege.Read, options);
 
         switch (target.LogicalName)
         {
             case QueueLogicalName:
+                security.DemandRecordAccess(targetRecord, SecurityPrivilege.Write, options);
                 queueItem["queueid"] = target;
                 queueItem["workerid"] = null!;
                 break;
@@ -146,7 +169,10 @@ public sealed class SimulatedQueueService(
         return dataService.Get(QueueItemLogicalName, queueItemId);
     }
 
-    private void RemoveExistingSourceQueueItem(EntityReference target, Guid sourceQueueId)
+    private void RemoveExistingSourceQueueItem(
+        EntityReference target,
+        Guid sourceQueueId,
+        SimulatedSecurityEnforcer security)
     {
         var existing = dataService
             .Get(QueueItemLogicalName)
@@ -156,6 +182,7 @@ public sealed class SimulatedQueueService(
 
         if (existing is not null)
         {
+            security.DemandRecordAccess(existing, SecurityPrivilege.Delete, options);
             dataService.Delete(existing);
         }
     }
