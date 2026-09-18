@@ -64,6 +64,7 @@ public static class OrganisationServiceSimulator
             SimulatorOptionsProcessor.InitialiseSecurityModelEntities(localDataService, localOptions);
             SimulatorOptionsProcessor.SetSystemTime(localDataService, localOptions);
             SimulatorOptionsProcessor.ConfigureFiscalYearSettings(localDataService, localOptions);
+            SimulatorOptionsProcessor.InitialiseQueues(localDataService, localOptions);
         }
         
         RegisterSimulation(service, localDataService, localAuditService, organizationRequestRegistry, localOptions);

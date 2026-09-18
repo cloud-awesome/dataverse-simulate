@@ -16,6 +16,7 @@ public sealed class SimulatedEntityMetadata
         OwnershipType = dto.OwnershipType ?? string.Empty;
         IsActivity = dto.IsActivity;
         IsIntersect = dto.IsIntersect;
+        IsValidForQueue = dto.IsValidForQueue;
         ValidMessages = dto.ValidMessages ?? [];
         Attributes = dto.Attributes.Select(attribute => new SimulatedAttributeMetadata(attribute)).ToList();
         StateStatus = dto.StateStatus.Select(state => new SimulatedStateMetadata(state)).ToList();
@@ -45,6 +46,8 @@ public sealed class SimulatedEntityMetadata
     public bool IsActivity { get; }
 
     public bool IsIntersect { get; }
+
+    public bool? IsValidForQueue { get; }
 
     public IReadOnlyList<string> ValidMessages { get; }
 

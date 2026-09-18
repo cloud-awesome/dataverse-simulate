@@ -31,4 +31,6 @@ public interface ISimulatorOptions
     public FiscalYearSettings? FiscalYearSettings { get; set; }
 
     public SimulatedMetadata? Metadata { get; set; }
+
+    public SimulatedQueueModel? Queues { get; set; }
 }

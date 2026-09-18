@@ -1,0 +1,111 @@
+{
+  "contractVersion": "1.0",
+  "entities": [
+    {
+      "logicalName": "account",
+      "schemaName": "Account",
+      "primaryIdAttribute": "accountid",
+      "primaryNameAttribute": "name",
+      "ownershipType": "UserOwned",
+      "isValidForQueue": true,
+      "attributes": [
+        {
+          "logicalName": "accountid",
+          "schemaName": "AccountId",
+          "attributeType": "Uniqueidentifier",
+          "isPrimaryId": true,
+          "isValidForCreate": true,
+          "isValidForRead": true
+        },
+        {
+          "logicalName": "name",
+          "schemaName": "Name",
+          "attributeType": "String",
+          "isPrimaryName": true,
+          "isValidForCreate": true,
+          "isValidForUpdate": true,
+          "isValidForRead": true
+        }
+      ]
+    },
+    {
+      "logicalName": "lead",
+      "schemaName": "Lead",
+      "primaryIdAttribute": "leadid",
+      "primaryNameAttribute": "fullname",
+      "ownershipType": "UserOwned",
+      "isValidForQueue": false,
+      "attributes": [
+        {
+          "logicalName": "leadid",
+          "schemaName": "LeadId",
+          "attributeType": "Uniqueidentifier",
+          "isPrimaryId": true,
+          "isValidForCreate": true,
+          "isValidForRead": true
+        },
+        {
+          "logicalName": "fullname",
+          "schemaName": "FullName",
+          "attributeType": "String",
+          "isPrimaryName": true,
+          "isValidForCreate": true,
+          "isValidForUpdate": true,
+          "isValidForRead": true
+        }
+      ]
+    },
+    {
+      "logicalName": "queue",
+      "schemaName": "Queue",
+      "primaryIdAttribute": "queueid",
+      "primaryNameAttribute": "name",
+      "ownershipType": "BusinessOwned",
+      "attributes": [
+        {
+          "logicalName": "queueid",
+          "schemaName": "QueueId",
+          "attributeType": "Uniqueidentifier",
+          "isPrimaryId": true,
+          "isValidForCreate": true,
+          "isValidForRead": true
+        },
+        {
+          "logicalName": "name",
+          "schemaName": "Name",
+          "attributeType": "String",
+          "isPrimaryName": true,
+          "isValidForCreate": true,
+          "isValidForUpdate": true,
+          "isValidForRead": true
+        }
+      ]
+    },
+    {
+      "logicalName": "queueitem",
+      "schemaName": "QueueItem",
+      "primaryIdAttribute": "queueitemid",
+      "primaryNameAttribute": "title",
+      "ownershipType": "BusinessOwned",
+      "attributes": [
+        {
+          "logicalName": "queueitemid",
+          "schemaName": "QueueItemId",
+          "attributeType": "Uniqueidentifier",
+          "isPrimaryId": true,
+          "isValidForCreate": true,
+          "isValidForRead": true
+        },
+        {
+          "logicalName": "title",
+          "schemaName": "Title",
+          "attributeType": "String",
+          "isPrimaryName": true,
+          "isValidForCreate": true,
+          "isValidForUpdate": true,
+          "isValidForRead": true
+        }
+      ]
+    }
+  ]
+}

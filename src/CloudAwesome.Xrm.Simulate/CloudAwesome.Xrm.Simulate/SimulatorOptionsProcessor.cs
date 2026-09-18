@@ -1,5 +1,6 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.Queues;
 using CloudAwesome.Xrm.Simulate.SecurityModel;
 using Microsoft.Xrm.Sdk;
 
@@ -74,6 +75,13 @@ public static class SimulatorOptionsProcessor
 			securityModel.Validate();
 			SimulatedSecurityModelDataSeeder.Seed(dataService, securityModel);
 		}
+	}
+
+	internal static void InitialiseQueues(
+		MockedEntityDataService dataService,
+		ISimulatorOptions? options)
+	{
+		SimulatedQueueDataSeeder.Seed(dataService, options);
 	}
 	
 	internal static EntityReference ConfigureUsersBusinessUnit(MockedEntityDataService dataService,

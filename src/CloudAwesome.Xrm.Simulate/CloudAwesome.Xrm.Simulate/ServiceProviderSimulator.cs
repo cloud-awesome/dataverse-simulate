@@ -33,6 +33,7 @@ public static class ServiceProviderSimulator
         SimulatorOptionsProcessor.ConfigureOrganization(context.DataService, localOptions);
         SimulatorOptionsProcessor.SetSystemTime(context.DataService, localOptions);
         SimulatorOptionsProcessor.ConfigureFiscalYearSettings(context.DataService, localOptions);
+        SimulatorOptionsProcessor.InitialiseQueues(context.DataService, localOptions);
 
         localServiceProvider.GetService(Arg.Any<Type>())
             .Returns(callInfo =>
