@@ -1,6 +1,6 @@
 using Microsoft.Xrm.Sdk;
 
-namespace CloudAwesome.Xrm.Simulate;
+namespace CloudAwesome.Xrm.Simulate.Metadata;
 
 public sealed class SimulatedRelationship
 {

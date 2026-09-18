@@ -1,6 +1,6 @@
 using Microsoft.Xrm.Sdk;
 
-namespace CloudAwesome.Xrm.Simulate;
+namespace CloudAwesome.Xrm.Simulate.Queues;
 
 public sealed class SimulatedQueueModel
 {

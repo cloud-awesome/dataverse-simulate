@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.Queues;
 using FluentAssertions;
 using Microsoft.Xrm.Sdk;
 using NUnit.Framework;
