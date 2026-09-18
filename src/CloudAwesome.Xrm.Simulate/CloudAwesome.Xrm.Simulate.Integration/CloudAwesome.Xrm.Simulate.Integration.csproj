@@ -32,6 +32,9 @@
       <None Update="appsettings.local.json">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
+      <None Include="..\CloudAwesome.Xrm.Simulate.Test\TestMetadata\**\*.json" Link="TestMetadata\%(RecursiveDir)%(Filename)%(Extension)">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>
