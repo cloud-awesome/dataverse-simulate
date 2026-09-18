@@ -25,6 +25,9 @@ public class RetrievePrincipalAccessRequestHandler : IRequestHandler
             target,
             SecurityPrivilege.Share,
             options);
+        SecurityRequestValidator.DemandPrincipalExists(
+            dataService,
+            retrieveRequest.Principal);
 
         var rights = options?.SimulatedSecurityModel is SimulatedSecurityModel securityModel
             ? CalculateEffectiveAccess(securityModel, retrieveRequest.Principal, target)

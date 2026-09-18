@@ -20,6 +20,12 @@ public class AddMembersTeamRequestHandler : IRequestHandler
 
         RequestFailureHandler.Handle(options, RequestMessage, addRequest.TeamId);
 
+        SecurityRequestValidator.DemandTeamExists(dataService, addRequest.TeamId);
+        foreach (var memberId in addRequest.MemberIds)
+        {
+            SecurityRequestValidator.DemandUserExists(dataService, memberId);
+        }
+
         if (options?.SimulatedSecurityModel is SimulatedSecurityModel securityModel)
         {
             foreach (var memberId in addRequest.MemberIds)

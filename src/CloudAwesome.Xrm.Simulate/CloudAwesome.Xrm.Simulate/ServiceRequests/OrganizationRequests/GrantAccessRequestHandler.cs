@@ -25,6 +25,9 @@ public class GrantAccessRequestHandler : IRequestHandler
             target,
             SecurityPrivilege.Share,
             options);
+        SecurityRequestValidator.DemandPrincipalExists(
+            dataService,
+            grantRequest.PrincipalAccess.Principal);
 
         if (options?.SimulatedSecurityModel is SimulatedSecurityModel securityModel)
         {

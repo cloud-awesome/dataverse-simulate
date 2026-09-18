@@ -25,6 +25,9 @@ public class ModifyAccessRequestHandler : IRequestHandler
             target,
             SecurityPrivilege.Share,
             options);
+        SecurityRequestValidator.DemandPrincipalExists(
+            dataService,
+            modifyRequest.PrincipalAccess.Principal);
 
         if (options?.SimulatedSecurityModel is SimulatedSecurityModel securityModel)
         {

@@ -203,6 +203,46 @@ public class SecurityRequestHandlerTests
             .Which.Detail.ErrorCode.Should().Be(-2147187962);
     }
 
+    [Test]
+    public void GrantAccessRequest_Missing_Principal_Returns_Dataverse_Service_Fault()
+    {
+        var fixture = CreateFixture(role => role.CanShare(AccountLogicalName, PrivilegeDepthEnum.Organization));
+        var account = fixture.AddAccount(fixture.OwnerUser);
+        var missingUser = new EntityReference("systemuser", Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+
+        var grant = () => fixture.Service.Execute(new GrantAccessRequest
+        {
+            Target = account.ToEntityReference(),
+            PrincipalAccess = new PrincipalAccess
+            {
+                Principal = missingUser,
+                AccessMask = AccessRights.ReadAccess
+            }
+        });
+
+        grant.Should()
+            .Throw<FaultException<OrganizationServiceFault>>()
+            .Which.Detail.ErrorCode.Should().Be(-2147220969);
+        fixture.Security.PrincipalObjectAccesses.Should().BeEmpty();
+    }
+
+    [Test]
+    public void AddMembersTeamRequest_Missing_Team_Returns_Dataverse_Service_Fault()
+    {
+        var fixture = CreateFixture(_ => { });
+
+        var add = () => fixture.Service.Execute(new AddMembersTeamRequest
+        {
+            TeamId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+            MemberIds = [fixture.ActingUser.Id]
+        });
+
+        add.Should()
+            .Throw<FaultException<OrganizationServiceFault>>()
+            .Which.Detail.ErrorCode.Should().Be(-2147220969);
+        fixture.Security.TeamMemberships.Should().BeEmpty();
+    }
+
     private static SecurityFixture CreateFixture(
         Action<SimulatedSecurityRole> configureRole,
         Action<SimulatedSecurityModel>? configureSecurity = null)

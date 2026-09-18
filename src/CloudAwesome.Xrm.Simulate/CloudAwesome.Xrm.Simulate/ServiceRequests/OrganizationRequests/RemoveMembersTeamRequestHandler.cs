@@ -20,6 +20,12 @@ public class RemoveMembersTeamRequestHandler : IRequestHandler
 
         RequestFailureHandler.Handle(options, RequestMessage, removeRequest.TeamId);
 
+        SecurityRequestValidator.DemandTeamExists(dataService, removeRequest.TeamId);
+        foreach (var memberId in removeRequest.MemberIds)
+        {
+            SecurityRequestValidator.DemandUserExists(dataService, memberId);
+        }
+
         if (options?.SimulatedSecurityModel is SimulatedSecurityModel securityModel)
         {
             foreach (var memberId in removeRequest.MemberIds)

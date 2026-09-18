@@ -25,6 +25,9 @@ public class RevokeAccessRequestHandler : IRequestHandler
             target,
             SecurityPrivilege.Share,
             options);
+        SecurityRequestValidator.DemandPrincipalExists(
+            dataService,
+            revokeRequest.Revokee);
 
         if (options?.SimulatedSecurityModel is SimulatedSecurityModel securityModel)
         {
