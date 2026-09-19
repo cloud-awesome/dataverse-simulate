@@ -38,39 +38,40 @@ The main maturity gap is not just "more messages". The core maturity gap is exac
 
 Before adding large new features, fix known incorrect behavior in existing surfaces:
 
-- Correct `Update` to merge incoming attributes into the existing entity, set `modifiedon` and `modifiedby`, run the update processor rather than the create processor, and audit the request.
-- Correct partial-column `Retrieve`, which currently returns the first entity in the table rather than filtering by the requested id when `ColumnSet.AllColumns` is false.
-- Implement `Disassociate`, which currently only handles configured failure simulation.
-- Replace generic `Exception`, `InvalidOperationException`, and placeholder messages with Dataverse-shaped exceptions collected from live integration tests.
-- Make unsupported `Execute` requests fail with a clear simulator error or configurable behavior rather than an internal `KeyNotFoundException`.
-- Make service-provider simulation instance-scoped rather than backed by static stores.
-- Add regression tests for each corrected behavior before expanding the surface area.
+- [x] Correct `Update` to merge incoming attributes into the existing entity, set `modifiedon` and `modifiedby`, run the update processor rather than the create processor, and audit the request.
+- [x] Correct partial-column `Retrieve`, which currently returns the first entity in the table rather than filtering by the requested id when `ColumnSet.AllColumns` is false.
+- [x] Implement `Disassociate`, which currently only handles configured failure simulation.
+- [x] Replace generic `Exception`, `InvalidOperationException`, and placeholder messages with Dataverse-shaped exceptions collected from live integration tests.
+- [x] Make unsupported `Execute` requests fail with a clear simulator error or configurable behavior rather than an internal `KeyNotFoundException`.
+- [x] Make service-provider simulation instance-scoped rather than backed by static stores.
+- [x] Add regression tests for each corrected behavior before expanding the surface area.
 
 ### Phase 1 - Core parity
 
 Focus on the features most likely to unblock users writing plugin/integration unit tests:
 
-- Complete common `IOrganizationService` method parity: `Associate`, `Disassociate`, CRUD, retrieve, `RetrieveMultiple`, and audit behavior.
+- [x] Complete common `IOrganizationService` method parity: `Associate`, `Disassociate`, CRUD, retrieve, `RetrieveMultiple`, and audit behavior.
 - Add first-class handlers for high-value `OrganizationRequest` types: 
-  - `RetrieveRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest`, `UpsertRequest`, `ExecuteMultipleRequest`, `ExecuteTransactionRequest`, `SetStateRequest`, 
-  - `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest`, `AddMembersTeamRequest`, `RemoveMembersTeamRequest`, 
-  - [queue requests](07-queue-simulation.md), and 
-  - metadata retrieval requests.
-- Rework query execution so filtering, joining, ordering, distinct, paging, projection, and aggregation match Dataverse behavior instead of LINQ convenience behavior.
-- Treat security as a query and request pipeline concern, not just a create-time permission guard.
-- Establish live parity fixtures for exceptions, response shapes, and edge cases.
+  - [x] `RetrieveRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest`, 
+  - [x] `UpsertRequest`, `ExecuteMultipleRequest`, `ExecuteTransactionRequest`, `SetStateRequest`, 
+  - [x] `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest`, `AddMembersTeamRequest`, `RemoveMembersTeamRequest`, 
+  - [x] [queue requests](07-queue-simulation.md), and 
+  - [x] metadata retrieval requests.
+- [ ] Rework query execution so filtering, joining, ordering, distinct, paging, projection, and aggregation match Dataverse behavior instead of LINQ convenience behavior.
+- [x] Treat security as a query and request pipeline concern, not just a create-time permission guard.
+- [ ] Establish live parity fixtures for exceptions, response shapes, and edge cases.
 
 ### Phase 2 - Mature platform behavior
 
 Add higher-value Dataverse behavior that advanced test suites need:
 
-- Plugin pipeline simulation: registered steps, stage/mode/depth, pre/post images, shared variables, parent context, transaction behavior. 
+- [ ] Plugin pipeline simulation: registered steps, stage/mode/depth, pre/post images, shared variables, parent context, transaction behavior. 
   - (N.B. Ensure however, that the "pipeline" remains unit-specific for when a unit queries execution context etc. We aren't, and never will, build out a cascading execution pipeline. This framework is intended for unit testing only, not trying to rebuild the dataverse execution pipeline.)
-- Metadata-aware validation: required fields, primary id/name behavior, state/status, option set validation, lookup target validation, alternate keys, formatted values, and attribute type handling.
-- Relationship metadata and cascade behavior for associate/disassociate/delete/assign.
-- Row version and optimistic concurrency behavior.
-- Realistic record ownership, teams, business units, sharing, and access-team behavior.
-- Better data seeding ergonomics with metadata and early-bound type support.
+- [ ] Metadata-aware validation: required fields, primary id/name behavior, state/status, option set validation, lookup target validation, alternate keys, formatted values, and attribute type handling.
+- [ ] Relationship metadata and cascade behavior for associate/disassociate/delete/assign.
+- [ ] Row version and optimistic concurrency behavior.
+- [x] Realistic record ownership, teams, business units, sharing, and access-team behavior.
+- [ ] Better data seeding ergonomics with metadata and early-bound type support.
 
 ### Phase 3 - Project maturity
 

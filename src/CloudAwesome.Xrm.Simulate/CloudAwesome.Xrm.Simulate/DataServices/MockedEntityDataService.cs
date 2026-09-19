@@ -1,6 +1,7 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.QueryParsers;
 using CloudAwesome.Xrm.Simulate.ServiceProviders;
 using CloudAwesome.Xrm.Simulate.ServiceRequests;
 using Microsoft.Xrm.Sdk;
@@ -218,6 +219,25 @@ public class MockedEntityDataService
         return _dataStore.Relationships.Get();
     }
 
+    internal EntityDataSnapshot CreateSnapshot()
+    {
+        var data = _dataStore.Data.ToDictionary(
+            entitySet => entitySet.Key,
+            entitySet => entitySet.Value.Select(EntityCloner.Clone).ToList(),
+            StringComparer.OrdinalIgnoreCase);
+
+        return new EntityDataSnapshot(data, _dataStore.Relationships.Get().ToList());
+    }
+
+    internal void RestoreSnapshot(EntityDataSnapshot snapshot)
+    {
+        _dataStore.Set(snapshot.Data.ToDictionary(
+            entitySet => entitySet.Key,
+            entitySet => entitySet.Value.Select(EntityCloner.Clone).ToList(),
+            StringComparer.OrdinalIgnoreCase));
+        _dataStore.Relationships.Set(snapshot.Relationships);
+    }
+
     internal IReadOnlyCollection<StoredRelationship> GetRelationships(EntityReference target, Relationship relationship)
     {
         return _dataStore.Relationships.Get(target, relationship);
@@ -346,4 +366,8 @@ public class MockedEntityDataService
         get => _dataStore.FiscalYearSettings;
         set => _dataStore.FiscalYearSettings = value ?? new FiscalYearSettings();
     }
+
+    internal sealed record EntityDataSnapshot(
+        Dictionary<string, List<Entity>> Data,
+        List<StoredRelationship> Relationships);
 }
