@@ -1,7 +1,6 @@
 using System;
 using FluentAssertions;
 using Microsoft.Xrm.Sdk;
-using Microsoft.Xrm.Sdk.Messages;
 using NUnit.Framework;
 
 namespace CloudAwesome.Xrm.Simulate.Test.ServiceRequestsTests.OrganizationRequestsTests;
@@ -18,16 +17,16 @@ public class UnsupportedOrganizationRequestTests
 	}
 
 	[Test]
-	public void Execute_Unsupported_Sdk_Request_Throws_Clear_NotSupportedException()
+	public void Execute_Unsupported_Request_Throws_Clear_NotSupportedException()
 	{
-		var executeUnsupportedRequest = () => _organizationService.Execute(new ExecuteMultipleRequest
+		var executeUnsupportedRequest = () => _organizationService.Execute(new OrganizationRequest
 		{
-			Requests = new OrganizationRequestCollection()
+			RequestName = "cloudawesome_UnsupportedSdkLikeRequest"
 		});
 
 		executeUnsupportedRequest.Should()
 			.Throw<NotSupportedException>()
-			.WithMessage("*ExecuteMultipleRequest*ExecuteMultiple*");
+			.WithMessage("*OrganizationRequest*cloudawesome_UnsupportedSdkLikeRequest*");
 	}
 
 	[Test]

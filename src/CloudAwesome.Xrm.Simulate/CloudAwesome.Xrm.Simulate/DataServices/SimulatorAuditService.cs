@@ -35,4 +35,15 @@ public class SimulatorAuditService
             .Where(x => x.Id == id)
             .ToList();
     }
+
+    internal List<SimulatorAudit> CreateSnapshot()
+    {
+        return _simulatorAuditStore.Logs.ToList();
+    }
+
+    internal void RestoreSnapshot(List<SimulatorAudit> logs)
+    {
+        _simulatorAuditStore.Logs.Clear();
+        _simulatorAuditStore.Logs.AddRange(logs);
+    }
 }

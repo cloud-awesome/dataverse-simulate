@@ -45,6 +45,15 @@ internal sealed class MockedRelationshipDataStore
         _relationships.Clear();
     }
 
+    internal void Set(IEnumerable<StoredRelationship> relationships)
+    {
+        _relationships.Clear();
+        foreach (var relationship in relationships)
+        {
+            _relationships.Add(relationship);
+        }
+    }
+
     private static StoredRelationship ToStoredRelationship(
         EntityReference target,
         Relationship relationship,

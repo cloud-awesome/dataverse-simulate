@@ -515,6 +515,38 @@ public class SimulatedSecurityModel : ISecurityModel
             .ToList();
     }
 
+    internal SecurityModelSnapshot CreateSnapshot()
+    {
+        return new SecurityModelSnapshot(
+            TeamMemberships
+                .Select(membership => new SimulatedTeamMembership(membership.TeamId, membership.UserId))
+                .ToList(),
+            PrincipalObjectAccesses
+                .Select(access => new SimulatedPrincipalObjectAccess(
+                    CloneReference(access.Target),
+                    CloneReference(access.Principal),
+                    access.AccessRights))
+                .ToList());
+    }
+
+    internal void RestoreSnapshot(SecurityModelSnapshot snapshot)
+    {
+        TeamMemberships.Clear();
+        TeamMemberships.AddRange(snapshot.TeamMemberships.Select(membership =>
+            new SimulatedTeamMembership(membership.TeamId, membership.UserId)));
+
+        PrincipalObjectAccesses.Clear();
+        PrincipalObjectAccesses.AddRange(snapshot.PrincipalObjectAccesses.Select(access =>
+            new SimulatedPrincipalObjectAccess(
+                CloneReference(access.Target),
+                CloneReference(access.Principal),
+                access.AccessRights)));
+    }
+
+    internal sealed record SecurityModelSnapshot(
+        List<SimulatedTeamMembership> TeamMemberships,
+        List<SimulatedPrincipalObjectAccess> PrincipalObjectAccesses);
+
     private IEnumerable<Guid> GetOwnerTeamIdsForUser(Guid userId)
     {
         return TeamMemberships
@@ -773,6 +805,15 @@ public class SimulatedSecurityModel : ISecurityModel
     private static bool PrincipalMatches(EntityReference first, EntityReference second) =>
         first.Id == second.Id &&
         string.Equals(first.LogicalName, second.LogicalName, StringComparison.OrdinalIgnoreCase);
+
+    private static EntityReference CloneReference(EntityReference reference)
+    {
+        return new EntityReference(reference.LogicalName, reference.Id)
+        {
+            Name = reference.Name,
+            RowVersion = reference.RowVersion
+        };
+    }
 
     private static void EnsureUnique(Guid id, IEnumerable<Guid> existingIds, string itemType)
     {

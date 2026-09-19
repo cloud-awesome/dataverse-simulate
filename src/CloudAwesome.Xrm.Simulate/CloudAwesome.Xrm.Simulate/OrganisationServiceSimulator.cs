@@ -91,6 +91,8 @@ public static class OrganisationServiceSimulator
         handlerRegistry.RegisterHandler<AssignRequest>(new AssignRequestHandler());
         handlerRegistry.RegisterHandler<DeleteRequest>(new DeleteRequestHandler());
         handlerRegistry.RegisterHandler<DisassociateRequest>(new DisassociateRequestHandler());
+        handlerRegistry.RegisterHandler<ExecuteMultipleRequest>(new ExecuteMultipleRequestHandler(handlerRegistry));
+        handlerRegistry.RegisterHandler<ExecuteTransactionRequest>(new ExecuteTransactionRequestHandler(handlerRegistry));
         handlerRegistry.RegisterHandler<GrantAccessRequest>(new GrantAccessRequestHandler());
         handlerRegistry.RegisterHandler<ModifyAccessRequest>(new ModifyAccessRequestHandler());
         handlerRegistry.RegisterHandler<PickFromQueueRequest>(new PickFromQueueRequestHandler());
@@ -107,7 +109,9 @@ public static class OrganisationServiceSimulator
         handlerRegistry.RegisterHandler<RetrieveSharedPrincipalsAndAccessRequest>(new RetrieveSharedPrincipalsAndAccessRequestHandler());
         handlerRegistry.RegisterHandler<RevokeAccessRequest>(new RevokeAccessRequestHandler());
         handlerRegistry.RegisterHandler<RouteToRequest>(new RouteToRequestHandler());
+        handlerRegistry.RegisterHandler<SetStateRequest>(new SetStateRequestHandler());
         handlerRegistry.RegisterHandler<UpdateRequest>(new UpdateRequestHandler());
+        handlerRegistry.RegisterHandler<UpsertRequest>(new UpsertRequestHandler());
         handlerRegistry.RegisterHandler<WhoAmIRequest>(new WhoAmIRequestHandler());
         
         return handlerRegistry;

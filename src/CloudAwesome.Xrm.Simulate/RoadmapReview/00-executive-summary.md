@@ -53,7 +53,7 @@ Focus on the features most likely to unblock users writing plugin/integration un
 - [x] Complete common `IOrganizationService` method parity: `Associate`, `Disassociate`, CRUD, retrieve, `RetrieveMultiple`, and audit behavior.
 - Add first-class handlers for high-value `OrganizationRequest` types: 
   - [x] `RetrieveRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest`, 
-  - [ ] `UpsertRequest`, `ExecuteMultipleRequest`, `ExecuteTransactionRequest`, `SetStateRequest`, 
+  - [x] `UpsertRequest`, `ExecuteMultipleRequest`, `ExecuteTransactionRequest`, `SetStateRequest`, 
   - [x] `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest`, `AddMembersTeamRequest`, `RemoveMembersTeamRequest`, 
   - [x] [queue requests](07-queue-simulation.md), and 
   - [x] metadata retrieval requests.
