@@ -46,12 +46,29 @@ public static class FetchExpressionParser
                 query.TopCount = topCount;
             }
 
+            var pageNumber = GetIntegerXmlAttribute(fetchNode, "page");
+            var count = GetIntegerXmlAttribute(fetchNode, "count");
+            var pagingCookie = GetStringXmlAttribute(fetchNode, "paging-cookie");
+            var returnTotalRecordCount = GetBooleanXmlAttribute(fetchNode, "returntotalrecordcount");
+
+            if (pageNumber.HasValue || count.HasValue || !string.IsNullOrWhiteSpace(pagingCookie) || returnTotalRecordCount)
+            {
+                query.PageInfo = new PagingInfo
+                {
+                    PageNumber = pageNumber ?? 0,
+                    Count = count ?? 0,
+                    PagingCookie = pagingCookie,
+                    ReturnTotalRecordCount = returnTotalRecordCount
+                };
+            }
+
             if (bool.TryParse(fetchNode.Attributes["distinct"]?.Value, out bool distinct))
             {
                 query.Distinct = distinct;
             }
 
             var isAggregate = GetBooleanXmlAttribute(fetchNode, "aggregate");
+            var aggregateLimit = GetIntegerXmlAttribute(fetchNode, "aggregatelimit");
 
             if (isAggregate)
             {
@@ -69,7 +86,7 @@ public static class FetchExpressionParser
                     if (hasAggregate)
                     {
                         var attributeAggregate = GetStringXmlAttribute(attrNode, "aggregate")?.ToLowerInvariant();
-                        var distinctOnCount = GetBooleanXmlAttribute(attrNode, "distinct"); // only relevant with aggregate="count"
+                        var distinctAggregate = GetBooleanXmlAttribute(attrNode, "distinct");
 
                         var aggType = attributeAggregate switch
                         {
@@ -77,19 +94,19 @@ public static class FetchExpressionParser
                             "avg"         => XrmAggregateType.Avg,
                             "min"         => XrmAggregateType.Min,
                             "max"         => XrmAggregateType.Max,
-                            "count"       => XrmAggregateType.Count,       // NOTE: distinct ignored unless you add CountDistinct
+                            "count"       => XrmAggregateType.Count,
                             "countcolumn" => XrmAggregateType.CountColumn,
                             _ => throw new NotSupportedException($"Unknown aggregate '{attributeAggregate}'.")
                         };
 
-                        // TODO - CountDistinct, change the mapping above:
-                        // if (agg == "count" && distinctOnCount) aggType = XrmAggregateType.CountDistinct;
-
-                        query.ColumnSet.AttributeExpressions.Add(new XrmAttributeExpression(
+                        var expression = new XrmAttributeExpression(
                             attributeName: name,
                             alias: string.IsNullOrWhiteSpace(alias) ? null : alias,
                             aggregateType: aggType
-                        ));
+                        );
+
+                        query.ColumnSet.AttributeExpressions.Add(
+                            FetchXmlAggregateOptions.Attach(expression, distinctAggregate, aggregateLimit));
                     }
                     else if (isGroupBy)
                     {
@@ -104,7 +121,8 @@ public static class FetchExpressionParser
                         );
                         xrmAttributeExpression.HasGroupBy = true;
                         
-                        query.ColumnSet.AttributeExpressions.Add(xrmAttributeExpression);
+                        query.ColumnSet.AttributeExpressions.Add(
+                            FetchXmlAggregateOptions.Attach(xrmAttributeExpression, false, aggregateLimit));
                     }
                     // else: ignore bare attributes in aggregate fetches (FetchXML would ignore them too)
                 }
@@ -304,6 +322,8 @@ public static class FetchExpressionParser
     private static string GetStringXmlAttribute(XmlNode n, string name) => n.Attributes?[name]?.Value;
     private static bool GetBooleanXmlAttribute(XmlNode n, string name)
         => bool.TryParse(n.Attributes?[name]?.Value, out var b) && b;
+    private static int? GetIntegerXmlAttribute(XmlNode n, string name)
+        => int.TryParse(n.Attributes?[name]?.Value, out var value) ? value : null;
 
     private static XrmDateTimeGrouping MapDateGrouping(string s)
     {

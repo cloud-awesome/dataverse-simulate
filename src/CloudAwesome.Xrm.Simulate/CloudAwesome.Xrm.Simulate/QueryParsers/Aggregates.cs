@@ -1,11 +1,14 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataStores;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
+using CloudAwesome.Xrm.Simulate.ServiceRequests;
 
 namespace CloudAwesome.Xrm.Simulate.QueryParsers;
 
 public static class Aggregates
 {
+    public const int DefaultAggregateRecordLimit = 50000;
+
     public static IQueryable<Entity> Apply(ColumnSet columnSet, IEnumerable<Entity> records, string entityName,
         FiscalYearSettings fiscalYearSettings)
     {
@@ -18,6 +21,8 @@ public static class Aggregates
         {
             return records.AsQueryable();
         }
+
+        records = ApplyAggregateLimit(columnSet, records);
 
         var groupByExpressions = columnSet.AttributeExpressions
             .Where(e => e.HasGroupBy)
@@ -87,7 +92,13 @@ public static class Aggregates
 
             case XrmAggregateType.CountColumn:
                 // Count of non-null values for that column
-                return group.Count(e => GetAttributeValue(e, expr.AttributeName) != null);
+                return FetchXmlAggregateOptions.IsDistinct(expr)
+                    ? group
+                        .Select(e => GetAttributeValue(e, expr.AttributeName))
+                        .Where(value => value != null)
+                        .Distinct(AggregateValueComparer.Instance)
+                        .Count()
+                    : group.Count(e => GetAttributeValue(e, expr.AttributeName) != null);
             
             case XrmAggregateType.None:
             default:
@@ -156,6 +167,26 @@ public static class Aggregates
 
     private static object GetAttributeValue(Entity e, string attribute)
         => e.Attributes != null && e.Attributes.TryGetValue(attribute, out var v) ? v : null;
+
+    private static IEnumerable<Entity> ApplyAggregateLimit(ColumnSet columnSet, IEnumerable<Entity> records)
+    {
+        var explicitLimit = columnSet.AttributeExpressions
+            .Select(FetchXmlAggregateOptions.GetAggregateLimit)
+            .FirstOrDefault(limit => limit.HasValue);
+
+        if (explicitLimit.HasValue)
+        {
+            return records.Take(explicitLimit.Value + 1).ToList();
+        }
+
+        var materialized = records.Take(DefaultAggregateRecordLimit + 1).ToList();
+        if (materialized.Count > DefaultAggregateRecordLimit)
+        {
+            throw DataverseServiceFaults.AggregateQueryRecordLimitExceeded();
+        }
+
+        return materialized;
+    }
 
     private static bool TryToDecimal(object value, out decimal result)
     {
@@ -251,6 +282,34 @@ public static class Aggregates
                 }
                 return h;
             }
+        }
+    }
+
+    private sealed class AggregateValueComparer : IEqualityComparer<object>
+    {
+        public static readonly AggregateValueComparer Instance = new AggregateValueComparer();
+
+        public new bool Equals(object? x, object? y)
+        {
+            if (x == null && y == null) return true;
+            if (x == null || y == null) return false;
+
+            return Normalize(x).Equals(Normalize(y));
+        }
+
+        public int GetHashCode(object obj)
+        {
+            return Normalize(obj).GetHashCode();
+        }
+
+        private static object Normalize(object value)
+        {
+            if (value is Microsoft.Xrm.Sdk.Money money) return money.Value;
+            if (value is OptionSetValue optionSetValue) return optionSetValue.Value;
+            if (value is EntityReference entityReference) return entityReference.Id;
+            if (value is AliasedValue aliasedValue) return Normalize(aliasedValue.Value);
+
+            return value;
         }
     }
     

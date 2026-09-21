@@ -8,6 +8,7 @@ internal static class DataverseServiceFaults
 	internal const int ObjectDoesNotExistErrorCode = -2147220969;
 	internal const int DuplicateKeyErrorCode = -2147220937;
 	internal const int AccessDeniedErrorCode = -2147187962;
+	internal const int AggregateQueryRecordLimitExceededErrorCode = -2147164125;
 
 	internal static FaultException<OrganizationServiceFault> ObjectDoesNotExist(
 		string logicalName,
@@ -46,6 +47,18 @@ internal static class DataverseServiceFaults
 		var fault = new OrganizationServiceFault
 		{
 			ErrorCode = AccessDeniedErrorCode,
+			Message = message
+		};
+
+		return new FaultException<OrganizationServiceFault>(fault, new FaultReason(message));
+	}
+
+	internal static FaultException<OrganizationServiceFault> AggregateQueryRecordLimitExceeded()
+	{
+		const string message = "AggregateQueryRecordLimit exceeded. Cannot perform this operation.";
+		var fault = new OrganizationServiceFault
+		{
+			ErrorCode = AggregateQueryRecordLimitExceededErrorCode,
 			Message = message
 		};
 
