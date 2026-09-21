@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.ServiceModel;
 using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
 using CloudAwesome.Xrm.Simulate.Test.TestEntities;
@@ -193,11 +194,8 @@ public class FetchExpressionAggregateTests
 	
 	/// <summary>
 	/// Validates the results from https://learn.microsoft.com/en-us/power-apps/developer/data-platform/fetchxml/aggregate-data#distinct-column-values
-	///
-	/// TODO - Haven't implemented distinct count yet!
 	/// </summary>
 	[Test]
-	[Ignore("Haven't implemented distinct count yet!")]
 	public void Verify_Microsoft_Documentation_Distinct_Values_Sample()
 	{
 		AddMicrosoftSampleData();
@@ -220,6 +218,68 @@ public class FetchExpressionAggregateTests
 		var result = sut.Entities.FirstOrDefault()!;
 
 		result.Attributes["ColumnCount"].Should().Be(8);
+	}
+
+	[Test]
+	public void Aggregate_Limit_Aggregates_At_Most_Limit_Plus_One_Records()
+	{
+		for (int i = 1; i <= 5; i++)
+		{
+			_organizationService.Simulated().Data().Add(new Entity("ca_aggregatelimit")
+			{
+				Id = Guid.NewGuid(),
+				Attributes =
+				{
+					["ca_name"] = $"Record {i}"
+				}
+			});
+		}
+
+		const string fetch =
+			"""
+			<fetch aggregate='true' aggregatelimit='2'>
+			  <entity name='ca_aggregatelimit'>
+			    <attribute name='ca_name'
+			      alias='Count'
+			      aggregate='count' />
+			  </entity>
+			</fetch>
+			""";
+
+		var result = _organizationService.RetrieveMultiple(new FetchExpression(fetch))
+			.Entities
+			.First();
+
+		result.Attributes["Count"].Should().Be(3);
+	}
+
+	[Test]
+	public void Default_Aggregate_Limit_Throws_Dataverse_Fault_When_Exceeded()
+	{
+		for (int i = 0; i < 50001; i++)
+		{
+			_organizationService.Simulated().Data().Add(new Entity("ca_aggregatelimitfault")
+			{
+				Id = Guid.NewGuid()
+			});
+		}
+
+		const string fetch =
+			"""
+			<fetch aggregate='true'>
+			  <entity name='ca_aggregatelimitfault'>
+			    <attribute name='ca_aggregatelimitfaultid'
+			      alias='Count'
+			      aggregate='count' />
+			  </entity>
+			</fetch>
+			""";
+
+		var retrieve = () => _organizationService.RetrieveMultiple(new FetchExpression(fetch));
+
+		retrieve.Should()
+			.Throw<FaultException<OrganizationServiceFault>>()
+			.Which.Detail.ErrorCode.Should().Be(-2147164125);
 	}
 
 	/// <summary>
@@ -338,11 +398,6 @@ public class FetchExpressionAggregateTests
 		sut.FirstOrDefault()!.Attributes["FiscalYear"].Should().Be("AF2024");
 	}
 
-	// TODO - Implement 50,000 aggregate value limits
-	//	- https://learn.microsoft.com/en-us/power-apps/developer/data-platform/fetchxml/aggregate-data#limitations
-	// TODO - Implement and test aggregateLimits
-	//	- https://learn.microsoft.com/en-us/power-apps/developer/data-platform/fetchxml/aggregate-data#per-query-limit
-	
 	private void AddMicrosoftSampleData()
 	{
 		_organizationService.Simulated().Data().Add(new Account { Name = "Contoso Pharmaceuticals", NumberOfEmployees = 1500, Address1_City = "Redmond", CreatedOn = new DateTime(2023, 3, 25)});

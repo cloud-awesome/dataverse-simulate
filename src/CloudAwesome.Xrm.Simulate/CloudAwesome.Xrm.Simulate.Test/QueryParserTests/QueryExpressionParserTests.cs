@@ -634,4 +634,88 @@ public class QueryExpressionParserTests
         contacts.TotalRecordCount.Should().Be(5000);
         contacts.TotalRecordCountLimitExceeded.Should().Be(true);
     }
+
+    [Test]
+    public void Retrieve_Multiple_Applies_PageInfo_Count_PageNumber_And_Metadata()
+    {
+        for (int i = 1; i <= 5; i++)
+        {
+            _organizationService.Simulated().Data().Add(PagedRecord(i));
+        }
+
+        var query = new QueryExpression
+        {
+            EntityName = "ca_pagedrecord",
+            ColumnSet = new ColumnSet("ca_name"),
+            PageInfo = new PagingInfo
+            {
+                PageNumber = 2,
+                Count = 2,
+                ReturnTotalRecordCount = true
+            },
+            Orders =
+            {
+                new OrderExpression("ca_sort", OrderType.Ascending)
+            }
+        };
+
+        var results = _organizationService.RetrieveMultiple(query);
+
+        results.Entities
+            .Select(entity => entity.GetAttributeValue<string>("ca_name"))
+            .Should()
+            .Equal("Record 3", "Record 4");
+        results.MoreRecords.Should().BeTrue();
+        results.PagingCookie.Should().NotBeNullOrWhiteSpace();
+        results.TotalRecordCount.Should().Be(5);
+        results.TotalRecordCountLimitExceeded.Should().BeFalse();
+    }
+
+    [Test]
+    public void Retrieve_Multiple_Last_Page_Has_No_MoreRecords()
+    {
+        for (int i = 1; i <= 5; i++)
+        {
+            _organizationService.Simulated().Data().Add(PagedRecord(i));
+        }
+
+        var query = new QueryExpression
+        {
+            EntityName = "ca_pagedrecord",
+            PageInfo = new PagingInfo
+            {
+                PageNumber = 3,
+                Count = 2
+            },
+            Orders =
+            {
+                new OrderExpression("ca_sort", OrderType.Ascending)
+            }
+        };
+
+        var results = _organizationService.RetrieveMultiple(query);
+
+        results.Entities
+            .Select(entity => entity.GetAttributeValue<string>("ca_name"))
+            .Should()
+            .Equal("Record 5");
+        results.MoreRecords.Should().BeFalse();
+        results.PagingCookie.Should().BeNullOrEmpty();
+        results.TotalRecordCount.Should().Be(-1);
+    }
+
+    private static Entity PagedRecord(int index)
+    {
+        var id = Guid.NewGuid();
+        return new Entity("ca_pagedrecord")
+        {
+            Id = id,
+            Attributes =
+            {
+                ["ca_pagedrecordid"] = id,
+                ["ca_name"] = $"Record {index}",
+                ["ca_sort"] = index
+            }
+        };
+    }
 }

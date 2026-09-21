@@ -1,4 +1,3 @@
-using System.Xml.Linq;
 using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
@@ -18,6 +17,8 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEntityMultipleRetriever
 {
     private const string RequestMessage = "RetrieveMultiple";
+    private const int DefaultPageSize = 5000;
+    private const int TotalRecordCountLimit = 5000;
 
     public void MockRequest(
         IOrganizationService organizationService,
@@ -52,33 +53,23 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
         MetadataValidator.ValidateQuery(query, options);
         var data = ApplyReadableFilter(query.EntityName, options);
         var results = QueryExpressionParser.Parse(query, data, dataService);
-        var resultCollection = new EntityCollection(results.Take(5000).ToList());
-
-        if (query.PageInfo.ReturnTotalRecordCount)
-        {
-            resultCollection.TotalRecordCount = results.Take(5000).Count();
-            if (results.Count() > 5000)
-            {
-                resultCollection.TotalRecordCountLimitExceeded = true;
-            }
-        }
-        else
-        {
-            resultCollection.TotalRecordCount = -1;
-        }
-
-        return resultCollection;
+        return ToEntityCollection(results, query.PageInfo);
     }
 
     internal EntityCollection RetrieveMultiple(FetchExpression query, ISimulatorOptions? options)
     {
         RequestFailureHandler.Handle(options, RequestMessage);
 
-        var entityName = GetFetchEntityName(query);
-        var data = ApplyReadableFilter(entityName, options);
-        var results = FetchExpressionParser.Parse(query, data, dataService);
+        if (string.IsNullOrWhiteSpace(query.Query))
+        {
+            return ToEntityCollection(Enumerable.Empty<Entity>(), null);
+        }
 
-        return new EntityCollection(results.ToList());
+        var queryExpression = FetchExpressionParser.ConvertFetchXmlToQueryExpression(query.Query);
+        var data = ApplyReadableFilter(queryExpression.EntityName, options);
+        var results = QueryExpressionParser.Parse(queryExpression, data, dataService);
+
+        return ToEntityCollection(results, queryExpression.PageInfo);
     }
 
     internal EntityCollection RetrieveMultiple(QueryByAttribute query, ISimulatorOptions? options)
@@ -89,7 +80,46 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
         var data = ApplyReadableFilter(query.EntityName, options);
         var results = QueryByAttributeParser.Parse(query, data, dataService);
 
-        return new EntityCollection(results.ToList());
+        return ToEntityCollection(results, query.PageInfo);
+    }
+
+    private static EntityCollection ToEntityCollection(IEnumerable<Entity> results, PagingInfo? pageInfo)
+    {
+        var materialized = results.ToList();
+        var pageNumber = pageInfo?.PageNumber > 0 ? pageInfo.PageNumber : 1;
+        var pageSize = pageInfo?.Count > 0 ? pageInfo.Count : DefaultPageSize;
+        var skip = (pageNumber - 1) * pageSize;
+        var page = materialized
+            .Skip(skip)
+            .Take(pageSize)
+            .ToList();
+
+        var collection = new EntityCollection(page)
+        {
+            MoreRecords = materialized.Count > skip + pageSize,
+            TotalRecordCount = -1
+        };
+
+        if (collection.MoreRecords && page.Count > 0)
+        {
+            collection.PagingCookie = BuildPagingCookie(pageNumber, page);
+        }
+
+        if (pageInfo?.ReturnTotalRecordCount == true)
+        {
+            collection.TotalRecordCount = Math.Min(materialized.Count, TotalRecordCountLimit);
+            collection.TotalRecordCountLimitExceeded = materialized.Count > TotalRecordCountLimit;
+        }
+
+        return collection;
+    }
+
+    private static string BuildPagingCookie(int pageNumber, IReadOnlyList<Entity> page)
+    {
+        var first = page[0].Id.ToString("D");
+        var last = page[^1].Id.ToString("D");
+
+        return $"<cookie page=\"{pageNumber}\" first=\"{first}\" last=\"{last}\" />";
     }
 
     private Dictionary<string, List<Entity>> ApplyReadableFilter(
@@ -115,16 +145,4 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
         return data;
     }
 
-    private static string? GetFetchEntityName(FetchExpression query)
-    {
-        if (string.IsNullOrWhiteSpace(query.Query))
-            return null;
-
-        var document = XDocument.Parse(query.Query);
-        return document
-            .Descendants("entity")
-            .FirstOrDefault()
-            ?.Attribute("name")
-            ?.Value;
-    }
 }

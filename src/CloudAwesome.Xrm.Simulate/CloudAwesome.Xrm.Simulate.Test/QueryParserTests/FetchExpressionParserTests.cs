@@ -295,6 +295,43 @@ public class FetchExpressionParserTests
     }
 
     [Test]
+    public void Fetch_Query_Applies_Page_Count_And_Metadata()
+    {
+      for (int i = 1; i <= 5; i++)
+      {
+        var entity = new Entity("ca_fetchpaged")
+        {
+          Id = Guid.NewGuid(),
+          Attributes =
+          {
+            ["ca_name"] = $"Record {i}",
+            ["ca_sort"] = i
+          }
+        };
+
+        _organizationService.Simulated().Data().Add(entity);
+      }
+
+      var fetch = @"<fetch page=""2"" count=""2"" returntotalrecordcount=""true"">
+                        <entity name=""ca_fetchpaged"">
+                          <attribute name=""ca_name"" />
+                          <order attribute=""ca_sort"" descending=""false"" />
+                        </entity>
+                      </fetch>";
+
+      var query = new FetchExpression { Query = fetch };
+      var results = _organizationService.RetrieveMultiple(query);
+
+      results.Entities
+        .Select(entity => entity.GetAttributeValue<string>("ca_name"))
+        .Should()
+        .Equal("Record 3", "Record 4");
+      results.MoreRecords.Should().BeTrue();
+      results.PagingCookie.Should().NotBeNullOrWhiteSpace();
+      results.TotalRecordCount.Should().Be(5);
+    }
+
+    [Test]
     public void Fetch_Query_Accurately_Respects_Distinct_Equals_True()
     {
       _organizationService.Simulated().Data().Add(Daniel.Contact());
