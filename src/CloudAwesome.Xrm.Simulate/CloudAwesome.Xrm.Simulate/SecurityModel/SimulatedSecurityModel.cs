@@ -97,8 +97,11 @@ public class SimulatedSecurityModel : ISecurityModel
     {
         EnsureIdIsProvided(id, nameof(id));
         EnsureUnique(id, BusinessUnits.Select(x => x.Id), "business unit");
+        EnsureSingleRootBusinessUnit(parentBusinessUnitId);
 
-        BusinessUnits.Add(new SimulatedBusinessUnit(id, name, parentBusinessUnitId));
+        var businessUnit = new SimulatedBusinessUnit(id, name, parentBusinessUnitId);
+        BusinessUnits.Add(businessUnit);
+        EnsureDefaultTeamForBusinessUnit(businessUnit);
         return this;
     }
 
@@ -209,7 +212,35 @@ public class SimulatedSecurityModel : ISecurityModel
         if (principal.Id == Guid.Empty)
             throw new ArgumentException("Principal id must be provided.", nameof(principal));
 
+        if (RoleAssignments.Any(x =>
+                string.Equals(x.RoleName, roleName, StringComparison.OrdinalIgnoreCase) &&
+                PrincipalMatches(x.Principal, principal)))
+        {
+            return this;
+        }
+
         RoleAssignments.Add(new SimulatedRoleAssignment(roleName, principal));
+        return this;
+    }
+
+    public SimulatedSecurityModel RemoveRoleAssignment(string roleName, EntityReference principal)
+    {
+        if (string.IsNullOrWhiteSpace(roleName))
+            throw new ArgumentException("Role name must be provided.", nameof(roleName));
+        if (principal.Id == Guid.Empty)
+            throw new ArgumentException("Principal id must be provided.", nameof(principal));
+
+        var assignments = RoleAssignments
+            .Where(x =>
+                string.Equals(x.RoleName, roleName, StringComparison.OrdinalIgnoreCase) &&
+                PrincipalMatches(x.Principal, principal))
+            .ToList();
+
+        foreach (var assignment in assignments)
+        {
+            RoleAssignments.Remove(assignment);
+        }
+
         return this;
     }
 
@@ -365,12 +396,14 @@ public class SimulatedSecurityModel : ISecurityModel
     {
         _businessUnitsById = BuildUniqueIdIndex(BusinessUnits, x => x.Id, "business unit");
         _usersById = BuildUniqueIdIndex(Users, x => x.Id, "user");
+        EnsureDefaultTeamsForBusinessUnits();
         _teamsById = BuildUniqueIdIndex(Teams, x => x.Id, "team");
         _rolesByName = BuildUniqueNameIndex(Roles);
 
         ValidateBusinessUnits();
         ValidateUsers();
         ValidateTeams();
+        ValidateRoles();
         ValidateRoleAssignments();
         ValidateTeamMemberships();
         ValidatePrincipalObjectAccesses();
@@ -519,7 +552,10 @@ public class SimulatedSecurityModel : ISecurityModel
     {
         return new SecurityModelSnapshot(
             TeamMemberships
-                .Select(membership => new SimulatedTeamMembership(membership.TeamId, membership.UserId))
+                .Select(membership => new SimulatedTeamMembership(membership.TeamId, membership.UserId)
+                {
+                    Id = membership.Id
+                })
                 .ToList(),
             PrincipalObjectAccesses
                 .Select(access => new SimulatedPrincipalObjectAccess(
@@ -533,7 +569,10 @@ public class SimulatedSecurityModel : ISecurityModel
     {
         TeamMemberships.Clear();
         TeamMemberships.AddRange(snapshot.TeamMemberships.Select(membership =>
-            new SimulatedTeamMembership(membership.TeamId, membership.UserId)));
+            new SimulatedTeamMembership(membership.TeamId, membership.UserId)
+            {
+                Id = membership.Id
+            }));
 
         PrincipalObjectAccesses.Clear();
         PrincipalObjectAccesses.AddRange(snapshot.PrincipalObjectAccesses.Select(access =>
@@ -580,6 +619,11 @@ public class SimulatedSecurityModel : ISecurityModel
 
     private void ValidateBusinessUnits()
     {
+        if (BusinessUnits.Count(x => x.ParentBusinessUnitId is null) > 1)
+        {
+            throw new SimulatedSecurityModelException("Only one root business unit can be configured.");
+        }
+
         foreach (var businessUnit in BusinessUnits)
         {
             EnsureIdIsProvided(businessUnit.Id, nameof(SimulatedBusinessUnit.Id));
@@ -624,6 +668,41 @@ public class SimulatedSecurityModel : ISecurityModel
             {
                 throw new SimulatedSecurityModelException(
                     $"Team '{team.Id}' references missing business unit '{team.BusinessUnitId}'.");
+            }
+        }
+    }
+
+    private void EnsureDefaultTeamsForBusinessUnits()
+    {
+        foreach (var businessUnit in BusinessUnits)
+        {
+            EnsureDefaultTeamForBusinessUnit(businessUnit);
+        }
+    }
+
+    private void EnsureDefaultTeamForBusinessUnit(SimulatedBusinessUnit businessUnit)
+    {
+        if (Teams.Any(x =>
+                x.BusinessUnitId == businessUnit.Id &&
+                x.TeamType == SimulatedTeamType.Owner &&
+                string.Equals(x.Name, businessUnit.Name, StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        Teams.Add(new SimulatedTeam(Guid.NewGuid(), businessUnit.Id, businessUnit.Name, SimulatedTeamType.Owner));
+    }
+
+    private void ValidateRoles()
+    {
+        BuildUniqueIdIndex(Roles, x => x.Id, "role");
+
+        foreach (var role in Roles)
+        {
+            if (role.BusinessUnitId is { } businessUnitId && !_businessUnitsById.ContainsKey(businessUnitId))
+            {
+                throw new SimulatedSecurityModelException(
+                    $"Role '{role.Name}' references missing business unit '{businessUnitId}'.");
             }
         }
     }
@@ -819,6 +898,14 @@ public class SimulatedSecurityModel : ISecurityModel
     {
         if (existingIds.Contains(id))
             throw new SimulatedSecurityModelException($"A {itemType} with id '{id}' already exists.");
+    }
+
+    private void EnsureSingleRootBusinessUnit(Guid? parentBusinessUnitId)
+    {
+        if (parentBusinessUnitId is null && BusinessUnits.Any(x => x.ParentBusinessUnitId is null))
+        {
+            throw new SimulatedSecurityModelException("Only one root business unit can be configured.");
+        }
     }
 
     private static void EnsureIdIsProvided(Guid id, string parameterName)

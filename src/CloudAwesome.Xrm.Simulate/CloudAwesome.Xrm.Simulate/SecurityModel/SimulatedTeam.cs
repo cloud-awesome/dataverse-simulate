@@ -29,6 +29,7 @@ public sealed class SimulatedTeam
     {
         var entity = new Entity("team", Id)
         {
+            ["teamid"] = Id,
             ["businessunitid"] = new EntityReference("businessunit", BusinessUnitId),
             ["teamtype"] = new OptionSetValue(TeamType == SimulatedTeamType.Owner ? 0 : 1)
         };

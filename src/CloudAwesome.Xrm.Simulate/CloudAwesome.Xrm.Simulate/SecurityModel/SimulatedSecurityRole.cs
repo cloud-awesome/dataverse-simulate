@@ -1,8 +1,14 @@
+using Microsoft.Xrm.Sdk;
+
 namespace CloudAwesome.Xrm.Simulate.SecurityModel;
 
 public sealed class SimulatedSecurityRole
 {
+    private readonly Dictionary<Guid, Guid> _roleIdsByBusinessUnitId = [];
+
+    public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
+    public Guid? BusinessUnitId { get; set; }
     public List<SimulatedRolePrivilege> EntityPermissions { get; } = [];
 
     public SimulatedSecurityRole()
@@ -12,6 +18,46 @@ public sealed class SimulatedSecurityRole
     public SimulatedSecurityRole(string name)
     {
         Name = name;
+    }
+
+    public Guid GetRoleId(Guid businessUnitId, Guid rootBusinessUnitId)
+    {
+        if ((BusinessUnitId ?? rootBusinessUnitId) == businessUnitId)
+        {
+            return Id;
+        }
+
+        if (!_roleIdsByBusinessUnitId.TryGetValue(businessUnitId, out var roleId))
+        {
+            roleId = Guid.NewGuid();
+            _roleIdsByBusinessUnitId[businessUnitId] = roleId;
+        }
+
+        return roleId;
+    }
+
+    public Entity ToEntity(
+        Guid businessUnitId,
+        Guid rootBusinessUnitId,
+        Guid? parentBusinessUnitId = null)
+    {
+        var roleId = GetRoleId(businessUnitId, rootBusinessUnitId);
+        var rootRoleId = GetRoleId(BusinessUnitId ?? rootBusinessUnitId, rootBusinessUnitId);
+        var entity = new Entity("role", Id)
+        {
+            Id = roleId,
+            ["roleid"] = roleId,
+            ["name"] = Name,
+            ["businessunitid"] = new EntityReference("businessunit", businessUnitId),
+            ["parentrootroleid"] = new EntityReference("role", rootRoleId)
+        };
+
+        if (parentBusinessUnitId is { } parentId)
+        {
+            entity["parentroleid"] = new EntityReference("role", GetRoleId(parentId, rootBusinessUnitId));
+        }
+
+        return entity;
     }
 
     public SimulatedSecurityRole CanCreate(string entityLogicalName, PrivilegeDepthEnum depth) =>

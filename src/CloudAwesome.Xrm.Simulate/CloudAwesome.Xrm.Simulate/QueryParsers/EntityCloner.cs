@@ -70,7 +70,12 @@ internal static class EntityCloner
 
     private static void CopyAttribute(Entity source, Entity target, string attributeName)
     {
-        target[attributeName] = source[attributeName];
+        if (!source.Attributes.TryGetValue(attributeName, out var value))
+        {
+            return;
+        }
+
+        target[attributeName] = value;
 
         if (source.FormattedValues.TryGetValue(attributeName, out var formattedValue))
         {

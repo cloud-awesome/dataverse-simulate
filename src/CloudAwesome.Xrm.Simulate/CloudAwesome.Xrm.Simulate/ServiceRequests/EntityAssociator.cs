@@ -51,6 +51,11 @@ public class EntityAssociator(MockedEntityDataService dataService) : IEntityAsso
             security.DemandRecordAccess(relatedEntity, SecurityPrivilege.Append, options);
         }
 
+        if (RoleAssignmentAssociationHandler.TryAssociate(dataService, target, relationship, relatedRefs, options))
+        {
+            return;
+        }
+
         dataService.Associate(target, relationship, relatedRefs);
     }
 }

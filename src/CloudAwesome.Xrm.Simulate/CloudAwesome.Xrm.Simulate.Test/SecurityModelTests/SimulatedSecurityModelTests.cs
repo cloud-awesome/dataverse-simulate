@@ -231,4 +231,44 @@ public class SimulatedSecurityModelTests
             x.Id == teamId &&
             x.GetAttributeValue<string>("name") == "Sales Team");
     }
+
+    [Test]
+    public void SetUp_Cannot_Create_Two_Root_BusinessUnits()
+    {
+        var rootBu1Id = Guid.NewGuid();
+        var childBu1Id = Guid.NewGuid();
+        var rootBu2Id = Guid.NewGuid();
+        
+        var sut = () => SimulatedSecurityModel.Create()
+            .WithBusinessUnit(rootBu1Id, "Root 1")
+            .WithBusinessUnit(childBu1Id, "Child", Guid.NewGuid())
+            .WithBusinessUnit(rootBu2Id, "Root 2");
+        
+        sut.Should().Throw<SimulatedSecurityModelException>();
+    }
+
+    [Test]
+    public void BusinessUnit_Creation_Should_Generate_A_Related_Team()
+    {
+        IOrganizationService service = null!;
+        
+        var rootBuId = Guid.NewGuid();
+        service = service.Simulate(new SimulatorOptions
+        {
+            SimulatedSecurityModel = SimulatedSecurityModel.Create()
+                .WithBusinessUnit(rootBuId, "Root") 
+        });
+        
+        
+        service.Simulated().SecurityModel().Model.BusinessUnits.Count.Should().Be(1);
+        service.Simulated().SecurityModel().Model.Teams.Count.Should().Be(1);
+        
+        service.Simulated().SecurityModel().Model.BusinessUnits.Should().Contain(x =>
+            x.Id == rootBuId &&
+            x.Name == "Root");
+        
+        service.Simulated().SecurityModel().Model.Teams.Should().Contain(x =>
+            x.Id != Guid.Empty &&
+            x.Name == "Root");
+    }
 }
