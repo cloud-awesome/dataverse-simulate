@@ -23,6 +23,7 @@ public sealed class SimulatedUser
     {
         var entity = new Entity("systemuser", Id)
         {
+            ["systemuserid"] = Id,
             ["businessunitid"] = new EntityReference("businessunit", BusinessUnitId)
         };
 

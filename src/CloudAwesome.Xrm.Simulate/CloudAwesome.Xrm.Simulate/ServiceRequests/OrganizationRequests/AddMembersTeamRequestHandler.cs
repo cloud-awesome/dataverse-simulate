@@ -31,6 +31,10 @@ public class AddMembersTeamRequestHandler : IRequestHandler
             foreach (var memberId in addRequest.MemberIds)
             {
                 securityModel.AddTeamMember(addRequest.TeamId, memberId);
+                var membership = securityModel.TeamMemberships.Single(x =>
+                    x.TeamId == addRequest.TeamId &&
+                    x.UserId == memberId);
+                dataService.Upsert(SimulatedSecurityModelDataSeeder.CreateTeamMembershipEntity(membership));
             }
 
             securityModel.Validate();

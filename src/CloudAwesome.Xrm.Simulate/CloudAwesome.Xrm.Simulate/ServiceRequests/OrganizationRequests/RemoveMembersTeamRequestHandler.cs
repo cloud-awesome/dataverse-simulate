@@ -31,6 +31,16 @@ public class RemoveMembersTeamRequestHandler : IRequestHandler
             foreach (var memberId in removeRequest.MemberIds)
             {
                 securityModel.RemoveTeamMember(removeRequest.TeamId, memberId);
+                var membershipRows = dataService.Get("teammembership")
+                    .Where(x =>
+                        x.GetAttributeValue<EntityReference>("teamid")?.Id == removeRequest.TeamId &&
+                        x.GetAttributeValue<EntityReference>("systemuserid")?.Id == memberId)
+                    .ToList();
+
+                foreach (var membershipRow in membershipRows)
+                {
+                    dataService.Delete(membershipRow);
+                }
             }
 
             securityModel.Validate();

@@ -371,6 +371,7 @@ public class SimulatedSecurityModel : ISecurityModel
         ValidateBusinessUnits();
         ValidateUsers();
         ValidateTeams();
+        ValidateRoles();
         ValidateRoleAssignments();
         ValidateTeamMemberships();
         ValidatePrincipalObjectAccesses();
@@ -519,7 +520,10 @@ public class SimulatedSecurityModel : ISecurityModel
     {
         return new SecurityModelSnapshot(
             TeamMemberships
-                .Select(membership => new SimulatedTeamMembership(membership.TeamId, membership.UserId))
+                .Select(membership => new SimulatedTeamMembership(membership.TeamId, membership.UserId)
+                {
+                    Id = membership.Id
+                })
                 .ToList(),
             PrincipalObjectAccesses
                 .Select(access => new SimulatedPrincipalObjectAccess(
@@ -533,7 +537,10 @@ public class SimulatedSecurityModel : ISecurityModel
     {
         TeamMemberships.Clear();
         TeamMemberships.AddRange(snapshot.TeamMemberships.Select(membership =>
-            new SimulatedTeamMembership(membership.TeamId, membership.UserId)));
+            new SimulatedTeamMembership(membership.TeamId, membership.UserId)
+            {
+                Id = membership.Id
+            }));
 
         PrincipalObjectAccesses.Clear();
         PrincipalObjectAccesses.AddRange(snapshot.PrincipalObjectAccesses.Select(access =>
@@ -624,6 +631,20 @@ public class SimulatedSecurityModel : ISecurityModel
             {
                 throw new SimulatedSecurityModelException(
                     $"Team '{team.Id}' references missing business unit '{team.BusinessUnitId}'.");
+            }
+        }
+    }
+
+    private void ValidateRoles()
+    {
+        BuildUniqueIdIndex(Roles, x => x.Id, "role");
+
+        foreach (var role in Roles)
+        {
+            if (role.BusinessUnitId is { } businessUnitId && !_businessUnitsById.ContainsKey(businessUnitId))
+            {
+                throw new SimulatedSecurityModelException(
+                    $"Role '{role.Name}' references missing business unit '{businessUnitId}'.");
             }
         }
     }

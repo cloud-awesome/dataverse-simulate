@@ -4,6 +4,7 @@ namespace CloudAwesome.Xrm.Simulate.SecurityModel;
 
 public sealed class SimulatedRoleAssignment
 {
+    public Guid Id { get; set; } = Guid.NewGuid();
     public string RoleName { get; set; } = string.Empty;
     public EntityReference Principal { get; set; } = new("systemuser", Guid.Empty);
 

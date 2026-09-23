@@ -23,6 +23,7 @@ public sealed class SimulatedBusinessUnit
     {
         var entity = new Entity("businessunit", Id)
         {
+            ["businessunitid"] = Id,
             ["name"] = Name
         };
 

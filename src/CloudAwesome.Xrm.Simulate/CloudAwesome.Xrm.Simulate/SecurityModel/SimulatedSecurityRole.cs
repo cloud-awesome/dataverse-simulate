@@ -1,8 +1,12 @@
+using Microsoft.Xrm.Sdk;
+
 namespace CloudAwesome.Xrm.Simulate.SecurityModel;
 
 public sealed class SimulatedSecurityRole
 {
+    public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
+    public Guid? BusinessUnitId { get; set; }
     public List<SimulatedRolePrivilege> EntityPermissions { get; } = [];
 
     public SimulatedSecurityRole()
@@ -12,6 +16,18 @@ public sealed class SimulatedSecurityRole
     public SimulatedSecurityRole(string name)
     {
         Name = name;
+    }
+
+    public Entity ToEntity(Guid businessUnitId)
+    {
+        var entity = new Entity("role", Id)
+        {
+            ["roleid"] = Id,
+            ["name"] = Name,
+            ["businessunitid"] = new EntityReference("businessunit", BusinessUnitId ?? businessUnitId)
+        };
+
+        return entity;
     }
 
     public SimulatedSecurityRole CanCreate(string entityLogicalName, PrivilegeDepthEnum depth) =>
