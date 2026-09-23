@@ -61,12 +61,12 @@ public class SecurityFixtureErgonomicsTests
             x.GetAttributeValue<Guid>("roleid") != Guid.Empty &&
             x.GetAttributeValue<EntityReference>("businessunitid").Id == businessUnitId);
         service.Simulated().Data().Get("systemuserroles").Should().ContainSingle(x =>
-            x.GetAttributeValue<EntityReference>("systemuserid").Id == userId);
+            x.GetAttributeValue<Guid>("systemuserid") == userId);
         service.Simulated().Data().Get("teamroles").Should().ContainSingle(x =>
-            x.GetAttributeValue<EntityReference>("teamid").Id == teamId);
+            x.GetAttributeValue<Guid>("teamid") == teamId);
         service.Simulated().Data().Get("teammembership").Should().ContainSingle(x =>
-            x.GetAttributeValue<EntityReference>("teamid").Id == teamId &&
-            x.GetAttributeValue<EntityReference>("systemuserid").Id == userId);
+            x.GetAttributeValue<Guid>("teamid") == teamId &&
+            x.GetAttributeValue<Guid>("systemuserid") == userId);
     }
 
     [Test]

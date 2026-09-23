@@ -209,7 +209,35 @@ public class SimulatedSecurityModel : ISecurityModel
         if (principal.Id == Guid.Empty)
             throw new ArgumentException("Principal id must be provided.", nameof(principal));
 
+        if (RoleAssignments.Any(x =>
+                string.Equals(x.RoleName, roleName, StringComparison.OrdinalIgnoreCase) &&
+                PrincipalMatches(x.Principal, principal)))
+        {
+            return this;
+        }
+
         RoleAssignments.Add(new SimulatedRoleAssignment(roleName, principal));
+        return this;
+    }
+
+    public SimulatedSecurityModel RemoveRoleAssignment(string roleName, EntityReference principal)
+    {
+        if (string.IsNullOrWhiteSpace(roleName))
+            throw new ArgumentException("Role name must be provided.", nameof(roleName));
+        if (principal.Id == Guid.Empty)
+            throw new ArgumentException("Principal id must be provided.", nameof(principal));
+
+        var assignments = RoleAssignments
+            .Where(x =>
+                string.Equals(x.RoleName, roleName, StringComparison.OrdinalIgnoreCase) &&
+                PrincipalMatches(x.Principal, principal))
+            .ToList();
+
+        foreach (var assignment in assignments)
+        {
+            RoleAssignments.Remove(assignment);
+        }
+
         return this;
     }
 

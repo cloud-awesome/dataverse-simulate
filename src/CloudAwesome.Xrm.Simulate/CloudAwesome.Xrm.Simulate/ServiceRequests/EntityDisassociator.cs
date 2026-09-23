@@ -51,6 +51,11 @@ public class EntityDisassociator(MockedEntityDataService dataService) : IEntityD
             security.DemandRecordAccess(relatedEntity, SecurityPrivilege.Append, options);
         }
 
+        if (RoleAssignmentAssociationHandler.TryDisassociate(dataService, target, relationship, relatedRefs, options))
+        {
+            return;
+        }
+
         dataService.Disassociate(target, relationship, relatedRefs);
     }
 }

@@ -38,6 +38,7 @@ public sealed class SimulatedSecurityModelService
     {
         _securityModel.WithBusinessUnit(id, name, parentBusinessUnitId);
         _dataService.Upsert(_securityModel.BusinessUnits.Single(x => x.Id == id).ToEntity());
+        UpsertRoleEntities();
         return this;
     }
 
@@ -76,10 +77,7 @@ public sealed class SimulatedSecurityModelService
     public SimulatedSecurityModelService WithRole(string name, Action<SimulatedSecurityRole>? configure = null)
     {
         _securityModel.WithRole(name, configure);
-        var role = _securityModel.Roles.Single(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
-        _dataService.Upsert(SimulatedSecurityModelDataSeeder.CreateRoleEntity(
-            role,
-            SimulatedSecurityModelDataSeeder.ResolveDefaultBusinessUnitId(_dataService, _securityModel)));
+        UpsertRoleEntities();
         return this;
     }
 
@@ -152,13 +150,19 @@ public sealed class SimulatedSecurityModelService
 
     private void UpsertRoleEntities()
     {
-        var defaultBusinessUnitId = SimulatedSecurityModelDataSeeder.ResolveDefaultBusinessUnitId(
+        var rootBusinessUnitId = SimulatedSecurityModelDataSeeder.ResolveRootBusinessUnitId(
             _dataService,
             _securityModel);
 
         foreach (var role in _securityModel.Roles)
         {
-            _dataService.Upsert(SimulatedSecurityModelDataSeeder.CreateRoleEntity(role, defaultBusinessUnitId));
+            foreach (var businessUnit in SimulatedSecurityModelDataSeeder.GetRoleBusinessUnits(_dataService, _securityModel))
+            {
+                _dataService.Upsert(SimulatedSecurityModelDataSeeder.CreateRoleEntity(
+                    role,
+                    businessUnit,
+                    rootBusinessUnitId));
+            }
         }
     }
 
@@ -169,11 +173,29 @@ public sealed class SimulatedSecurityModelService
             return;
         }
 
+        if (FindPrincipalBusinessUnitId(principal) is null)
+        {
+            return;
+        }
+
         var assignment = _securityModel.RoleAssignments.Last(x =>
             string.Equals(x.RoleName, roleName, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(x.Principal.LogicalName, principal.LogicalName, StringComparison.OrdinalIgnoreCase) &&
             x.Principal.Id == principal.Id);
 
-        _dataService.Upsert(SimulatedSecurityModelDataSeeder.CreateRoleAssignmentEntity(assignment, _securityModel));
+        _dataService.Upsert(SimulatedSecurityModelDataSeeder.CreateRoleAssignmentEntity(
+            assignment,
+            _securityModel,
+            SimulatedSecurityModelDataSeeder.ResolveRootBusinessUnitId(_dataService, _securityModel)));
+    }
+
+    private Guid? FindPrincipalBusinessUnitId(EntityReference principal)
+    {
+        return principal.LogicalName switch
+        {
+            "systemuser" => _securityModel.Users.SingleOrDefault(x => x.Id == principal.Id)?.BusinessUnitId,
+            "team" => _securityModel.Teams.SingleOrDefault(x => x.Id == principal.Id)?.BusinessUnitId,
+            _ => null
+        };
     }
 }

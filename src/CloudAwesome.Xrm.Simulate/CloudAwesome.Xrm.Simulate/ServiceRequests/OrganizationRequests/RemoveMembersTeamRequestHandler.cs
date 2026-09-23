@@ -33,8 +33,8 @@ public class RemoveMembersTeamRequestHandler : IRequestHandler
                 securityModel.RemoveTeamMember(removeRequest.TeamId, memberId);
                 var membershipRows = dataService.Get("teammembership")
                     .Where(x =>
-                        x.GetAttributeValue<EntityReference>("teamid")?.Id == removeRequest.TeamId &&
-                        x.GetAttributeValue<EntityReference>("systemuserid")?.Id == memberId)
+                        x.GetAttributeValue<Guid>("teamid") == removeRequest.TeamId &&
+                        x.GetAttributeValue<Guid>("systemuserid") == memberId)
                     .ToList();
 
                 foreach (var membershipRow in membershipRows)
