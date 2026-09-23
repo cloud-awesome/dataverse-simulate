@@ -38,6 +38,11 @@ public sealed class SimulatedSecurityModelService
     {
         _securityModel.WithBusinessUnit(id, name, parentBusinessUnitId);
         _dataService.Upsert(_securityModel.BusinessUnits.Single(x => x.Id == id).ToEntity());
+        foreach (var team in _securityModel.Teams.Where(x => x.BusinessUnitId == id))
+        {
+            _dataService.Upsert(team.ToEntity());
+        }
+
         UpsertRoleEntities();
         return this;
     }

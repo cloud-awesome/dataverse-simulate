@@ -149,7 +149,7 @@ public class PermissionsCalculatorTests
         var siblingBuOwnerId = Guid.NewGuid();
         var model = SimulatedSecurityModel.Create()
             .WithBusinessUnit(rootBuId, "Root")
-            .WithBusinessUnit(siblingBuId, "Sibling")
+            .WithBusinessUnit(siblingBuId, "Sibling", rootBuId)
             .WithUser(actingUserId, rootBuId)
             .WithUser(sameBuOwnerId, rootBuId)
             .WithUser(siblingBuOwnerId, siblingBuId)
@@ -173,23 +173,25 @@ public class PermissionsCalculatorTests
     {
         var rootBuId = Guid.NewGuid();
         var childBuId = Guid.NewGuid();
+        var grandchildBuId = Guid.NewGuid();
         var siblingBuId = Guid.NewGuid();
         var actingUserId = Guid.NewGuid();
-        var childOwnerId = Guid.NewGuid();
+        var grandchildOwnerId = Guid.NewGuid();
         var siblingOwnerId = Guid.NewGuid();
         var model = SimulatedSecurityModel.Create()
             .WithBusinessUnit(rootBuId, "Root")
             .WithBusinessUnit(childBuId, "Child", rootBuId)
-            .WithBusinessUnit(siblingBuId, "Sibling")
-            .WithUser(actingUserId, rootBuId)
-            .WithUser(childOwnerId, childBuId)
+            .WithBusinessUnit(grandchildBuId, "Grandchild", childBuId)
+            .WithBusinessUnit(siblingBuId, "Sibling", rootBuId)
+            .WithUser(actingUserId, childBuId)
+            .WithUser(grandchildOwnerId, grandchildBuId)
             .WithUser(siblingOwnerId, siblingBuId)
             .WithRole("Deep Read", role => role.CanRead("account", PrivilegeDepthEnum.ParentChild))
             .AssignRoleToUser("Deep Read", actingUserId);
 
         var context = new SecurityEvaluationContext(model);
 
-        PermissionsCalculator.CanAccessRecord(context, User(actingUserId), Record("account", User(childOwnerId)), SecurityPrivilege.Read)
+        PermissionsCalculator.CanAccessRecord(context, User(actingUserId), Record("account", User(grandchildOwnerId)), SecurityPrivilege.Read)
             .Allowed
             .Should()
             .BeTrue();
@@ -208,7 +210,7 @@ public class PermissionsCalculatorTests
         var otherUserId = Guid.NewGuid();
         var model = SimulatedSecurityModel.Create()
             .WithBusinessUnit(actingBusinessUnitId, "Acting")
-            .WithBusinessUnit(otherBusinessUnitId, "Other")
+            .WithBusinessUnit(otherBusinessUnitId, "Other", actingBusinessUnitId)
             .WithUser(actingUserId, actingBusinessUnitId)
             .WithUser(otherUserId, otherBusinessUnitId)
             .WithRole("Global Read", role => role.CanRead("account", PrivilegeDepthEnum.Organization))
