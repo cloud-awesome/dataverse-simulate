@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
@@ -12,7 +12,7 @@ using Contact = CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities.Contact;
 
 namespace CloudAwesome.Xrm.Simulate.Test.QueryParserTests;
 
-[TestFixture(Description = "N.B. Filters and LinkEntity currently only work if you've included the attributes in the ColumnSet")]
+[TestFixture]
 public class QueryExpressionParserTests
 {
     private IOrganizationService _organizationService = null!;
@@ -30,6 +30,7 @@ public class QueryExpressionParserTests
 
         var query = new QueryExpression
         {
+            ColumnSet = new ColumnSet(Contact.Fields.FirstName),
             EntityName = Arthur.Contact().LogicalName,
             Criteria = new FilterExpression
             {
@@ -54,6 +55,7 @@ public class QueryExpressionParserTests
 
         var query = new QueryExpression
         {
+            ColumnSet = new ColumnSet(Contact.Fields.FirstName),
             EntityName = Arthur.Contact().LogicalName,
             Criteria = new FilterExpression
             {
@@ -164,6 +166,7 @@ public class QueryExpressionParserTests
 
         var query = new QueryExpression
         {
+            ColumnSet = new ColumnSet(Contact.Fields.FirstName),
             EntityName = Arthur.Contact().LogicalName,
             Orders =
             {
@@ -188,6 +191,7 @@ public class QueryExpressionParserTests
 
         var query = new QueryExpression
         {
+            ColumnSet = new ColumnSet(Contact.Fields.FirstName),
             EntityName = Contact.EntityLogicalName,
             Criteria = new FilterExpression
             {
@@ -213,6 +217,7 @@ public class QueryExpressionParserTests
 
         var query = new QueryExpression
         {
+            ColumnSet = new ColumnSet(Contact.Fields.FirstName),
             EntityName = Contact.EntityLogicalName,
             Criteria = new FilterExpression
             {
@@ -239,6 +244,7 @@ public class QueryExpressionParserTests
 
         var query = new QueryExpression
         {
+            ColumnSet = new ColumnSet(Contact.Fields.FirstName),
             EntityName = Contact.EntityLogicalName,
             Criteria = new FilterExpression
             {
@@ -265,6 +271,7 @@ public class QueryExpressionParserTests
 
         var query = new QueryExpression
         {
+            ColumnSet = new ColumnSet(Contact.Fields.FirstName),
             EntityName = Contact.EntityLogicalName,
             Criteria = new FilterExpression
             {
@@ -398,20 +405,6 @@ public class QueryExpressionParserTests
 
         contacts.Entities.Count.Should().Be(1);
     }
-    
-    [Test]
-    [Ignore("TODO - To be implemented")]
-    public void Retrieve_Multiple_Returns_Valid_Results_If_Filter_Attributes_Are_Not_In_ColumnSet()
-    {
-      
-    }
-    
-    [Test]
-    [Ignore("TODO - To be implemented")]
-    public void Retrieve_Multiple_Returns_Valid_Results_If_LinkEntity_Attributes_Are_Not_In_ColumnSet()
-    {
-      
-    }
 
     [Test]
     public void Retrieve_Multiple_With_TopCount_Returns_Correct_Number_Of_Results()
@@ -461,6 +454,7 @@ public class QueryExpressionParserTests
 
         var query = new QueryExpression
         {
+            ColumnSet = new ColumnSet(Contact.Fields.FirstName),
             EntityName = Arthur.Contact().LogicalName,
             TopCount = 2,
             Orders =
@@ -681,6 +675,7 @@ public class QueryExpressionParserTests
 
         var query = new QueryExpression
         {
+            ColumnSet = new ColumnSet("ca_name"),
             EntityName = "ca_pagedrecord",
             PageInfo = new PagingInfo
             {

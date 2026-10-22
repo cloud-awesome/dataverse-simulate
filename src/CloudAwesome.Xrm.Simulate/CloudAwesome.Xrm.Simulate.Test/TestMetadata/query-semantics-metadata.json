@@ -1,0 +1,29 @@
+{
+  "contractVersion": "1.0",
+  "entities": [
+    {
+      "logicalName": "ca_row",
+      "schemaName": "ca_Row",
+      "primaryIdAttribute": "ca_key",
+      "primaryNameAttribute": "ca_name",
+      "attributes": [
+        { "logicalName": "ca_key", "attributeType": "Uniqueidentifier", "isPrimaryId": true, "isValidForRead": true },
+        { "logicalName": "ca_name", "attributeType": "String", "isValidForRead": true },
+        { "logicalName": "ca_hidden", "attributeType": "String", "isValidForRead": true },
+        { "logicalName": "ca_secret", "attributeType": "String", "isValidForRead": false },
+        { "logicalName": "ca_amount", "attributeType": "Integer", "isValidForRead": true },
+        { "logicalName": "ca_relatedid", "attributeType": "Lookup", "isValidForRead": true }
+      ]
+    },
+    {
+      "logicalName": "ca_related",
+      "schemaName": "ca_Related",
+      "primaryIdAttribute": "ca_relatedid",
+      "primaryNameAttribute": "ca_name",
+      "attributes": [
+        { "logicalName": "ca_relatedid", "attributeType": "Uniqueidentifier", "isPrimaryId": true, "isValidForRead": true },
+        { "logicalName": "ca_name", "attributeType": "String", "isValidForRead": true }
+      ]
+    }
+  ]
+}

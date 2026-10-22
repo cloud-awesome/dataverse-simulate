@@ -47,21 +47,43 @@ This fixes the former early-projection problem. It does not establish correct se
 
 ## P1 - Remaining correctness work
 
+### P1 query input/output implementation - 22 October 2026
+
+The first P1 implementation covers the projection and FetchXML input gaps below. The regression fixture is [QueryInputOutputSemanticsTests](../CloudAwesome.Xrm.Simulate.Test/QueryParserTests/QueryInputOutputSemanticsTests.cs); live comparisons are in [QueryInputOutputSemanticsParityTests](../CloudAwesome.Xrm.Simulate.Integration/QueryTests/QueryInputOutputSemanticsParityTests.cs), category `QuerySemantics`.
+
+The supported contract is:
+
+- Empty/default QueryExpression and QueryByAttribute column sets return the primary-id attribute and `Entity.Id`. Selected projections include that id automatically. Loaded metadata supplies its name; without metadata the existing `<logicalname>id` convention applies. Tables with a different primary-id name require metadata.
+- Distinct compares the selected attributes and does not carry a hidden source `Id`. Selecting the primary id explicitly, including through `AllColumns`, preserves it. Live execution established that an empty base QueryExpression column set defaults to primary-id output even when distinct is requested, including when linked columns are selected; the implementation and regressions preserve each row's id in those cases.
+- FetchXML without base `<attribute>` elements defaults to all base columns. `<all-attributes/>` is supported on base and linked tables. A link without selected attributes still returns no linked columns. Aggregate expressions retain their existing output rather than being mistaken for an empty projection; aggregate wrapper/identity fidelity remains a separate P1 item.
+- Base and linked FetchXML filters preserve nested AND/OR structure. Multiple sibling filters are combined with AND. Literal equality values retain `%`; wildcard conversion applies only to `like`/`not-like`.
+- FetchXML executes the same loaded-metadata validation as QueryExpression, including nested criteria, links, selected columns, ordering, and aggregate source attributes. Aggregate order aliases resolve to their source attributes for validation.
+- Empty/malformed XML, missing required structure/attributes, and invalid condition value arity throw `ArgumentException`. Unsupported condition operators, filter types, non-aggregate attribute aliases, `entityname`/`valueof` conditions, and child `<value>` elements throw `NotSupportedException`. Metadata failures retain `SimulatedMetadataException`. Exact Dataverse fault envelopes are not claimed. `In`/`NotIn` and multiple-value execution remain P6 work.
+- Query cloning isolates standard mutable SDK values (`EntityReference`, `Money`, option values/collections, `AliasedValue`, entities/related collections, and byte arrays), including repeated/cyclic entity references. Arbitrary custom attribute objects are outside this cloning contract. `uiname`/`uitype` display hints and `no-lock` have no simulated execution effect.
+
+The four old empty, ignored projection/link TODO tests were removed; active focused projection/link fixtures cover those behaviors. Legacy tests that inspect returned names now select those names explicitly, and the invalid FetchXML operator spelling `equal` was corrected to `eq`. The live fixture's generated last name is 41 characters, within the platform's 50-character limit. Invalid-input fixtures also check query-specific fault messages so an unrelated database outage cannot pass as an expected rejection.
+
+Verification on 2026-10-22: the updated unit suite passes **606 tests with no skips**; the four-project Release build succeeds with existing compiler warnings. The final focused live run passes **all 23 `QuerySemantics` cases**. Authentication was refreshed, fixture last names were shortened, and the empty distinct projection contract was corrected using live output. A transient Dataverse database outage interrupted an intermediate run; the final run succeeded with no cleanup errors reported. These results cover the stated scenarios, not exact parity for the wider query surface. Rerun with:
+
+```powershell
+dotnet test CloudAwesome.Xrm.Simulate.Integration/CloudAwesome.Xrm.Simulate.Integration.csproj --no-restore --configuration Release --filter "TestCategory=QuerySemantics"
+```
+
 ### Projection and identity
 
-- [ ] `EntityCloner.Project` currently treats an empty column list like all columns. A non-aggregate `ColumnSet(false)` therefore returns every stored attribute. Capture the intended primary-id-only contract and distinguish it from aggregate-expression projection.
-- [ ] Primary-id inclusion currently finds matching GUID attributes whose names end in `id`, rather than using a definitive primary-id definition. Avoid accidentally exposing another id-valued attribute and use metadata where available.
-- [ ] Distinct output still retains a source entity's `Id` through cloning/projection. Verify identity/output shape against live results, including empty projections.
-- [ ] Cloning copies SDK attribute values/related collections shallowly. Current top-level immutability tests do not prove isolation when a returned `EntityReference`, `Money`, option collection, or related entity is mutated.
+- [x] Empty non-aggregate `ColumnSet(false)` projects only the primary id; aggregate results remain intact.
+- [x] Primary-id projection uses loaded metadata or the documented conventional fallback, without matching unrelated GUID attributes.
+- [x] Distinct projection removes hidden source identity for selected base columns; empty base column sets include the default primary id. Explicit-id, empty, and linked projections have passing focused live comparisons.
+- [x] Standard mutable SDK attribute values and related collections are cloned, with mutation/cyclic-reference regressions.
 
 ### FetchXML parsing and validation
 
-- [ ] `ParseFilter` ignores `type='or'` and child filters, so nested/OR semantics are not implemented. Preserve logical structure rather than silently evaluating only direct conditions as AND.
-- [ ] Unknown condition operators currently default to `Equal`; reject them clearly or reproduce a captured platform fault.
-- [ ] Multiple `<value>` elements are not parsed, and `In`/`NotIn` have no condition handlers yet.
-- [ ] The FetchExpression retrieval path converts and executes without `MetadataValidator.ValidateQuery`; loaded metadata is bypassed for that path.
-- [ ] Empty/malformed/unsupported FetchXML currently returns empty results or leaks parser exceptions on some paths. Define supported input/fault behavior explicitly.
-- [ ] Validate `<all-attributes/>`, aliases, `uiname`/`uitype`, `no-lock`, and other constructs before describing them as supported; expand or reject as needed.
+- [x] Recursive base/linked filter parsing preserves AND/OR and sibling filter structure.
+- [x] Unknown condition operators fail explicitly instead of defaulting to `Equal`.
+- [ ] `In`/`NotIn` and multiple `<value>` execution remain P6; these inputs now fail explicitly.
+- [x] FetchExpression retrieval validates the converted query against loaded metadata before execution.
+- [x] Empty/malformed/unsupported FetchXML has the explicit simulator input-error contract above. Exact platform fault envelopes remain open.
+- [x] `<all-attributes/>` is parsed, non-aggregate aliases are rejected, and display/locking hints have documented no-op behavior. Other FetchXML breadth remains demand-driven work.
 
 ### Read security and links
 
@@ -129,9 +151,9 @@ The unit command on 2026-10-22 was:
 dotnet test 'CloudAwesome.Xrm.Simulate.Test/CloudAwesome.Xrm.Simulate.Test.csproj' --no-restore
 ```
 
-Result: **560 passed, 4 skipped, 0 failed**.
+Review baseline result: **560 passed, 4 skipped, 0 failed**. The subsequent P1 implementation result is **606 passed, 0 skipped, 0 failed**.
 
-The ignored distinct aggregate count test from the September review is now active and passing. The four remaining skips are empty TODOs for base filter/link projection in QueryExpression and FetchXML; newer focused tests cover the core scenarios. Reconcile/remove those placeholders and stale comments in a later code change. They were deliberately left unchanged during this documentation-only review.
+The ignored distinct aggregate count test from the September review is active and passing. The four empty TODOs for base filter/link projection in QueryExpression and FetchXML were removed during the P1 input/output implementation; active focused tests cover those scenarios.
 
 The older 543-passed/5-skipped result described the September baseline and is superseded by this run. The query phase can be described as a completed foundation with explicit P1 hardening, not either wholly unimplemented or fully live-compatible.
 

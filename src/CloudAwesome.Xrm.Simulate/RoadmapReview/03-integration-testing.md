@@ -40,6 +40,8 @@ Follow [P1-P7](00-executive-summary.md#updated-order-of-work). P2 fixtures shoul
 
 ### P1/P2 - Existing behavior with the highest risk
 
+The first query input/output implementation adds **23 `QuerySemantics` cases** for projection/identity, default/all FetchXML columns, OR/nested filters, metadata rejection, invalid operators, malformed input, and empty base projections with selected/filter-only links. Together with the original 40 cases, the project now contains 63 cases. After refreshing authentication and shortening fixture last names to meet the platform limit, the final focused live run on 2026-10-22 passed **all 23 cases**. It also corrected the empty distinct projection behavior and tightened rejection assertions to exclude unrelated service failures. This result covers this category, not a rerun of all integration fixtures. See the [query implementation notes](08-query-execution-phase-review.md#p1-query-inputoutput-implementation---22-october-2026) for the command and simulator exception limitations.
+
 - [ ] Empty and explicit column sets, primary-id projection, and distinct result identity across query forms.
 - [ ] FetchXML OR/nested filters, unsupported operators, multiple values, malformed XML, and metadata-backed unknown entity/attribute behavior.
 - [ ] Paging across multiple pages: cookie continuation, count caps, total-count boundaries, deterministic order, and top/paging conflicts.

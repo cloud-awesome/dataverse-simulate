@@ -11,9 +11,6 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 /// <summary>
 ///
 /// </summary>
-/// <remarks>
-/// N.B. Filters and LinkEntity currently only work if you've included the attributes in the ColumnSet.
-/// </remarks>
 public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEntityMultipleRetriever
 {
     private const string RequestMessage = "RetrieveMultiple";
@@ -52,7 +49,7 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
 
         MetadataValidator.ValidateQuery(query, options);
         var data = ApplyReadableFilter(query.EntityName, options);
-        var results = QueryExpressionParser.Parse(query, data, dataService);
+        var results = QueryExpressionParser.Parse(query, data, dataService, options?.Metadata);
         return ToEntityCollection(results, query.PageInfo);
     }
 
@@ -60,14 +57,10 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
     {
         RequestFailureHandler.Handle(options, RequestMessage);
 
-        if (string.IsNullOrWhiteSpace(query.Query))
-        {
-            return ToEntityCollection(Enumerable.Empty<Entity>(), null);
-        }
-
         var queryExpression = FetchExpressionParser.ConvertFetchXmlToQueryExpression(query.Query);
+        MetadataValidator.ValidateQuery(queryExpression, options);
         var data = ApplyReadableFilter(queryExpression.EntityName, options);
-        var results = QueryExpressionParser.Parse(queryExpression, data, dataService);
+        var results = QueryExpressionParser.Parse(queryExpression, data, dataService, options?.Metadata);
 
         return ToEntityCollection(results, queryExpression.PageInfo);
     }
@@ -78,7 +71,7 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
 
         MetadataValidator.ValidateQuery(query, options);
         var data = ApplyReadableFilter(query.EntityName, options);
-        var results = QueryByAttributeParser.Parse(query, data, dataService);
+        var results = QueryByAttributeParser.Parse(query, data, dataService, options?.Metadata);
 
         return ToEntityCollection(results, query.PageInfo);
     }
