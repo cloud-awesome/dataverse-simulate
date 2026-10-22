@@ -1,357 +1,120 @@
 # Metadata simulation roadmap
 
-## 1. Summary, use case, and shared contracts
-
-### Use case
-
-`CloudAwesome.Xrm.Simulate` needs optional Dataverse metadata so simulated CRUD and query operations can enforce platform-compatible behavior without every test manually arranging low-level table and column rules.
-
-The first supported source should be a generated JSON metadata document produced by `CloudAwesome.Dataverse.Cli`:
-
-- GitHub: `https://github.com/cloud-awesome/dataverse-customisation`
-- NuGet: `https://www.nuget.org/packages/CloudAwesome.Dataverse.Cli`
-- Proposed command: `dvcli document generate-metadata`
-
-The generated document should allow tests to opt into higher-fidelity behavior with a small setup cost:
-
-```csharp
-var options = new SimulatorOptions
-{
-    Metadata = SimulatedMetadata.Load("dataverse-metadata.json")
-};
-```
-
-The same JSON contract should also be documented and published with a JSON Schema so users can generate compatible metadata from their own pipeline if they do not use `dvcli`.
-
-### Shared contract requirements
-
-The JSON output must be:
-
-- Deterministic, so source-controlled metadata diffs are reviewable.
-- Versioned, so `dataverse-simulate` can reject unsupported contract versions clearly.
-- Environment-neutral by default, avoiding IDs where logical names or option values are sufficient.
-- Small enough for test projects, with table allowlisting as the normal path.
-- Complete enough to support create/update validation, defaulting, relationship validation, alternate-key behavior, and query validation over time.
-
-Suggested top-level shape:
-
-```json
-{
-  "$schema": "https://schemas.cloudawesome.dev/dataverse-simulate/metadata/v1/dataverse-simulate.metadata.schema.json",
-  "contractVersion": "1.0",
-  "generatedOnUtc": "2026-09-08T00:00:00Z",
-  "source": {
-    "environmentUrl": "https://example.crm.dynamics.com",
-    "publisher": "CloudAwesome.Dataverse.Cli",
-    "publisherVersion": "x.y.z"
-  },
-  "entities": []
-}
-```
-
-Suggested schema publication:
-
-- `https://schemas.cloudawesome.dev/dataverse-simulate/metadata/v1/dataverse-simulate.metadata.schema.json`
-- Include the schema in the CLI package/repo for offline validation.
-- Include contract examples for a small account/contact/lead model.
-
-### Metadata required in v1
-
-Entity metadata:
-
-- Logical name.
-- Schema name.
-- Collection schema/logical name where available.
-- Primary ID attribute.
-- Primary name attribute.
-- Ownership type.
-- Is activity.
-- Is intersect.
-- Valid messages/capabilities where available, such as create/update/delete/associate/disassociate.
-- Attributes.
-- State/status mapping.
-- Alternate keys.
-- Relationships.
-
-Attribute metadata:
-
-- Logical name.
-- Schema name.
-- Attribute type.
-- Required level.
-- Is primary ID.
-- Is primary name.
-- Is valid for create.
-- Is valid for update.
-- Is valid for read.
-- Is secured, if available.
-- Lookup targets.
-- String max length and format.
-- Memo max length.
-- Integer min/max.
-- Decimal, double, and money precision/min/max.
-- Date/time behavior and format.
-- Boolean labels and values.
-- Choice and multi-select option values.
-- Default value where Dataverse exposes one.
-
-State/status metadata:
-
-- Valid state values.
-- Valid status values.
-- Default status per state.
-- State/status allowed pairs.
-
-Relationship metadata:
-
-- Schema name.
-- Relationship type: one-to-many, many-to-one, many-to-many.
-- Referencing entity and attribute.
-- Referenced entity and attribute.
-- Intersect entity for many-to-many.
-- Entity role where relevant.
-- Cascade configuration where available.
-
-Alternate key metadata:
-
-- Key name.
-- Entity logical name.
-- Attribute logical names in key order.
-- Key status, if available.
+Date reviewed: 2026-10-22
 
-## 2. `dvcli document generate-metadata` implementation
+## Current position
 
-### Command goals
+Optional metadata is implemented and is no longer a prerequisite waiting to be built. The remaining work is validation consistency, fuller metadata consumption, and evidence for the external contract.
 
-Add a new command to `CloudAwesome.Dataverse.Cli`:
+- [x] `SimulatorOptions.Metadata` and `.Simulated().Metadata().Load(path)` are available.
+- [x] `SimulatedMetadata.Load` accepts contract **1.0**, inline entities, or an index containing relative `entityFiles` paths.
+- [x] Runtime entity/attribute/state/status/key/relationship models and case-insensitive lookup indexes exist, separately from JSON DTOs.
+- [x] Create/update validation covers selected required fields, known attributes, create/update validity, lengths, numeric range/precision, lookup target types, choices/multiselect values, and supplied state/status pairs.
+- [x] Create defaults state/status and uses the configured primary-id attribute.
+- [x] Retrieve, QueryExpression, and QueryByAttribute have metadata validation paths.
+- [x] `RetrieveEntityRequest`, `RetrieveAttributeRequest`, `RetrieveAllEntitiesRequest`, and `RetrieveRelationshipRequest` return SDK metadata objects from the loaded model.
+- [x] Queue-enabled capability `IsValidForQueue` is loaded and consumed by queue setup/operations.
+- [x] No metadata preserves permissive operation behavior; metadata retrieval requests explicitly require a loaded model.
 
-```powershell
-dvcli document generate-metadata --manifest .\dataverse-metadata.manifest.json
-```
+`MetadataSimulationTests` and `QueueSimulationTests` cover these first implementations. Selected metadata/security integration fixtures also exist; they were not run live in this review.
 
-The command should connect to Dataverse, retrieve metadata, and write JSON conforming to the published schema.
+## Contract and generator status
 
-### Manifest
+The checked-in [metadata index](../CloudAwesome.Xrm.Simulate.Test/TestMetadata/entity-metadata.json) identifies `CloudAwesome.Dataverse.Cli` publisher version `0.0.0.8` and references account/contact/lead entity files. A loading regression consumes that split layout. This is evidence of consumer compatibility with the fixture, not a current audit of the separate CLI implementation or published schemas.
 
-The command should accept a manifest file so metadata generation is repeatable in local development and CI.
+Retained external dependency:
 
-Suggested manifest shape:
+- Repository: <https://github.com/cloud-awesome/dataverse-customisation>
+- Package: <https://www.nuget.org/packages/CloudAwesome.Dataverse.Cli>
+- Companion command contract: `dvcli document generate-metadata --manifest ./dataverse-metadata.manifest.json`
 
-```json
-{
-  "$schema": "https://schemas.cloudawesome.dev/dataverse-simulate/metadata/v1/dataverse-simulate.metadata-manifest.schema.json",
-  "output": {
-    "path": "./GeneratedMetadata/dataverse-metadata.json",
-    "splitFilesPerEntity": false,
-    "includeGeneratedOnUtc": true
-  },
-  "entities": {
-    "include": [
-      "account",
-      "contact",
-      "lead"
-    ],
-    "includeRelatedEntities": false,
-    "includeIntersectEntities": true
-  },
-  "metadata": {
-    "includeAttributes": true,
-    "includeRelationships": true,
-    "includeAlternateKeys": true,
-    "includeOptionLabels": false,
-    "includeUnpublished": false
-  }
-}
-```
+The CLI repository, current package, and schema endpoints were not reviewed here. Do not mark the whole generator roadmap complete or re-implement it in this solution based on stale assumptions.
 
-Manifest requirements:
+### Shared contract requirements retained
 
-- `entities.include` should be required unless an explicit `includeAllEntities` switch is set.
-- `splitFilesPerEntity` should support:
-  - one combined JSON document; or
-  - a manifest/index JSON plus one file per entity.
-- Entity ordering must be deterministic by logical name.
-- Attribute, option, key, and relationship ordering must be deterministic.
-- The manifest schema should be published next to the metadata output schema.
+- Deterministic entity/attribute/option/key/relationship ordering, reviewable diffs, and explicit `contractVersion`.
+- Environment-neutral output by default, with only optional source/generator identity and generation timestamp.
+- Table allowlisting as the normal path; whole-environment export must be explicit.
+- Combined-document and index-plus-per-entity output, with consistent relative paths and versions.
+- Manifest controls for related/intersect entities, attributes, relationships, keys, option labels, and unpublished metadata.
+- Clear failures for invalid manifests, missing selected entities, unrepresentable metadata, and unsupported versions/types.
+- Offline schema availability, examples, and generation-time validation.
 
-### Command options
+The sample [generation manifest](../CloudAwesome.Xrm.Simulate.Test/TestMetadata/generate-metadata-manifest.json) retains these planned input controls. The metadata schema URI is `https://schemas.cloudawesome.dev/dataverse-simulate/metadata/v1/dataverse-simulate.metadata.schema.json`; the manifest schema URI has the same prefix and ends in `dataverse-simulate.metadata-manifest.schema.json`. Their publication/reachability was not verified.
 
-Suggested options:
+Potential CLI overrides remain output/environment/connection selection, repeated entity selection, split output, validate-only, and fail-on-unsupported behavior. Confirm the actual external implementation before finalizing or documenting flags.
 
-- `--manifest <path>`: manifest path.
-- `--output <path>`: override manifest output path.
-- `--environment <url-or-id>`: optional environment override, matching common Power Platform CLI conventions.
-- `--connection <name>`: if the CLI already supports named connections.
-- `--include-entity <logicalName>`: repeatable or semicolon-delimited override for quick use.
-- `--split-files-per-entity`: command-line override.
-- `--validate-only`: validate manifest and connection without writing output.
-- `--fail-on-unsupported-metadata`: fail instead of warning when a metadata field cannot be represented.
+### Consumer contract verification still needed
 
-### Dataverse retrieval
+- [ ] P3/P4: confirm current generator and consumer round-trip compatibility, deterministic output, and contract version policy.
+- [ ] P3/P4: confirm schema publication/offline distribution and document the supported subset. No bundled JSON Schema or schema validator was found in this solution.
+- [ ] P4: test both inline and split outputs, unsupported/missing versions, malformed JSON, missing files, and conflicting index/entity logical names comprehensively.
+- [ ] P4: reject duplicate/missing metadata with consistent `SimulatedMetadataException` paths. Some runtime dictionaries are constructed before semantic duplicate checks and can leak generic dictionary errors.
 
-The command should use Dataverse metadata APIs directly, not generated early-bound classes.
+The loader already rejects missing/unsupported contract versions, empty documents, missing files, and certain inconsistent primary/state/key/relationship definitions. This is code validation of a subset, not complete JSON Schema validation.
 
-Primary SDK messages to evaluate:
+## Metadata actually consumed
 
-- `RetrieveAllEntitiesRequest`
-- `RetrieveEntityRequest`
-- `RetrieveAttributeRequest`
-- `RetrieveRelationshipRequest`
-- `RetrieveOptionSetRequest`
+| Area | Implemented behavior | Limit still open |
+| --- | --- | --- |
+| Entity model | Logical/schema/collection names, primary id/name, ownership, activity/intersect, valid messages, queue capability | Many properties are retained but do not yet drive every operation. |
+| Attribute model | Names/types, required/read/create/update flags, secured flag, lookup targets, limits, precision, options, integer defaults | Strict SDK runtime type checks, datetime behavior, full boolean/choice defaults, field-level security. |
+| Create | Known entity/attributes, configured create validity, selected required fields/value rules, primary id and state/status defaults | Ownership-aware system defaults, related-entity creation, full required-level parity. |
+| Update | Attribute/value validity and state/status pair when both supplied | Validate effective merged state/status for partial updates; key-based direct operations and ownership transitions. |
+| Retrieve/queries | Known/readable selected columns, QueryExpression filter/order/link attributes, QueryByAttribute attributes | FetchXML bypasses validation; aggregate expressions/alias-aware validation and all-columns filtering need review. |
+| Relationships | Shape stored and projected to SDK metadata; query link column existence checked | General associate/disassociate schema/direction rules and lookup/intersect mutations are not implemented. |
+| Alternate keys | Definitions load; referenced attributes checked; upsert scans supplied key values | Declared-key matching/status/uniqueness, duplicate-key fault behavior, and indexed resolution. |
+| Metadata requests | Four retrieval handlers and selected SDK properties | Full SDK property/filter/identifier behavior, richer options/labels, global `RetrieveOptionSetRequest`. |
 
-The implementation should request only the metadata needed for selected entities where possible.
+Important distinctions:
 
-### Output validation
+- `IsSecured` is metadata storage/projection, not field-level access enforcement.
+- `OwnershipType` and `ValidMessages` being loaded do not mean create ownership or message capability validation is complete.
+- Lookup validation currently checks allowed logical targets, not general referenced-row existence.
+- Query links check referenced column existence; that does not prove relationship schema validation.
+- The required-create rule currently selects create-valid `ApplicationRequired` attributes. Capture real SDK behavior for required levels before treating that rule as exact platform parity.
 
-Generation should validate output against the JSON Schema before writing the final file.
+## Remaining work in roadmap order
 
-Failure behavior:
+### P1 - Validation consistency
 
-- Invalid manifest: fail before connecting.
-- Missing entity from allowlist: fail with the logical name.
-- Unsupported metadata type: fail or warn based on manifest/command option.
-- Unserializable metadata: fail with entity and attribute or relationship path.
+- [ ] Apply metadata validation to converted FetchXML before execution, with alias/aggregate-aware rules where necessary.
+- [ ] Resolve empty column-set and primary-id output semantics across retrieval/query paths; do not infer a primary key from every `id`-suffixed matching GUID.
+- [ ] Capture and test ownership/state/aggregate response cases that currently give misleading fidelity guarantees.
 
-### Versioning
-
-The CLI should emit:
+### P2 - Live validation fixtures
 
-- `contractVersion`
-- generator name and version
-- optional source environment URL
+- [ ] Exact faults/defaults for unknown entities/columns, required levels, invalid values/types, lookups, state/status, and ownership.
+- [ ] Compare metadata SDK property shapes, `EntityFilters`, missing names/identifiers, and option metadata beyond the existing narrow snapshots.
+- [ ] Keep metadata retrieval separate from record-read security; the current tests intentionally allow retrieval without simulated table-read privileges.
 
-Contract version should change only when `dataverse-simulate` consumption could be affected.
+### P4 - Deeper model consumption
 
-## 3. `dataverse-simulate` implementation consuming JSON output
+- [ ] Strict value-type handling rather than silently skipping a rule when the value has an unexpected CLR type.
+- [ ] Ownership-specific defaults and valid-message enforcement where supported by the contract.
+- [ ] Primary-id/readability rules, formatted values, lookup names, and supported datetime behavior.
+- [ ] Declared alternate-key validation, uniqueness, and key-based operations.
+- [ ] Relationship references checked against loaded tables/attributes; partial allowlists must remain possible.
+- [ ] General associate/disassociate schema, endpoint, entity-role, and direction validation.
+- [ ] One-to-many lookup mutation and many-to-many intersect rows so ordinary queries see relationship effects.
+- [ ] Selected delete/assign/reparent cascade behavior. Cascade configuration is not currently represented by `SimulatedRelationshipMetadata`/DTOs and needs a contract decision first.
+- [ ] Row versions/concurrency where a consumer test requires them.
 
-### Simulator API
+### P6 - Metadata breadth
 
-Add metadata support to simulator setup:
+- [ ] Global option-set retrieval and additional SDK metadata properties when justified by actual code under test.
+- [ ] Date/timezone, formatted-label, and specialized metadata behavior in small parity-backed increments.
 
-```csharp
-var options = new SimulatorOptions
-{
-    Metadata = SimulatedMetadata.Load("GeneratedMetadata/dataverse-metadata.json")
-};
-```
+## Implementation boundaries and tests
 
-Alternative setup API:
+Keep metadata optional. Prefer small checked-in generated fixtures to large hand-built object graphs. Expand the existing tests rather than introducing a second loader or duplicate metadata store.
 
-```csharp
-_organizationService.Simulated()
-    .Metadata()
-    .Load("GeneratedMetadata/dataverse-metadata.json");
-```
+Metadata configuration errors can retain explicit simulator exceptions. Operation failures advertised as Dataverse parity need captured fault contracts; a new strict mode is a design option, not an already implemented setting. The external generator/schema work should be tracked separately from the local consumer checklist.
 
-The options path should be the primary path so all tests can share setup through a fixture.
+## Evidence anchors
 
-### Internal models
-
-Add simulator-owned metadata models rather than depending directly on SDK metadata serialization:
-
-- `SimulatedMetadata`
-- `SimulatedEntityMetadata`
-- `SimulatedAttributeMetadata`
-- `SimulatedStateMetadata`
-- `SimulatedStatusMetadata`
-- `SimulatedRelationshipMetadata`
-- `SimulatedAlternateKeyMetadata`
-
-Model requirements:
-
-- Preserve enough source data to make validation decisions.
-- Provide lookup methods optimized for runtime use, such as `GetEntity(logicalName)` and `GetAttribute(entityName, attributeName)`.
-- Keep JSON DTOs separate from runtime indexes if needed.
-- Reject unsupported contract versions at load time.
-- Validate internal consistency at load time.
-
-### Loading and validation
-
-`SimulatedMetadata.Load(path)` should:
-
-- Read JSON.
-- Validate against the bundled JSON Schema or equivalent code validation.
-- Validate semantic consistency:
-  - every primary ID/name attribute exists;
-  - every relationship references known entities and attributes when those entities are present;
-  - every alternate key references known attributes;
-  - state/status default pairs are valid;
-  - attribute logical names are unique per entity.
-- Produce clear exceptions with JSON paths or entity/attribute paths.
-
-### Create message consumption
-
-`EntityCreator` should use metadata when available for:
-
-- Duplicate ID validation.
-- Unknown entity validation.
-- Unknown attribute validation.
-- Primary ID attribute handling.
-- Required field validation.
-- Create-valid attribute validation.
-- String and memo max length validation.
-- Numeric min/max and precision validation.
-- Lookup target validation.
-- Choice and multi-select option validation.
-- State/status defaulting.
-- State/status pair validation.
-- Owner defaults based on ownership type.
-- Relationship creation from `Entity.RelatedEntities` only when relationship metadata supports it.
-
-Duplicate ID validation should be implemented before the broader metadata work because it does not require metadata.
-
-### Update message consumption
-
-`EntityUpdater` should use metadata when available for:
-
-- Unknown entity validation.
-- Unknown attribute validation.
-- Update-valid attribute validation.
-- String and memo max length validation.
-- Numeric min/max and precision validation.
-- Lookup target validation.
-- Choice and multi-select option validation.
-- State/status pair validation.
-- Alternate-key resolution when update-by-key is supported.
-
-### Retrieve and query consumption
-
-`EntityRetriever` and retrieve multiple query parsing should use metadata when available for:
-
-- Unknown entity validation.
-- Unknown column validation.
-- Primary ID projection rules.
-- Lookup alias/name attribute behavior where supported.
-- Relationship validation for joins.
-- Type-aware condition validation.
-
-### Associate and Disassociate consumption
-
-Relationship metadata should eventually drive:
-
-- Relationship name validation.
-- Valid target/related entity validation.
-- Entity role handling.
-- Many-to-many intersect behavior.
-- One-to-many lookup mutation behavior where Dataverse does that for the relationship type.
-- Cascade effects later, when delete behavior is implemented.
-
-### Execution mode
-
-Metadata-backed validation should be opt-in at first:
-
-- No metadata: preserve current permissive simulator behavior.
-- Metadata loaded: enforce known metadata rules.
-- Later option: strict mode for Dataverse-shaped exception types and messages.
-
-### Test strategy
-
-Add tests in layers:
-
-- Unit tests for JSON loading and schema/semantic validation.
-- Unit tests for `EntityCreator` metadata-backed validation/defaulting.
-- Unit tests for `EntityUpdater` metadata-backed validation.
-- Unit tests for associate/disassociate metadata validation.
-- Integration parity tests for live-observed create/update failures and defaults.
-
-Test fixtures should use small checked-in metadata JSON examples generated from the public schema, not hand-built object graphs in every test.
+- [Loader/version checks](../CloudAwesome.Xrm.Simulate/Metadata/SimulatedMetadata.cs)
+- [Current validation rules](../CloudAwesome.Xrm.Simulate/Metadata/MetadataValidator.cs)
+- [SDK metadata projection](../CloudAwesome.Xrm.Simulate/Metadata/SdkMetadataProjection.cs)
+- [Metadata regression fixture](../CloudAwesome.Xrm.Simulate.Test/MetadataSimulationTests.cs)
+- [Integration metadata/security fixture](../CloudAwesome.Xrm.Simulate.Integration/MetadataTests/MetadataRetrievalSecurityParityTests.cs)

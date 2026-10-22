@@ -1,101 +1,80 @@
 # CloudAwesome.Xrm.Simulate maturity roadmap
 
-Date reviewed: 2026-06-02
+Date reviewed: 2026-10-22
 
-## Scope
+Original review: 2026-06-02, with subsequent September updates
 
-This review covers the current local solution, the public documentation at https://docs.cloudawesome.uk/dataverse-simulate, the NuGet package page at https://www.nuget.org/packages/CloudAwesome.Xrm.Simulate, and the public GitHub issue list at https://github.com/cloud-awesome/dataverse-simulate/issues.
+## Executive update - 22 October 2026
 
-The roadmap is organized around the four areas requested:
+The project has moved from implementing its foundations to hardening a substantially broader simulator. Most original correctness fixes and the first implementations of metadata, security, queues, common organization requests, query projection, paging, and aggregation are now present. The immediate sequence in the previous review has largely been delivered, sometimes in a different order.
 
-1. Simulation parity
-2. Architecture, unit testing coverage, documentation, CI/CD, and publishing
-3. Integration testing against a live sandbox
-4. Benchmarking
+The next milestone should be a trustworthy, documented release of that existing surface. Prioritize the specific correctness gaps below, repeatable live parity, and release automation before another broad feature expansion. A green unit suite proves the current simulator contract; it does not by itself establish exact Dataverse behavior.
 
-Companion deep dives have since been added for metadata simulation, the security model, and queue simulation:
+## Scope and evidence
 
-- [05-metadata-simulation](05-metadata-simulation.md)
-- [06-security-model](06-security-model.md)
-- [07-queue-simulation](07-queue-simulation.md)
+This update reviews the four local projects, repository-root CI and packaging configuration, and checked-in tests at commit `2620652` (`Security model enhancements`, 2026-09-23). Only markdown in `RoadmapReview` was changed.
 
-## Current position
+Verification on 2026-10-22:
 
-The project already has a strong base for an open-source Dataverse test double:
+- Unit suite: **560 passed, 4 skipped, 0 failed** using `dotnet test CloudAwesome.Xrm.Simulate.Test/CloudAwesome.Xrm.Simulate.Test.csproj --no-restore`.
+- Four-project Release build: succeeded with 0 warnings and 0 errors reported by this incremental build, using `dotnet build CloudAwesome.Xrm.Simulate.sln --no-restore --configuration Release`.
+- Integration discovery: **40 tests** using `dotnet test CloudAwesome.Xrm.Simulate.Integration/CloudAwesome.Xrm.Simulate.Integration.csproj --no-build --no-restore --configuration Release --list-tests`. Live sandbox execution was not performed during this review.
+- The four skipped unit tests are older empty projection/link TODOs. Newer focused tests cover these scenarios; reconcile or remove the placeholders in a future code change.
 
-- A fluent `.Simulate()` and `.Simulated()` API for `IOrganizationService` and `IServiceProvider`.
-- In-memory entity, trace, telemetry, service bus, and audit stores.
-- CRUD method simulation, `RetrieveMultiple`, `QueryExpression`, `FetchExpression`, and `QueryByAttribute` support.
-- A useful number of query condition handlers, including many date-relative operators.
-- Early support for aggregation, fiscal-year grouping, security role XML parsing, custom organization request handlers, service failure simulation, and plugin-service mocks.
-- A passing test suite: `382` unit tests passed, `5` skipped, and `1` integration test passed when run locally with `dotnet test --no-restore`.
+Public documentation, NuGet, GitHub issue counts, and the separate `dvcli` repository were not refreshed. The previous claims about published version `1.0.4` and 60 open issues are historical, not current evidence. The local library project declares **1.1.1**; this does not prove publication.
 
-The main maturity gap is not just "more messages". The core maturity gap is exactness: the library needs reliable parity for common Dataverse behavior, exception types/messages, output shapes, security filtering, query semantics, and request side effects.
+Throughout this review, a checked item means the stated implementation exists and has the indicated local evidence. It does not mean every edge case is complete or that live tests passed today. Partial items and live verification work remain explicitly open.
 
-## Priority roadmap
+## Completed foundations
 
-### Phase 0 - Correctness foundations
+- [x] Sparse updates merge attributes, preserve omitted values, set modification fields, use update processors, and audit; selected-column retrieval selects the requested id.
+- [x] Disassociation and a separate relationship store replace the former target-payload mutation approach.
+- [x] Missing-record and duplicate-id faults use `FaultException<OrganizationServiceFault>`; unknown requests produce a helpful `NotSupportedException`.
+- [x] Organization-service and service-provider contexts are instance-scoped. Factory-created services reuse their provider's data and audit state.
+- [x] **29 built-in organization request handlers**, including direct equivalents, upsert, state, batches/transactions, sharing, team membership, queues, and four metadata retrieval requests.
+- [x] Optional metadata contract `1.0` loading, including split files, runtime models, CRUD/query validation, and SDK metadata projection.
+- [x] Optional security graph, privilege depths, owner teams, explicit shares, base-row query filtering, request enforcement, XML role import, default business-unit teams, and role replication/association behavior.
+- [x] Typed queue setup, shared queue service, and add/remove/pick/release/route requests over ordinary entity rows.
+- [x] Query filtering and ordering before final projection, inner/outer links with `AliasedValue`, projected distinct, page slicing/count metadata for all three query forms, distinct aggregate count, and aggregate-limit handling.
+- [x] Reusable live/simulator parity harness and focused integration fixtures now exist.
+- [x] Repository-root GitHub Actions builds the solution, runs unit tests with coverage, and uploads results for pull requests.
 
-Before adding large new features, fix known incorrect behavior in existing surfaces:
+These are completed first implementations. Metadata, security, transactions, and query execution still have fidelity gaps described in the companion reviews.
 
-- [x] Correct `Update` to merge incoming attributes into the existing entity, set `modifiedon` and `modifiedby`, run the update processor rather than the create processor, and audit the request.
-- [x] Correct partial-column `Retrieve`, which currently returns the first entity in the table rather than filtering by the requested id when `ColumnSet.AllColumns` is false.
-- [x] Implement `Disassociate`, which currently only handles configured failure simulation.
-- [x] Replace generic `Exception`, `InvalidOperationException`, and placeholder messages with Dataverse-shaped exceptions collected from live integration tests.
-- [x] Make unsupported `Execute` requests fail with a clear simulator error or configurable behavior rather than an internal `KeyNotFoundException`.
-- [x] Make service-provider simulation instance-scoped rather than backed by static stores.
-- [x] Add regression tests for each corrected behavior before expanding the surface area.
+## Updated order of work
 
-### Phase 1 - Core parity
+This is the authoritative sequence for the companion documents. P1 and P2 should be developed together: capture live behavior for a gap, implement the correction, then retain the regression test.
 
-Focus on the features most likely to unblock users writing plugin/integration unit tests:
+| Order | Work item | Why now / completion criterion |
+| --- | --- | --- |
+| **P1** | Harden the implemented behavior | Close the concrete gaps below with focused regressions and live comparisons where platform behavior is uncertain. Avoid marking whole subsystems as exact parity. |
+| **P2** | Make live parity repeatable | Extend the existing 40-test harness for the P1 cases, queues, paging/aggregates, ownership, and security depths; add opt-in/manual CI and a release parity run with recorded results. |
+| **P3** | Prepare a documented, reproducible release | Publish a support/limitations matrix and current examples; add package metadata, package validation, version policy, symbols/source support, and a release workflow. Existing PR CI is the starting point. |
+| **P4** | Complete metadata and relationship semantics | Implement relationship validation/direction, lookup/intersect mutation, ownership-aware defaults, declared alternate-key enforcement, type validation, and selected cascade/concurrency behavior as real unit-test scenarios require. |
+| **P5** | Improve isolated plugin context and setup ergonomics | Complete context property wiring, parent/transaction context fixtures, and documented setup helpers. Preserve the unit-testing scope; automatic plugin registration and cascading execution are excluded. |
+| **P6** | Add targeted request/query breadth | Prioritize `In`/`NotIn` and real consumer scenarios, then scoped/fiscal/multiselect operators, advanced joins, global option-set retrieval, bulk upsert or activity/platform helpers as justified. |
+| **P7** | Establish performance baselines | Add BenchmarkDotNet over supported scenarios, including security, paging, queues, and batches, before considering indexes or other optimizations. |
 
-- [x] Complete common `IOrganizationService` method parity: `Associate`, `Disassociate`, CRUD, retrieve, `RetrieveMultiple`, and audit behavior.
-- Add first-class handlers for high-value `OrganizationRequest` types: 
-  - [x] `RetrieveRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest`, 
-  - [x] `UpsertRequest`, `ExecuteMultipleRequest`, `ExecuteTransactionRequest`, `SetStateRequest`, 
-  - [x] `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest`, `AddMembersTeamRequest`, `RemoveMembersTeamRequest`, 
-  - [x] [queue requests](07-queue-simulation.md), and 
-  - [x] metadata retrieval requests.
-- [ ] Rework query execution so filtering, joining, ordering, distinct, paging, projection, and aggregation match Dataverse behavior instead of LINQ convenience behavior.
-- [x] Treat security as a query and request pipeline concern, not just a create-time permission guard.
-- [ ] Establish live parity fixtures for exceptions, response shapes, and edge cases.
+### P1 findings to carry into implementation
 
-### Phase 2 - Mature platform behavior
+- **Query output and input semantics:** an empty `ColumnSet(false)` currently clones all attributes; primary-id projection uses a heuristic. FetchXML ignores nested filter structure and `type='or'`, defaults unknown operators to `Equal`, and bypasses `MetadataValidator.ValidateQuery`.
+- **Security and identity:** only base query rows are security-filtered; linked rows are not. `CreateOrganizationService(userId)` shares state correctly but ignores the requested identity. The enforcer also bypasses custom `ISecurityModel` implementations. Organization-owned table semantics and ownership changes need explicit validation.
+- **Paging and aggregates:** page slicing and cookies are implemented, but incoming cookies are unused and page size is not capped. Aggregate output uses raw values and synthetic ids; the explicit `aggregatelimit` path takes `limit + 1` rows. Validate these contracts against live Dataverse before declaring parity.
+- **Mutation/response consistency:** audit coverage is uneven across direct calls and request handlers. Check assign owner-field consistency, upsert's declared-key behavior, transaction fault envelopes/indexes, and queue validation/atomicity. The detailed documents distinguish source-confirmed gaps from questions requiring live evidence.
 
-Add higher-value Dataverse behavior that advanced test suites need:
+## Milestone exit criteria
 
-- [ ] Plugin pipeline simulation: registered steps, stage/mode/depth, pre/post images, shared variables, parent context, transaction behavior. 
-  - (N.B. Ensure however, that the "pipeline" remains unit-specific for when a unit queries execution context etc. We aren't, and never will, build out a cascading execution pipeline. This framework is intended for unit testing only, not trying to rebuild the dataverse execution pipeline.)
-- [ ] Metadata-aware validation: required fields, primary id/name behavior, state/status, option set validation, lookup target validation, alternate keys, formatted values, and attribute type handling.
-- [ ] Relationship metadata and cascade behavior for associate/disassociate/delete/assign.
-- [ ] Row version and optimistic concurrency behavior.
-- [x] Realistic record ownership, teams, business units, sharing, and access-team behavior.
-- [ ] Better data seeding ergonomics with metadata and early-bound type support.
+The next release should have a named supported subset, a passing unit suite with resolved skip dispositions, recorded live results for that subset, reproducible packages, current documentation, and explicit limitations for remaining gaps. P4-P7 do not all need to be complete to release; anything deferred must be visible to consumers.
 
-### Phase 3 - Project maturity
+Do not carry forward the old proposed version numbers as commitments. Choose the next version from the actual published baseline and the compatibility policy, particularly where correcting simulator behavior can break existing tests.
 
-Make the project easier to adopt and trust:
+## Companion reviews
 
-- Add GitHub Actions for build, unit tests, integration test gating, package validation, code coverage, and release publishing.
-- Add package metadata, README, license, repository URL, symbol/source package generation, and deterministic versioning.
-- Update docs so supported SDK messages and known limitations are always current.
-- Add a parity matrix that maps SDK messages, query features, service-provider features, security features, and known gaps.
-- Convert the issue backlog into milestones such as `v1.1 correctness`, `v1.2 org requests`, `v1.3 query parity`, `v1.4 security`, `v2.0 plugin pipeline`.
-
-## Recommended immediate sequence
-
-1. Create a parity test harness pattern in the integration project.
-2. Fix existing incorrect CRUD behavior and exceptions.
-3. Stabilize query pipeline semantics around selected-columns, links, paging, and alias behavior.
-4. Implement `ExecuteMultiple` and direct request equivalents for existing direct SDK methods.
-5. Introduce metadata and security as explicit architecture components.
-6. Add CI and packaging automation once the correctness baseline is green.
-
-## Evidence notes
-
-- Public docs describe the library as using NSubstitute to mock `IOrganizationService` and plugin services, and list entity data, logs, telemetry, and simulator audits as the main data stores.
-- Public docs currently list only create, update, delete, retrieve, and retrieveMultiple under supported SDK messages, while the local code also includes `AssignRequest`, `CreateRequest`, `RetrieveMultipleRequest`, `WhoAmIRequest`, and custom request registration.
-- NuGet currently shows version `1.0.4`, last updated `2024-06-13`, targeting `.NET 8.0`.
-- GitHub issues currently show `60` open issues, with recent items covering request extensibility, simulator options, failure configuration, telemetry alignment, metadata helpers, security fidelity, advanced aggregates, packaging/CI, ExecuteMultiple, and link-entity semantics.
-
+- [01 - Simulation parity and support matrix](01-simulation-parity.md)
+- [02 - Architecture, tests, documentation, CI/CD, and publishing](02-architecture-tests-docs-ci.md)
+- [03 - Integration testing](03-integration-testing.md)
+- [04 - Benchmarking](04-benchmarking.md)
+- [05 - Metadata simulation](05-metadata-simulation.md)
+- [06 - Security model](06-security-model.md)
+- [07 - Queue simulation](07-queue-simulation.md)
+- [08 - Query execution](08-query-execution-phase-review.md)

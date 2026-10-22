@@ -1,204 +1,107 @@
 # Simulation parity roadmap
 
-## Goal
+Date reviewed: 2026-10-22
 
-The goal should be "Dataverse-compatible enough that a failing simulated test is a useful predictor of a failing live operation." That requires exact behavior in common paths and explicit documentation for unsupported paths.
+## Goal and status convention
 
-## Existing strengths
+The simulator should be Dataverse-compatible enough that an isolated failing test predicts a failing live operation. Implemented behavior must be distinguished from complete platform parity.
 
-- Direct `IOrganizationService` methods exist for `Create`, `Retrieve`, `RetrieveMultiple`, `Update`, `Delete`, `Associate`, and `Disassociate`.
-- `Execute` has a registry pattern and custom organization request extension point.
-- Query support already covers `QueryExpression`, `FetchExpression`, `QueryByAttribute`, many condition operators, links, ordering, distinct, top count, and some aggregates.
-- Entity processors allow users to simulate dependent business logic.
-- Security role XML parsing exists and can merge role privileges.
-- Service-provider mocks cover plugin execution context, tracing, organization service factory, plugin telemetry logger, and service endpoint notification service.
+The order of work is [P1-P7 in the executive summary](00-executive-summary.md#updated-order-of-work). Checked items below describe delivered implementation, with limitations kept open. Integration fixtures mentioned here exist in source; they were not executed against a live sandbox during this review.
 
-## Critical correctness fixes
+## Correctness foundations delivered
 
-### CRUD and direct methods
+- [x] Partial-column `Retrieve` selects the requested id and projects a result.
+- [x] `Update` merges sparse attributes, preserves omitted attributes, sets `modifiedon`/`modifiedby`, invokes the update processor, and audits.
+- [x] Missing records and duplicate create ids produce Dataverse-shaped faults.
+- [x] `Disassociate` removes stored relationship state.
+- [x] Association state is held separately from `Entity.RelatedEntities`.
+- [x] Unsupported `Execute` requests throw a descriptive `NotSupportedException` identifying request type/name and the custom-handler extension point.
+- [x] Service-provider state is isolated per simulated instance, including logs, telemetry, service bus, data, and audits.
+- [x] Regression suites cover the above and direct-method/request equivalents.
 
-- [x] `EntityRetriever` has a parity bug for partial-column retrieves. The all-columns branch filters by id, but the selected-column branch projects all rows and then returns `FirstOrDefault()`, so it can return the wrong record.
-- [x] `EntityUpdater` currently finds the existing entity, removes it, sets `modifiedon` on the incoming entity, then adds the old entity back. This means updates do not persist incoming attributes. It also uses `ProcessorMessage.Create` rather than update and can dereference a missing entity before throwing the intended error.
-- [x] `EntityDisassociator` is not implemented beyond failure injection.
-- [x] `EntityCreator` needs duplicate id validation, required system field behavior, state/status defaults, relationship handling, and real Dataverse exception behavior.
-  - `EntityCreator` delaying metadata behaviour and validation until the simulated metadata layer exists (c.f. [05-metadata-simulation](05-metadata-simulation.md)) 
-- [x] `EntityDeleter` needs missing-table and missing-row behavior that matches live Dataverse and should account for cascading behavior once metadata exists.
-- [x] `Associate` currently stores resolved related entities in `RelatedEntities`; Dataverse does not simply mutate the target entity payload this way. The roadmap should move relationships into a relationship store driven by relationship metadata.
+Evidence: `ServiceRequests/EntityCreator.cs`, `EntityRetriever.cs`, `EntityUpdater.cs`, `EntityAssociator.cs`, `EntityDisassociator.cs`, `DataverseServiceFaults.cs`, `RequestHandlerRegistry.cs`, and the corresponding unit fixtures. Paths in this document are relative to the library project unless a project is named.
 
-### OrganizationRequest execution
+Do not equate these fixes with complete CRUD parity. Relationship/cascade behavior, ownership, full metadata validation, concurrency, and audit coverage still need work.
 
-Only these built-in request handlers are registered today:
+## OrganizationRequest support matrix
 
-- `CreateRequest`
-- `AssignRequest`
-- `RetrieveRequest`
-- `UpdateRequest`
-- `DeleteRequest`
-- `AssociateRequest`
-- `DisassociateRequest`
-- `RetrieveMultipleRequest`
-- `WhoAmIRequest`
+`OrganisationServiceSimulator.RegisterServiceRequests()` now registers **29** built-in handlers:
 
-This leaves a large surface uncovered. Priority requests:
+| Area | Implemented requests | Remaining qualification |
+| --- | --- | --- |
+| Direct equivalents | `CreateRequest`, `RetrieveRequest`, `RetrieveMultipleRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest` | Shared operation paths exist; auditing and relationship semantics are not uniformly complete. |
+| Identity and ownership | `WhoAmIRequest`, `AssignRequest` | Assign changes owner fields, but assignee validity, stale owning fields, business-unit fields, and cascade behavior need hardening. |
+| Upsert and state | `UpsertRequest`, `SetStateRequest` | Upsert matches id or supplied `KeyAttributes`; it does not enforce declared metadata keys/uniqueness. State/status validation uses metadata when loaded. |
+| Batches | `ExecuteMultipleRequest`, `ExecuteTransactionRequest` | Continue-on-error/response handling and entity/relationship/audit/security rollback exist. Transaction fault envelopes and faulted request indexes need live comparison. |
+| Sharing | `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest` | Table/record checks and explicit share state exist; exact privilege/fault semantics need broader live fixtures. |
+| Teams | `AddMembersTeamRequest`, `RemoveMembersTeamRequest` | Membership affects owner-team privileges. Full access-team template behavior remains deferred. |
+| Queues | `AddToQueueRequest`, `RemoveFromQueueRequest`, `PickFromQueueRequest`, `ReleaseToQueueRequest`, `RouteToRequest` | Typed responses and shared services exist; no dedicated live queue fixture suite yet. See [07](07-queue-simulation.md). |
+| Metadata | `RetrieveEntityRequest`, `RetrieveAttributeRequest`, `RetrieveAllEntitiesRequest`, `RetrieveRelationshipRequest` | Requires loaded metadata. Selected SDK fields are projected; global option-set retrieval is absent. See [05](05-metadata-simulation.md). |
 
-- [x] Direct-method equivalents: `RetrieveRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest`.
-- [ ] Upsert/key behavior: `UpsertRequest`, `UpsertMultipleRequest` where SDK support is available, alternate key resolution.
-- [ ] State and ownership: `SetStateRequest`, `AssignRequest` hardening.
-- [ ] Access/security: `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest`.
-- [ ] Teams: `AddMembersTeamRequest`, `RemoveMembersTeamRequest`, owner/access-team scenarios.
-- [ ] Queues and activities: `AddToQueueRequest`, `RemoveFromQueueRequest`, `PickFromQueueRequest`, `ReleaseToQueueRequest`, `SendEmailRequest`, close/cancel activity requests.
-- [ ] Common platform helpers: `CalculateRollupFieldRequest`, `InitializeFromRequest`, duplicate detection requests, and environment/user requests used by plugins.
-- [ ] Batch/transaction: `ExecuteMultipleRequest`, `ExecuteTransactionRequest`.
-- [ ] Metadata: `RetrieveEntityRequest`, `RetrieveAttributeRequest`, `RetrieveAllEntitiesRequest`, `RetrieveOptionSetRequest`, `RetrieveRelationshipRequest`.
+- [x] Direct request equivalents, sharing/team requests, queues, and the four metadata retrieval requests are implemented.
+- [x] First implementations of upsert, set-state, multiple execution, and transaction execution are implemented.
+- [ ] Harden declared alternate keys and direct retrieve/update/delete by key where required (P4).
+- [ ] Add `RetrieveOptionSetRequest` and `UpsertMultipleRequest` only as supported consumer scenarios justify them (P6).
+- [ ] Activity helpers such as send/close/cancel, rollup calculation, initialization-from, duplicate detection, and other environment/user helpers remain optional backlog (P6).
 
+Custom typed handlers are available through `.Simulated().CustomOrgRequests().Add<TRequest>()`. They cannot replace an already registered handler through this public facade. Failure settings select organization request names and optionally record ids on supported paths. A default unknown handler, request-name dispatch for generic custom APIs, and broad built-in replacement are not implemented; keep these as explicit API decisions rather than implied guarantees.
 
-Unsupported requests should not fall through to a raw dictionary lookup. Add one of these behaviors:
+## Query support matrix
 
-- [x] Default: throw a clear `NotSupportedException` with request type and request name.
-- Optional strict-live mode: throw a Dataverse-shaped `OrganizationServiceFault` where known.
-- Optional test escape hatch: allow unknown requests to be configured to fail, no-op, or route to a custom handler.
+| Surface | Delivered | Still open |
+| --- | --- | --- |
+| Query forms | `QueryExpression`, converted FetchXML, and converted `QueryByAttribute` share execution | FetchXML-specific validation and richer syntax. |
+| Filtering/projection/order | Full base rows filtered before projection; ordering before top; projected distinct; cloned query rows | Empty column sets, exact primary-id/distinct output, nested/OR FetchXML filters, alias-reference edge cases. |
+| Links | Inner/left outer joins, `AliasedValue`, selected linked columns, unselected join/filter columns, focused immutability tests | Linked-row security; ordering by unprojected linked columns; nested alias behavior; advanced joins. |
+| Paging | Count/page slicing, `MoreRecords`, generated cookie, capped total count across all three forms | Incoming cookie consumption, maximum page size, stable ordering, invalid option combinations, live cookie semantics. |
+| Aggregation | Sum/average/min/max/count/countcolumn, distinct countcolumn, grouping/date/fiscal settings, default limit fault | SDK value wrappers/types, empty inputs, synthetic ids, explicit limit semantics, timezone and live aggregate fixtures. |
 
-## QueryExpression and FetchXML parity
+The old broad query rewrite has been substantially delivered. The remaining work is a focused correctness pass (P1), followed by evidence-led expansion (P6), not restarting the query engine. See [08](08-query-execution-phase-review.md) for source-level findings.
 
-### Pipeline ordering
+### Operator backlog
 
-The current `QueryExpressionParser` applies:
+- [ ] `In` and `NotIn` (first P6 query additions).
+- [ ] Current user/team/business-unit and hierarchy operators.
+- [ ] Fiscal period/year conditions (aggregate fiscal grouping already exists).
+- [ ] Multi-select contains-values operators and masks.
+- [ ] `Exists`, `In`, `MatchFirstRowUsingCrossApply`, and any/all joins.
+- [ ] Broader SDK type and null semantics across operators.
 
-1. filter
-2. columns
-3. linked entities
-4. aggregates
-5. order
-6. distinct
-7. top count
+Unsupported `QueryExpression` condition operators currently throw `NotImplementedException`; unsupported link operators throw `NotSupportedException`. FetchXML unknown operators currently silently become `Equal`, making rejection/validation a P1 correctness item.
 
-This is a source of parity bugs. Projection should not remove attributes needed by filters, joins, ordering, or aggregation. The skipped tests already call this out for filters and link-entities when attributes are not in the column set.
+## Security and ownership
 
-Recommended rework:
+- [x] Security is optional and now applies to CRUD, base query visibility, associations, assignment, sharing, team requests, and queues.
+- [x] Runtime users, business units, roles, owner teams, memberships, shares, and privilege depths exist.
+- [x] Security fixture setup seeds normal system-table rows, including per-business-unit role records and relevant relationship rows.
+- [ ] Apply read security to linked rows before joins/aggregation/paging (P1).
+- [ ] Honor the principal requested through `IOrganizationServiceFactory`, including supported null/system semantics (P1).
+- [ ] Validate create/reassignment ownership and organization-owned tables; align association append direction with metadata (P1/P4).
+- [ ] Extend live security fixtures beyond missing-object faults and selected metadata request behavior (P2).
+- [ ] Field-level security and full access-team templates remain later, explicit features (P6).
 
-- Normalize `QueryExpression`, `FetchExpression`, and `QueryByAttribute` into a shared internal query model.
-- Execute against full stored entities.
-- Apply base filters and link filters using full data.
-- Materialize aliases as `AliasedValue`, not raw attribute values.
-- Apply projection only at the end.
-- Implement paging and total-count behavior before exposing the final `EntityCollection`.
+See [06](06-security-model.md). Basic access-team representation and explicit team shares do not mean full access-team workflows are complete.
 
-### Link entity behavior
+## Metadata and relationship behavior
 
-High-priority gaps:
+- [x] Versioned optional metadata, create/update checks/defaults, selected-column/query validation, and four retrieval handlers exist.
+- [ ] Validate converted FetchXML through the metadata path (P1).
+- [ ] Validate general association schemas/roles and update lookup/intersect rows using relationship metadata (P4).
+- [ ] Add ownership-aware defaults, declared-key uniqueness, strict value types, and validation of merged state/status updates (P4).
+- [ ] Add selected cascade rules, formatted-value generation, row versions, and optimistic concurrency where tests need them (P4).
 
-- Outer join and null semantics.
-- Aliased values.
-- `JoinOperator` variants, including `LeftOuter`, `Exists`, `In`, `MatchFirstRowUsingCrossApply`, and any/all style operators available in the SDK version.
-- Link criteria with alias references.
-- Multi-level links without mutating source entities.
-- Link ordering and projection behavior.
-- Handling missing attributes without throwing LINQ/key exceptions unless Dataverse would do the same.
+A relationship store is already present. It does not yet make ordinary associations visible as lookup/intersect changes to queries; special security role associations have additional wiring.
 
-### Condition operators
+## Isolated plugin/service-provider behavior
 
-Implemented condition operators are useful but incomplete. Priority missing areas:
+- [x] Mocks exist for execution context, tracing, organization service factory, telemetry logger, and endpoint notifications.
+- [x] Stage, depth, parameters, shared variables, and pre/post images can be supplied and consumed; factory services preserve provider data/audit state.
+- [ ] Complete exposed context wiring for mode/isolation, initiating-user distinctions, parent context, correlation/request identifiers, and transaction flags where required (P5).
+- [ ] Add convenient, deterministic fixtures for these values and verify telemetry/notification return contracts (P5).
+- [ ] Fix factory identity handling as part of P1, before advertising impersonation parity.
 
-- `In` and `NotIn`.
-- User/team/business-unit scoped operators such as current user, current user teams, current business unit, child business units, and hierarchy variants.
-- Fiscal period and fiscal year operators.
-- Multi-select option set operators: contains values and does not contain values.
-- Mask operators.
-- Lookup, money, option set, bool, date-time behavior across all comparison operators.
-- Null/missing attribute semantics by type.
+**Scope decision retained:** test one plugin/code unit with a supplied execution context. Automatic registration of plugin steps and cascading execution of other plugins are unsupported by design. Transaction context fixtures do not require building an event pipeline.
 
-### FetchXML
+## Exit criteria for the next parity milestone
 
-FetchXML is currently converted into `QueryExpression`. That is pragmatic, but mature parity will require FetchXML-specific behavior:
-
-- Full operator mapping.
-- Multiple `<value>` nodes.
-- `uiname`, `uitype`, and lookup value behavior.
-- Aggregate distinct count.
-- Aggregate limits and aggregate-limit error behavior.
-- `dategrouping` behavior, user timezone behavior, fiscal settings, and aliases.
-- Fetch paging, page/count/cookie behavior.
-- `no-lock`, `returntotalrecordcount`, and distinct id behavior.
-
-### Paging and limits
-
-Current retrieve multiple handling takes up to `5000` rows and optionally sets total count. Mature behavior should cover:
-
-- `PageInfo.PageNumber`, `Count`, `PagingCookie`, `MoreRecords`.
-- Default max page size and caller-requested page size.
-- Total record count limit exceeded behavior.
-- Aggregate record limits, including the default aggregate limit and explicit aggregate limit.
-- Different behavior for `QueryExpression` and `FetchExpression` where Dataverse differs.
-
-## Security parity
-
-Security is currently a guard for basic entity permission and only `Create` calls it. The record-specific overloads return true.
-
-Priority model:
-
-- Apply read security to `Retrieve` and `RetrieveMultiple`.
-- Apply write/delete/assign/share/append/append-to checks to direct methods and request handlers.
-- Implement owner, business unit, parent-child business unit, organization, and none depth behavior.
-- Model team membership, owner teams, access teams, and sharing.
-- Model field-level security as a later, explicit feature.
-- Use real `AccessRights`, principal access, and share semantics where possible.
-- Ensure security failures throw the same exception type, error code, and message shape as live Dataverse.
-
-## Metadata and validation
-
-Parity will be limited until metadata exists. Add a metadata model that can be seeded manually, loaded from generated early-bound metadata, or captured from integration tests.
-
-Priority metadata features:
-
-- Entity primary id and primary name.
-- Attribute types, required level, max length, precision, min/max, targets, and valid option values.
-- State/status pairs.
-- Relationships, cascade configuration, intersect entities, and many-to-many metadata.
-- Alternate keys.
-- Ownership type.
-- Activity/table capabilities.
-
-Use metadata to validate:
-
-- Unknown entities and attributes.
-- Missing required values.
-- Invalid lookups.
-- Invalid option/status/state values.
-- Duplicate primary ids and alternate keys.
-- Unsupported messages for table type.
-
-## Plugin pipeline parity
-
-The current service-provider simulation helps isolated plugin tests, but it does not simulate the Dataverse plugin pipeline.
-
-Maturity roadmap:
-
-- Step registration model: message, primary entity, stage, mode, filtering attributes, rank, impersonating user, and images.
-- Pipeline execution for create/update/delete/associate/disassociate and request handlers.
-- Depth and parent context.
-- Shared variables propagation.
-- Pre and post entity images.
-- Transaction scope and rollback behavior.
-- Async plugin behavior as recordable simulated output, with live parity optional.
-
-(N.B. To clarify, the "plugin pipeline parity" all still relates to testing of distinct code/plugin units. This framework does not and will never implement a plugin/event in-memory registration mechanism mirroring the dataverse event pipeline. This parity is useful when (for example), code under test validates data passed through from the `ExecutionContext`, but, intentionally, we will never support plugin a (which calls Account Create) automatically triggering plugin b because it is registered on the Account Create message.)
-
-## Parity matrix
-
-Add a generated or manually maintained matrix with statuses:
-
-- `Not implemented`
-- `Implemented, unverified`
-- `Implemented, live-verified`
-- `Partially implemented`
-- `Unsupported by design`
-
-Track the matrix by:
-
-- Direct `IOrganizationService` methods.
-- Organization requests.
-- Query operators and FetchXML features.
-- Security features.
-- Service-provider/plugin features.
-- Metadata validation features.
-
+Close or document each P1 gap, add targeted unit regressions and live fixtures, and publish a feature matrix that distinguishes implemented behavior from recorded live verification. Preserve useful exactness checks for fault type/code/message, response names/keys/types, entity projection, and side effects. The existing 560 passing tests are the baseline, not evidence that every table or SDK request is covered.
