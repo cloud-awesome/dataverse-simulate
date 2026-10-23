@@ -16,11 +16,6 @@ public class RemoveFromQueueRequestHandler : IRequestHandler
     {
         var removeRequest = (RemoveFromQueueRequest)request;
 
-        RequestFailureHandler.Handle(
-            options,
-            SimulatedQueueService.RemoveFromQueueMessage,
-            removeRequest.QueueItemId);
-
         new SimulatedQueueService(dataService, auditService, options)
             .RemoveFromQueue(removeRequest.QueueItemId);
 

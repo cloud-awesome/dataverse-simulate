@@ -5,6 +5,31 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 
 internal static class DataverseServiceFaults
 {
+    internal static FaultException<OrganizationServiceFault> InvalidUpsertKey(
+        string logicalName, IEnumerable<string> attributes,
+        IEnumerable<CloudAwesome.Xrm.Simulate.Metadata.SimulatedAlternateKeyMetadata> keys)
+        => new(new OrganizationServiceFault
+        {
+            ErrorCode = -2147088247,
+            Message = $"The specified key attributes '{string.Join(",", attributes)}' are not defined as keys for entity '{logicalName}', which has entity keys '{string.Join(",", keys.Select(key => key.KeyName))}'"
+        });
+
+    internal static FaultException<OrganizationServiceFault> MissingQueueSource(Guid targetId, Guid sourceId)
+        => new(new OrganizationServiceFault
+        {
+            ErrorCode = -2147220188,
+            Message = $"Could not find any queue item associated with the Target with id: {targetId} in the specified SourceQueueId: {sourceId}. Either the SourceQueueId or Target is invalid or the queue item does not exist."
+        });
+
+    internal static FaultException<OrganizationServiceFault> EmptyGuid()
+        => new(new OrganizationServiceFault { ErrorCode = -2147220989, Message = "Expected non-empty Guid." });
+
+    internal static FaultException<OrganizationServiceFault> InvalidQueueWorker(EntityReference worker)
+        => new(new OrganizationServiceFault
+        {
+            ErrorCode = -2147220989,
+            Message = $"Invalid workerid: {worker.Id} of type {(worker.LogicalName == "systemuser" ? 8 : 9)}"
+        });
 	internal const int ObjectDoesNotExistErrorCode = -2147220969;
 	internal const int DuplicateKeyErrorCode = -2147220937;
 	internal const int AccessDeniedErrorCode = -2147187962;

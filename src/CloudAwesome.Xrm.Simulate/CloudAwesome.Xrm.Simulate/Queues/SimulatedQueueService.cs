@@ -31,6 +31,8 @@ public sealed class SimulatedQueueService(
         Entity? queueItemProperties = null)
     {
         ArgumentNullException.ThrowIfNull(target);
+        RequestFailureHandler.Handle(options, AddToQueueMessage, target.Id);
+        if (sourceQueueId == Guid.Empty) sourceQueueId = null;
 
         var destinationQueue = new EntityReference(QueueLogicalName, destinationQueueId);
         ValidateQueueReference(destinationQueue, "destination queue");
@@ -44,29 +46,37 @@ public sealed class SimulatedQueueService(
         security.DemandRecordAccess(destinationQueueRecord, SecurityPrivilege.Read, options);
         security.DemandTableAccess(QueueItemLogicalName, SecurityPrivilege.Create, options);
 
-        if (sourceQueueId is not null)
+        var existing = FindSourceQueueItem(target, sourceQueueId);
+        if (sourceQueueId.HasValue && existing is null)
+            throw DataverseServiceFaults.MissingQueueSource(target.Id, sourceQueueId.Value);
+        if (existing is not null)
         {
-            var sourceQueue = new EntityReference(QueueLogicalName, sourceQueueId.Value);
-            ValidateQueueReference(sourceQueue, "source queue");
-            var sourceQueueRecord = dataService.Get(sourceQueue);
-            security.DemandRecordAccess(sourceQueueRecord, SecurityPrivilege.Read, options);
-            RemoveExistingSourceQueueItem(target, sourceQueueId.Value, security);
+            var sourceQueue = dataService.Get(existing.GetAttributeValue<EntityReference>(QueueIdAttribute));
+            security.DemandRecordAccess(sourceQueue, SecurityPrivilege.Read, options);
+            security.DemandRecordAccess(existing, SecurityPrivilege.Write, options);
         }
 
-        var queueItemId = ResolveQueueItemId(queueItemProperties);
-        ValidateNoExistingQueueItem(queueItemId);
+        var queueItemId = existing?.Id ?? ResolveQueueItemId(queueItemProperties);
+        if (existing is null) ValidateNoExistingQueueItem(queueItemId);
+        var queueItem = existing is null ? new Entity(QueueItemLogicalName) : EntityCloner.Clone(existing);
+        if (queueItemProperties is not null)
+            foreach (var property in EntityCloner.Clone(queueItemProperties).Attributes)
+                if (property.Key is not (QueueItemIdAttribute or QueueIdAttribute or "objectid"))
+                    queueItem[property.Key] = property.Value;
 
-        var queueItem = queueItemProperties is null
-            ? new Entity(QueueItemLogicalName)
-            : EntityCloner.Clone(queueItemProperties);
-
+        ValidateWorker(queueItem.GetAttributeValue<EntityReference>("workerid"));
         ResolvePrimaryId(queueItem, queueItemId);
-        SetOrValidateAttribute(queueItem, "queueid", destinationQueue, "queue item queue");
-        SetOrValidateAttribute(queueItem, "objectid", target, "queue item object");
+        queueItem[QueueIdAttribute] = destinationQueue;
+        queueItem["objectid"] = new EntityReference(target.LogicalName, target.Id);
         queueItem.SetAttributeIfEmpty("enteredon", dataService.SystemTime);
         ApplyAuditDefaults(queueItem);
 
-        dataService.Add(queueItem);
+        if (existing is null) dataService.Add(queueItem);
+        else
+        {
+            Touch(queueItem);
+            dataService.Update(queueItem);
+        }
         auditService.Add(AddToQueueMessage, QueueItemLogicalName, queueItem.Id);
 
         return queueItem.Id;
@@ -74,6 +84,7 @@ public sealed class SimulatedQueueService(
 
     public void RemoveFromQueue(Guid queueItemId)
     {
+        RequestFailureHandler.Handle(options, RemoveFromQueueMessage, queueItemId);
         var queueItem = GetQueueItem(queueItemId);
         new SimulatedSecurityEnforcer(dataService).DemandRecordAccess(
             queueItem,
@@ -98,9 +109,10 @@ public sealed class SimulatedQueueService(
         bool removeQueueItem)
     {
         ArgumentNullException.ThrowIfNull(worker);
+        RequestFailureHandler.Handle(options, PickFromQueueMessage, queueItemId);
 
-        var queueItem = GetQueueItem(queueItemId);
-        dataService.Get(worker);
+        ValidateWorker(worker);
+        var queueItem = EntityCloner.Clone(GetQueueItem(queueItemId));
         new SimulatedSecurityEnforcer(dataService).DemandRecordAccess(
             queueItem,
             SecurityPrivilege.Write,
@@ -108,12 +120,13 @@ public sealed class SimulatedQueueService(
 
         if (removeQueueItem)
         {
-            dataService.Delete(queueItem);
+            new SimulatedSecurityEnforcer(dataService).DemandRecordAccess(queueItem, SecurityPrivilege.Delete, options);
+            dataService.Delete(QueueItemLogicalName, queueItemId);
             auditService.Add(PickFromQueueMessage, QueueItemLogicalName, queueItemId);
             return;
         }
 
-        queueItem["workerid"] = worker;
+        queueItem["workerid"] = new EntityReference(worker.LogicalName, worker.Id);
         Touch(queueItem);
         dataService.Update(queueItem);
         auditService.Add(PickFromQueueMessage, QueueItemLogicalName, queueItemId);
@@ -121,7 +134,8 @@ public sealed class SimulatedQueueService(
 
     public void ReleaseToQueue(Guid queueItemId)
     {
-        var queueItem = GetQueueItem(queueItemId);
+        RequestFailureHandler.Handle(options, ReleaseToQueueMessage, queueItemId);
+        var queueItem = EntityCloner.Clone(GetQueueItem(queueItemId));
         new SimulatedSecurityEnforcer(dataService).DemandRecordAccess(
             queueItem,
             SecurityPrivilege.Write,
@@ -136,8 +150,9 @@ public sealed class SimulatedQueueService(
     public void RouteTo(Guid queueItemId, EntityReference target)
     {
         ArgumentNullException.ThrowIfNull(target);
+        RequestFailureHandler.Handle(options, RouteToMessage, queueItemId);
 
-        var queueItem = GetQueueItem(queueItemId);
+        var queueItem = EntityCloner.Clone(GetQueueItem(queueItemId));
         var targetRecord = dataService.Get(target);
         var security = new SimulatedSecurityEnforcer(dataService);
         security.DemandRecordAccess(queueItem, SecurityPrivilege.Write, options);
@@ -147,12 +162,12 @@ public sealed class SimulatedQueueService(
         {
             case QueueLogicalName:
                 security.DemandRecordAccess(targetRecord, SecurityPrivilege.Write, options);
-                queueItem["queueid"] = target;
+                queueItem["queueid"] = new EntityReference(target.LogicalName, target.Id);
                 queueItem["workerid"] = null!;
                 break;
             case "systemuser":
             case "team":
-                queueItem["workerid"] = target;
+                queueItem["workerid"] = new EntityReference(target.LogicalName, target.Id);
                 break;
             default:
                 throw new SimulatedQueueException(
@@ -169,22 +184,26 @@ public sealed class SimulatedQueueService(
         return dataService.Get(QueueItemLogicalName, queueItemId);
     }
 
-    private void RemoveExistingSourceQueueItem(
-        EntityReference target,
-        Guid sourceQueueId,
-        SimulatedSecurityEnforcer security)
+    private Entity? FindSourceQueueItem(EntityReference target, Guid? sourceQueueId)
     {
-        var existing = dataService
+        var candidates = dataService
             .Get(QueueItemLogicalName)
-            .FirstOrDefault(queueItem =>
-                ReferencesMatch(queueItem.GetAttributeValue<EntityReference>("queueid"), new EntityReference(QueueLogicalName, sourceQueueId))
-                && ReferencesMatch(queueItem.GetAttributeValue<EntityReference>("objectid"), target));
+            .Where(queueItem => ReferencesMatch(queueItem.GetAttributeValue<EntityReference>("objectid"), target)
+                && (!sourceQueueId.HasValue || queueItem.GetAttributeValue<EntityReference>("queueid")?.Id == sourceQueueId.Value))
+            .ToList();
+        if (candidates.Count > 1)
+            throw new SimulatedQueueException("Multiple source queue items match the target. Specify a unique source queue.");
+        return candidates.SingleOrDefault();
+    }
 
-        if (existing is not null)
-        {
-            security.DemandRecordAccess(existing, SecurityPrivilege.Delete, options);
-            dataService.Delete(existing);
-        }
+    private void ValidateWorker(EntityReference? worker)
+    {
+        if (worker is null) return;
+        if (worker.Id == Guid.Empty) throw DataverseServiceFaults.EmptyGuid();
+        if (worker.LogicalName is not ("systemuser" or "team"))
+            throw new SimulatedQueueException("Queue item worker must reference a systemuser or team.");
+        if (!dataService.Get(worker.LogicalName).Any(record => record.Id == worker.Id))
+            throw DataverseServiceFaults.InvalidQueueWorker(worker);
     }
 
     private static Guid ResolveQueueItemId(Entity? queueItemProperties)
@@ -195,6 +214,8 @@ public sealed class SimulatedQueueService(
         }
 
         var idFromEntity = queueItemProperties.Id;
+        if (queueItemProperties.Attributes.TryGetValue(QueueItemIdAttribute, out var rawId) && rawId is not null && rawId is not Guid)
+            throw new SimulatedQueueException("Queue item id must be a Guid.");
         var idFromAttribute = queueItemProperties.Attributes.TryGetValue(QueueItemIdAttribute, out var value) && value is Guid attributeId
             ? attributeId
             : Guid.Empty;
@@ -235,6 +256,12 @@ public sealed class SimulatedQueueService(
             throw new SimulatedQueueException(
                 $"Queue item properties must use logical name '{QueueItemLogicalName}', but got '{queueItemProperties.LogicalName}'.");
         }
+
+        if (queueItemProperties.Attributes.TryGetValue("workerid", out var worker) && worker is not null && worker is not EntityReference)
+            throw new SimulatedQueueException("Queue item worker must be an EntityReference.");
+
+        if (queueItemProperties.Attributes.TryGetValue("enteredon", out var enteredOn) && enteredOn is not null && enteredOn is not DateTime)
+            throw new SimulatedQueueException("Queue item entered-on must be a DateTime.");
     }
 
     private static void ValidateQueueReference(EntityReference queueReference, string description)
@@ -247,7 +274,7 @@ public sealed class SimulatedQueueService(
 
         if (queueReference.Id == Guid.Empty)
         {
-            throw new SimulatedQueueException($"The {description} id must not be empty.");
+            throw DataverseServiceFaults.EmptyGuid();
         }
     }
 
@@ -288,33 +315,6 @@ public sealed class SimulatedQueueService(
     {
         entity[EntityConstants.ModifiedOn] = dataService.SystemTime;
         entity[EntityConstants.ModifiedBy] = dataService.AuthenticatedUser;
-    }
-
-    private static void SetOrValidateAttribute(
-        Entity entity,
-        string attributeName,
-        object value,
-        string description)
-    {
-        if (entity.Attributes.TryGetValue(attributeName, out var existing)
-            && existing is not null
-            && !ValuesMatch(existing, value))
-        {
-            throw new SimulatedQueueException(
-                $"Simulated {description} attribute '{attributeName}' conflicts with configured value.");
-        }
-
-        entity[attributeName] = value;
-    }
-
-    private static bool ValuesMatch(object existing, object configured)
-    {
-        if (existing is EntityReference existingReference && configured is EntityReference configuredReference)
-        {
-            return ReferencesMatch(existingReference, configuredReference);
-        }
-
-        return Equals(existing, configured);
     }
 
     private static bool ReferencesMatch(EntityReference? left, EntityReference? right)

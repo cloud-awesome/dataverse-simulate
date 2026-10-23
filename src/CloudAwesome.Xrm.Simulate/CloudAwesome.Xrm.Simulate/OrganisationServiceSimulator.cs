@@ -45,11 +45,11 @@ public static class OrganisationServiceSimulator
 
         new EntityCreator(localDataService, localAuditService).MockRequest(service, localOptions);
         new EntityRetriever(localDataService, localAuditService).MockRequest(service, localOptions);
-        new EntityMultipleRetriever(localDataService).MockRequest(service, localOptions);
+        new EntityMultipleRetriever(localDataService, localAuditService).MockRequest(service, localOptions);
         new EntityUpdater(localDataService, localAuditService).MockRequest(service, localOptions);
-        new EntityDeleter(localDataService).MockRequest(service, localOptions);
-        new EntityAssociator(localDataService).MockRequest(service, localOptions);
-        new EntityDisassociator(localDataService).MockRequest(service, localOptions);
+        new EntityDeleter(localDataService, localAuditService).MockRequest(service, localOptions);
+        new EntityAssociator(localDataService, localAuditService).MockRequest(service, localOptions);
+        new EntityDisassociator(localDataService, localAuditService).MockRequest(service, localOptions);
 
         var organizationRequestRegistry = RegisterServiceRequests();
         new OrganisationRequestExecutor(localDataService, localAuditService, organizationRequestRegistry).MockRequest(service, localOptions);

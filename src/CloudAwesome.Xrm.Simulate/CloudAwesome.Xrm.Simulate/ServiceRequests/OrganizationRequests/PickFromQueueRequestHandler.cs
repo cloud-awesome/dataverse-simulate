@@ -16,11 +16,6 @@ public class PickFromQueueRequestHandler : IRequestHandler
     {
         var pickRequest = (PickFromQueueRequest)request;
 
-        RequestFailureHandler.Handle(
-            options,
-            SimulatedQueueService.PickFromQueueMessage,
-            pickRequest.QueueItemId);
-
         new SimulatedQueueService(dataService, auditService, options)
             .PickFromQueue(
                 pickRequest.QueueItemId,

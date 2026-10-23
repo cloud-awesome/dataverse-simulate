@@ -9,6 +9,10 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 public class EntityAssociator(MockedEntityDataService dataService) : IEntityAssociator
 {
     private const string RequestMessage = "Associate";
+    private readonly SimulatorAuditService? _auditService;
+
+    public EntityAssociator(MockedEntityDataService dataService, SimulatorAuditService auditService) : this(dataService)
+        => _auditService = auditService;
 
     public void MockRequest(
         IOrganizationService organizationService,
@@ -53,9 +57,11 @@ public class EntityAssociator(MockedEntityDataService dataService) : IEntityAsso
 
         if (RoleAssignmentAssociationHandler.TryAssociate(dataService, target, relationship, relatedRefs, options))
         {
+            _auditService?.Add(RequestMessage, entityName, targetId);
             return;
         }
 
         dataService.Associate(target, relationship, relatedRefs);
+        _auditService?.Add(RequestMessage, entityName, targetId);
     }
 }

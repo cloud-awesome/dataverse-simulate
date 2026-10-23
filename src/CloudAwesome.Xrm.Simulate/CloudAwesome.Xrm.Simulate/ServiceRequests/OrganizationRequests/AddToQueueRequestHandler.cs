@@ -18,11 +18,6 @@ public class AddToQueueRequestHandler : IRequestHandler
 
         ArgumentNullException.ThrowIfNull(addRequest.Target);
 
-        RequestFailureHandler.Handle(
-            options,
-            SimulatedQueueService.AddToQueueMessage,
-            addRequest.Target.Id);
-
         var sourceQueueId = addRequest.SourceQueueId == Guid.Empty
             ? (Guid?)null
             : addRequest.SourceQueueId;

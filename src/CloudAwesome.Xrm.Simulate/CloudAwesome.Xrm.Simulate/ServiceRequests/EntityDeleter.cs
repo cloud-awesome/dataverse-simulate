@@ -9,6 +9,10 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 public sealed class EntityDeleter(MockedEntityDataService dataService) : IEntityDeleter
 {
     private const string RequestMessage = "Delete";
+    private readonly SimulatorAuditService? _auditService;
+
+    public EntityDeleter(MockedEntityDataService dataService, SimulatorAuditService auditService) : this(dataService)
+        => _auditService = auditService;
 
     public void MockRequest(
         IOrganizationService organizationService,
@@ -37,6 +41,7 @@ public sealed class EntityDeleter(MockedEntityDataService dataService) : IEntity
             options);
 
         dataService.Delete(logicalName, id);
+        _auditService?.Add(RequestMessage, logicalName, id);
     }
 
     private Entity GetExisting(string logicalName, Guid id)

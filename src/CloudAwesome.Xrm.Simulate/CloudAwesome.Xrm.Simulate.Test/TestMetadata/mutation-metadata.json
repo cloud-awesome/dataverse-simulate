@@ -1,0 +1,22 @@
+{
+  "contractVersion": "1.0",
+  "entities": [
+    {
+      "logicalName": "account", "schemaName": "Account", "primaryIdAttribute": "accountid",
+      "primaryNameAttribute": "name", "ownershipType": "UserOwned",
+      "attributes": [
+        { "logicalName": "accountid", "attributeType": "Uniqueidentifier", "isPrimaryId": true, "isValidForCreate": true, "isValidForRead": true },
+        { "logicalName": "name", "attributeType": "String", "isValidForCreate": true, "isValidForUpdate": true, "isValidForRead": true },
+        { "logicalName": "description", "attributeType": "Memo", "isValidForCreate": true, "isValidForUpdate": true, "isValidForRead": true },
+        { "logicalName": "accountnumber", "attributeType": "String", "maxLength": 20, "isValidForCreate": true, "isValidForUpdate": true, "isValidForRead": true },
+        { "logicalName": "code", "attributeType": "String", "isValidForCreate": true, "isValidForUpdate": true, "isValidForRead": true },
+        { "logicalName": "parentid", "attributeType": "Lookup", "isValidForCreate": true, "isValidForUpdate": true, "isValidForRead": true }
+      ],
+      "alternateKeys": [
+        { "keyName": "account_number", "attributeLogicalNames": ["accountnumber"], "keyStatus": "Active" },
+        { "keyName": "account_composite", "attributeLogicalNames": ["code", "parentid"], "keyStatus": "Active" },
+        { "keyName": "pending_description", "attributeLogicalNames": ["description"], "keyStatus": "Pending" }
+      ]
+    }
+  ]
+}

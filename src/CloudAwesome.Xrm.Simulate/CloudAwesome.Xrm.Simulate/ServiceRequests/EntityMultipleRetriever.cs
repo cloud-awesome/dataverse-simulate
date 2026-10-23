@@ -14,6 +14,10 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEntityMultipleRetriever
 {
     private const string RequestMessage = "RetrieveMultiple";
+    private readonly SimulatorAuditService? _auditService;
+
+    public EntityMultipleRetriever(MockedEntityDataService dataService, SimulatorAuditService auditService) : this(dataService)
+        => _auditService = auditService;
 
     public void MockRequest(
         IOrganizationService organizationService,
@@ -49,7 +53,9 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
         MetadataValidator.ValidateQuery(query, options);
         var data = ApplyReadableFilter(query.EntityName, options);
         var results = QueryExpressionParser.Parse(query, data, dataService, options?.Metadata, paging);
-        return paging.ToCollection(results);
+        var collection = paging.ToCollection(results);
+        _auditService?.Add(RequestMessage, query.EntityName, null);
+        return collection;
     }
 
     internal EntityCollection RetrieveMultiple(FetchExpression query, ISimulatorOptions? options)
@@ -61,8 +67,9 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
         MetadataValidator.ValidateQuery(queryExpression, options);
         var data = ApplyReadableFilter(queryExpression.EntityName, options);
         var results = QueryExpressionParser.Parse(queryExpression, data, dataService, options?.Metadata, paging);
-
-        return paging.ToCollection(results);
+        var collection = paging.ToCollection(results);
+        _auditService?.Add(RequestMessage, queryExpression.EntityName, null);
+        return collection;
     }
 
     internal EntityCollection RetrieveMultiple(QueryByAttribute query, ISimulatorOptions? options)
@@ -73,8 +80,9 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
         MetadataValidator.ValidateQuery(query, options);
         var data = ApplyReadableFilter(query.EntityName, options);
         var results = QueryByAttributeParser.Parse(query, data, dataService, options?.Metadata, paging);
-
-        return paging.ToCollection(results);
+        var collection = paging.ToCollection(results);
+        _auditService?.Add(RequestMessage, query.EntityName, null);
+        return collection;
     }
 
     private Dictionary<string, List<Entity>> ApplyReadableFilter(

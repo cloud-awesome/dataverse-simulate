@@ -16,11 +16,6 @@ public class RouteToRequestHandler : IRequestHandler
     {
         var routeRequest = (RouteToRequest)request;
 
-        RequestFailureHandler.Handle(
-            options,
-            SimulatedQueueService.RouteToMessage,
-            routeRequest.QueueItemId);
-
         new SimulatedQueueService(dataService, auditService, options)
             .RouteTo(routeRequest.QueueItemId, routeRequest.Target);
 

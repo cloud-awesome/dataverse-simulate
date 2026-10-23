@@ -15,7 +15,7 @@ public class DisassociateRequestHandler : IRequestHandler
     {
         var disassociateRequest = (DisassociateRequest)request;
 
-        new EntityDisassociator(dataService).Disassociate(
+        new EntityDisassociator(dataService, auditService).Disassociate(
             disassociateRequest.Target.LogicalName,
             disassociateRequest.Target.Id,
             disassociateRequest.Relationship,
