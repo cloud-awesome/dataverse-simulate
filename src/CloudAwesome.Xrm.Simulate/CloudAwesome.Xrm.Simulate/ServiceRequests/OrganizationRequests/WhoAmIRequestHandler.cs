@@ -12,8 +12,8 @@ public class WhoAmIRequestHandler: IRequestHandler
 	public OrganizationResponse Handle(OrganizationRequest request, MockedEntityDataService dataService,
 		SimulatorAuditService auditService, ISimulatorOptions? options = null)
 	{
-		var userId = dataService.AuthenticatedUser.Id;
-		var businessUnitId = dataService.BusinessUnit.Id;
+		var userId = dataService.ConnectionUser.Id;
+		var businessUnitId = dataService.ConnectionBusinessUnit.Id;
 		var organizationId = dataService.Organization.Id;
 
 		RequestFailureHandler.Handle(options, RequestMessage, userId);

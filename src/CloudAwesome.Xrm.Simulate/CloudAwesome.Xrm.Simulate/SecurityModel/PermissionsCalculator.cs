@@ -18,6 +18,11 @@ public static class PermissionsCalculator
 
         context.SecurityModel.Validate();
 
+        var organizationOwned = context.Metadata?.TryGetEntity(entityLogicalName, out var entityMetadata) == true
+            && string.Equals(entityMetadata.OwnershipType, "OrganizationOwned", StringComparison.OrdinalIgnoreCase);
+        if (organizationOwned && privilege is SecurityPrivilege.Assign or SecurityPrivilege.Share)
+            return SecurityDecision.Deny($"Organization-owned table '{entityLogicalName}' does not support {privilege}.");
+
         var permission = context.SecurityModel.GetEffectiveEntityPermissionForPrincipal(principal, entityLogicalName);
         if (permission is null)
         {
@@ -28,6 +33,8 @@ public static class PermissionsCalculator
         }
 
         var depth = permission.GetDepth(privilege);
+        if (organizationOwned && depth != PrivilegeDepthEnum.None)
+            depth = PrivilegeDepthEnum.Organization;
 
         return depth == PrivilegeDepthEnum.None
             ? SecurityDecision.Deny(
@@ -90,7 +97,7 @@ public static class PermissionsCalculator
         if (options.SimulatedSecurityModel is SimulatedSecurityModel securityModel)
         {
             return CanPerform(
-                    new SecurityEvaluationContext(securityModel),
+                    new SecurityEvaluationContext(securityModel, options.Metadata),
                     principal,
                     entityLogicalName,
                     privilege)
@@ -115,7 +122,7 @@ public static class PermissionsCalculator
         var principal = GetPrincipal(options);
 
         return options.SimulatedSecurityModel is SimulatedSecurityModel securityModel
-            ? CanAccessRecord(new SecurityEvaluationContext(securityModel), principal, entity, privilege).Allowed
+            ? CanAccessRecord(new SecurityEvaluationContext(securityModel, options.Metadata), principal, entity, privilege).Allowed
             : ValidateLegacyEntityPermission(entityLogicalName, privilege, options.SimulatedSecurityModel);
     }
 
@@ -137,7 +144,7 @@ public static class PermissionsCalculator
             return ValidateLegacyEntityPermission(entityLogicalName, privilege, options.SimulatedSecurityModel);
 
         return entities.All(entity =>
-            CanAccessRecord(new SecurityEvaluationContext(securityModel), principal, entity, privilege).Allowed);
+            CanAccessRecord(new SecurityEvaluationContext(securityModel, options.Metadata), principal, entity, privilege).Allowed);
     }
 
     private static bool IsAccessAllowedByDepth(
@@ -150,11 +157,15 @@ public static class PermissionsCalculator
         if (owner is null)
             return false;
 
+        if (IsUserDepthMatch(securityModel, principal, owner))
+            return true;
+
         if (depth == PrivilegeDepthEnum.User)
-            return IsUserDepthMatch(securityModel, principal, owner);
+            return false;
 
         var principalBusinessUnitId = securityModel.GetPrincipalBusinessUnitId(principal);
-        var ownerBusinessUnitId = securityModel.GetPrincipalBusinessUnitId(owner);
+        var ownerBusinessUnitId = record.GetAttributeValue<EntityReference>("owningbusinessunit")?.Id
+            ?? securityModel.GetPrincipalBusinessUnitId(owner);
 
         if (principalBusinessUnitId is null || ownerBusinessUnitId is null)
             return false;

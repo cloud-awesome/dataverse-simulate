@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System;
 using System.Linq;
 using CloudAwesome.Xrm.Simulate.QueryParsers;
@@ -11,7 +11,7 @@ using NUnit.Framework;
 
 namespace CloudAwesome.Xrm.Simulate.Test.QueryParserTests;
 
-[TestFixture(Description = "N.B. Filters and LinkEntity currently only work if you've included the attributes in the ColumnSet")]
+[TestFixture]
 public class FetchExpressionParserTests
 {
     private IOrganizationService _organizationService = null!;
@@ -449,20 +449,6 @@ public class FetchExpressionParserTests
     }
     
     #region Functionality To Be Implemented
-    
-    [Test]
-    [Ignore("TODO - To be implemented")]
-    public void Fetch_Query_Returns_Valid_Results_If_Filter_Attributes_Are_Not_In_ColumnSet()
-    {
-      
-    }
-    
-    [Test]
-    [Ignore("TODO - To be implemented")]
-    public void Fetch_Query_Returns_Valid_Results_If_LinkEntity_Attributes_Are_Not_In_ColumnSet()
-    {
-      
-    }
 
     #endregion
 }

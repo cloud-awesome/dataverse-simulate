@@ -4,7 +4,7 @@ Date reviewed: 2026-10-22
 
 ## Current position
 
-First-class queue simulation is implemented. The old plan to add models and request handlers is substantially complete; the remaining work is live parity and validation/atomicity hardening.
+First-class queue simulation is implemented. The 23 October P1/P2 pass hardens mutation safety and establishes live evidence for the ordinary task-based subset. Full queue metadata, privileges, and special activity behavior remain open.
 
 - [x] `SimulatedQueueModel`, `SimulatedQueue`, and `SimulatedQueueItem` setup models.
 - [x] `SimulatorOptions.Queues` and initialization after ordinary/system/security data and clock configuration.
@@ -14,7 +14,7 @@ First-class queue simulation is implemented. The old plan to add models and requ
 - [x] Target queue capability checked when metadata is supplied.
 - [x] Initial security checks and focused unit tests for allowed/denied operations.
 
-No queue-specific live integration fixture currently exists. Do not describe the implemented queue policy as fully live-verified.
+`QueueMutationParityTests` now supplies 30 live/simulator comparisons. They establish the supported subset below, rather than complete queue parity.
 
 ## Implemented setup API
 
@@ -49,13 +49,13 @@ This is fixture setup over the existing entity store, not a second queue databas
 
 | Request | Current mutation and response | Remaining live questions |
 | --- | --- | --- |
-| `AddToQueueRequest` | Validates destination/target, creates a queueitem, merges supplied queueitem properties, sets audit timestamps, returns `QueueItemId` and response name. If a source queue is supplied, removes the first matching source item. | Duplicate target in same queue; missing/multiple source matches; item identity during moves; property restrictions; exact privilege set. |
-| `RemoveFromQueueRequest` | Deletes existing queueitem and audits. | Exact missing-item fault and any target-record effects. |
-| `PickFromQueueRequest` | Resolves a systemuser worker from SDK `WorkerId`; sets worker or deletes item when `RemoveQueueItem` is true. Runtime service also has an EntityReference overload. | Accepted worker types, default/empty worker behavior, required delete versus write access, activity/state effects. |
-| `ReleaseToQueueRequest` | Clears worker, updates modification fields, and audits. | Faults/side effects for already-unassigned or invalid items. |
-| `RouteToRequest` | Queue target changes queue and clears worker; user/team target changes worker, preserving the item id. | Accepted target types, default queue/ownership semantics, exact fields, and whether live Dataverse preserves the id. |
+| `AddToQueueRequest` | Validates a cloned candidate before writing. Creates a new item or updates the uniquely matching source item, preserving its id even with omitted source, repeated adds, or same-queue moves. Returns `QueueItemId`. Request queue/target override conflicting property-bag references; a move ignores a supplied replacement id. | Received-email multiple queues; ambiguous source policy; full property/metadata and exact privilege rules. |
+| `RemoveFromQueueRequest` | Deletes the queueitem, leaves its task target intact, returns an empty typed response, and audits once. Missing-item fault code is compared live. | Broader target/activity effects and exact missing-item envelope. |
+| `PickFromQueueRequest` | Sets a valid systemuser worker or deletes the item when `RemoveQueueItem` is true; the task remains intact. Empty and unknown-worker validation faults match live. The facade also supports a team reference. | Team worker parity; exact delete/write privilege rules; broader activity/state effects. |
+| `ReleaseToQueueRequest` | Clears the worker and audits once, including an already-unassigned item. Missing-item fault code is compared live. | Broader side effects and full fault envelopes. |
+| `RouteToRequest` | Queue target changes queue and clears worker; systemuser target changes worker. Both preserve identity in live comparisons. Team routing remains a local supported policy. | Live team routing, default queues, ownership, exact timestamp/field effects, and privilege requirements. |
 
-All five request handlers exist. Routing to a principal is currently a local policy, not proof of the exact live contract.
+All five request handlers use the shared queue service for failure injection, validation, mutation, and auditing. Each successful operation emits its request-named audit entry; failed operations emit none.
 
 ## Metadata and security delivered versus pending
 
@@ -66,40 +66,40 @@ All five request handlers exist. Routing to a principal is currently a local pol
 - [x] Seeded/generated target records are rejected when their metadata explicitly disallows queues.
 - [ ] Validate generated and supplied queueitem/queue attributes for known columns, runtime types, create/update/read validity, and lookup targets.
 - [ ] Apply valid-message capability rules if the external metadata contract supplies enough information.
-- [ ] Validate worker/principal/owner types and existence consistently across setup and all operations.
+- [x] Runtime add/pick validates worker reference shape, nonempty id, supported principal type, and existence before mutation. Runtime route resolves the destination before mutation.
+- [ ] Extend these checks to all typed setup/owner paths and full metadata lookup-target rules.
 - [ ] Verify `objecttypecode` and other automatically generated fields only where a supported query scenario needs them.
 
-`SimulatedQueueService` and the seeder write directly through `MockedEntityDataService`; they do not currently call the general CRUD `MetadataValidator` or entity processors. Loading metadata alone does not guarantee full queue attribute validation.
+`SimulatedQueueService` and the seeder write directly through `MockedEntityDataService`; they do not invoke general CRUD entity processors. Queue operations maintain their own timestamps and one operation audit. The runtime validates core identity/worker/entered-on property shapes, references, and target queue capability; arbitrary custom properties remain permissive. Loading metadata alone does not guarantee full queue attribute validation. General CRUD processor dispatch and full metadata validation remain explicit P4 decisions, not an implied plugin pipeline.
 
 ### Security
 
-- [x] Add demands read on target and destination queue, plus queueitem create; source moves also check source read and deletion of a matching source item.
+- [x] Add demands read on target and destination queue, plus queueitem create; source moves check source read and queueitem write while preserving identity.
 - [x] Remove demands queueitem delete.
-- [x] Pick/release/route demand queueitem write; route also checks target read and, for queues, destination write.
+- [x] Pick/release/route demand queueitem write; removing through Pick additionally requires delete (unit evidence). Route also checks target read and, for queues, destination write.
 - [x] No configured concrete security model preserves permissive behavior.
 - [ ] Capture append/append-to, create/delete/write, principal/queue access, and exact denial faults from live operations before calling this a complete privilege policy.
 
-Queue visibility also inherits the base-versus-linked security limitations described in [06](06-security-model.md).
+Queue queries use the shared base/linked row security filtering described in [06](06-security-model.md); the complete queue-specific privilege matrix remains unverified.
 
 ## Remaining work in roadmap order
 
 ### P1 - Mutation safety and consistent validation
 
-- [ ] Validate the complete destination item before removing a source item. `AddToQueue` currently deletes a matching source item before duplicate-id and conflicting-property checks; a later failure can leave the source deleted.
-- [ ] Define operation atomicity and add regressions for failed source moves, invalid targets/properties, and routing/picking errors.
-- [ ] Align queue operations with the agreed audit/metadata/processor contract without introducing duplicate audits for composed requests.
-- [ ] Document provisional routing, duplicate-target, and worker behavior until live fixtures establish the contract.
+- [x] Validate the supported candidate before writing; source moves update the existing item instead of deleting/recreating it.
+- [x] Add failure regressions for source/destination/target errors, malformed properties, worker/routing errors, duplicate new ids, access denial, injected failures, and transaction rollback.
+- [x] Share success-only operation auditing and failure injection between facade and SDK handlers; document the explicit metadata/processor boundary above.
+- [x] Capture ordinary-task duplicate/source/id and worker/routing behavior live; retain received-email/team/privilege qualifications.
 
 ### P2 - Dedicated live queue suite
 
 Capture minimal fixtures using transient queue-enabled records:
 
-- [ ] Exact response names, output keys/value types, and queueitem fields.
-- [ ] Add to an existing destination, including already-queued targets and custom properties.
-- [ ] Move from source to destination, including same queue, missing source, and failure after validation.
-- [ ] Pick with/without removal, release, and route to queue/user/team where supported.
-- [ ] Missing queue/item/target/worker, invalid target types, and disabled queue capability faults.
-- [ ] Timestamp/owner/worker/id changes and any target-record activity effects.
+- [x] Exact response names/output keys, typed queue-item ids/references, and presence of created/modified/entered timestamps for new ordinary items.
+- [x] Existing/repeated destinations, implicit/explicit/same-queue moves, conflicting property-bag queue/object references, ignored move ids, and worker properties.
+- [x] Wrong/missing source, empty/missing destination, missing task/item/worker, and empty worker. Selected validation fault messages/codes are exact; other missing-record comparisons retain codes only.
+- [x] Pick with/without removal, release before/after pick, queue/user routing, stable item ids, worker preservation/clearing, and task survival after removal.
+- [ ] Live team routing, disabled queue capability/invalid target types, broad custom fields, exact timestamps/owners, and other activity effects.
 - [ ] Security requirements and cleanup after partial failures or transactions.
 
 Use the existing parity harness and cleanup scope; no new framework is necessary. See [03](03-integration-testing.md).
@@ -116,7 +116,19 @@ Server-side routing engines, mailbox processing, SLA execution, asynchronous que
 
 `QueueSimulationTests` covers typed initialization, metadata-absent permissiveness, queue-enabled loading/rejection, add/source-move/remove/pick/release/route mutations, selected security allow/deny cases, and all five SDK request responses. These passed in the 2026-10-22 unit run (560 passed overall, 4 skipped).
 
-The old implementation steps 1-4 are complete as first implementations. Step 5 security is wired; its live parity portion and full metadata enforcement remain open. The next queue task should therefore be the P1/P2 hardening above, not adding the same models or handlers again.
+The initial implementation remains the foundation; the following pass supplies mutation safety and scoped live evidence. The full security matrix and metadata enforcement remain open.
+
+## P1/P2 implementation and verification - 23 October 2026
+
+`QueueMutationConsistencyTests` adds **59 regression cases** for shared facade/request behavior, move identity, failure atomicity, validation, input reference isolation, required deletion access, and transaction rollback. Existing setup/security/request tests remain passing. The full Release unit suite passes **913 tests, 0 skipped**.
+
+`QueueMutationParityTests` adds **30 live cases** using temporary queues and tasks, covering the matrix above. Records are tracked as soon as they are created; successful deletion scenarios call `MarkDeleted` after confirming the item is absent, avoiding redundant cleanup deletion. Cleanup releases/removes queue items through their SDK messages and retries failures once after dependents; unresolved failures remain visible. The supported implicit-move policy follows the [SDK AddToQueue notes](https://learn.microsoft.com/en-us/dotnet/api/microsoft.crm.sdk.messages.addtoqueuerequest?view=dataverse-sdk-latest), with retained identity established by these live tests.
+
+This is an ordinary queue-enabled task contract. Received email may occupy multiple queues in Dataverse and is not implemented by this single-source policy; ambiguous seeded source items raise a simulator exception. Arbitrary property create/read validity, generated owner/object-type fields, team routes, default queue behavior, and detailed denied-privilege envelopes remain P2/P4 work. Simulator metadata/setup exceptions and arbitrary custom-handler side effects are outside exact Dataverse fault/rollback claims.
+
+Focused command: `dotnet test CloudAwesome.Xrm.Simulate.Integration/CloudAwesome.Xrm.Simulate.Integration.csproj --no-restore --configuration Release --filter "TestCategory=MutationConsistency"`. See [03](03-integration-testing.md) for full-run results and configuration.
+
+The full Release integration run passed all **158 cases**. After correcting cleanup, the final **30-case queue rerun** passed with **no cleanup errors reported**. The initially stranded fixture queue/task were explicitly removed; local TRX paths and the verification boundary are recorded in [03](03-integration-testing.md).
 
 ## Evidence anchors
 

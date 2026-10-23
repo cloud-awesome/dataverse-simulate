@@ -76,7 +76,9 @@ internal static class MetadataValidator
 
         foreach (var order in query.Orders)
         {
-            ValidateReadableAttribute(entityMetadata, order.AttributeName);
+            var expression = query.ColumnSet?.AttributeExpressions.FirstOrDefault(attribute =>
+                string.Equals(attribute.Alias, order.AttributeName, StringComparison.OrdinalIgnoreCase));
+            ValidateReadableAttribute(entityMetadata, expression?.AttributeName ?? order.AttributeName);
         }
 
         foreach (var link in query.LinkEntities)
@@ -172,6 +174,11 @@ internal static class MetadataValidator
         foreach (var column in columnSet.Columns)
         {
             ValidateReadableAttribute(entityMetadata, column);
+        }
+
+        foreach (var expression in columnSet.AttributeExpressions)
+        {
+            ValidateReadableAttribute(entityMetadata, expression.AttributeName);
         }
     }
 

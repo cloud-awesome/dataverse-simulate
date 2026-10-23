@@ -15,7 +15,7 @@ public class DeleteRequestHandler : IRequestHandler
     {
         var deleteRequest = (DeleteRequest)request;
 
-        new EntityDeleter(dataService).Delete(
+        new EntityDeleter(dataService, auditService).Delete(
             deleteRequest.Target.LogicalName,
             deleteRequest.Target.Id,
             options);

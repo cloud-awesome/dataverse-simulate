@@ -15,7 +15,7 @@ public class AssociateRequestHandler : IRequestHandler
     {
         var associateRequest = (AssociateRequest)request;
 
-        new EntityAssociator(dataService).Associate(
+        new EntityAssociator(dataService, auditService).Associate(
             associateRequest.Target.LogicalName,
             associateRequest.Target.Id,
             associateRequest.Relationship,

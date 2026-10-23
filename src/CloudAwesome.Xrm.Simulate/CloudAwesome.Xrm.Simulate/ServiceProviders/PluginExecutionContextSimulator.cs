@@ -21,8 +21,9 @@ public static class PluginExecutionContextSimulator
             options?.AuthenticatedUser?.Id ?? 
             dataService.AuthenticatedUser.Id);
         pluginExecutionContext.InitiatingUserId.Returns(x => 
-            options?.AuthenticatedUser?.Id ?? 
-            dataService.AuthenticatedUser.Id);
+            dataService.ExecutionContext?.InitiatingUserId is { } initiatingUserId && initiatingUserId != Guid.Empty
+                ? initiatingUserId
+                : dataService.AuthenticatedUser.Id);
         pluginExecutionContext.BusinessUnitId.Returns(dataService.BusinessUnit.Id);
         pluginExecutionContext.OrganizationId.Returns(dataService.Organization.Id);
         pluginExecutionContext.OperationCreatedOn.Returns(dataService.SystemTime);

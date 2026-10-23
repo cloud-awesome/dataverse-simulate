@@ -1,0 +1,16 @@
+{
+  "contractVersion": "1.0",
+  "entities": [
+    {
+      "logicalName": "ca_catalog",
+      "schemaName": "ca_Catalog",
+      "primaryIdAttribute": "ca_catalogid",
+      "primaryNameAttribute": "ca_name",
+      "ownershipType": "OrganizationOwned",
+      "attributes": [
+        { "logicalName": "ca_catalogid", "attributeType": "Uniqueidentifier", "isPrimaryId": true, "isValidForRead": true },
+        { "logicalName": "ca_name", "attributeType": "String", "isValidForRead": true, "isValidForCreate": true, "isValidForUpdate": true }
+      ]
+    }
+  ]
+}

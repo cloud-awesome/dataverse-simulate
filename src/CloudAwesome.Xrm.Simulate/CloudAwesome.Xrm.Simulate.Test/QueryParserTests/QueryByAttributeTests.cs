@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
 using CloudAwesome.Xrm.Simulate.Test.TestEntities;
@@ -27,6 +27,7 @@ public class QueryByAttributeTests
 
         var query = new QueryByAttribute(Contact.EntityLogicalName)
         {
+            ColumnSet = new ColumnSet(Contact.Fields.FirstName),
             Attributes = { Contact.Fields.LastName },
             Values = { Arthur.Contact().LastName }
         };
@@ -81,6 +82,7 @@ public class QueryByAttributeTests
 
         var query = new QueryByAttribute(Contact.EntityLogicalName)
         {
+            ColumnSet = new ColumnSet(Contact.Fields.FirstName),
             TopCount = 2,
             Orders =
             {

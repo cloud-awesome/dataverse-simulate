@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using CloudAwesome.Xrm.Simulate.QueryParsers.ConditionHandlers;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
 using CloudAwesome.Xrm.Simulate.Test.TestEntities;
@@ -97,7 +97,7 @@ public class EqualTests
                     <attribute name=""lastname"" />
                     <order attribute=""fullname"" descending=""false"" />
                     <filter type=""and"">
-                      <condition attribute=""lastname"" operator=""equal"" value=""Nicholson"" />
+                      <condition attribute=""lastname"" operator=""eq"" value=""Nicholson"" />
                     </filter>
                   </entity>
                 </fetch>" 

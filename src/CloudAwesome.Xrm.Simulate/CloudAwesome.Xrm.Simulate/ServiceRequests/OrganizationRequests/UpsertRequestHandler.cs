@@ -1,5 +1,6 @@
 using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.QueryParsers;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 
@@ -16,14 +17,17 @@ public sealed class UpsertRequestHandler : IRequestHandler
         ISimulatorOptions? options = null)
     {
         var upsertRequest = (UpsertRequest)request;
-        var target = upsertRequest.Target;
+        var target = EntityCloner.Clone(upsertRequest.Target);
 
-        var existing = ResolveExisting(dataService, target);
+        var existing = ResolveExisting(dataService, target, options);
         if (existing is not null)
         {
             target.Id = existing.Id;
+            foreach (var key in target.KeyAttributes.Keys)
+                target.Attributes.Remove(key);
+            target.KeyAttributes.Clear();
             RequestFailureHandler.Handle(options, RequestMessage, target.Id);
-            new EntityUpdater(dataService, auditService).Update(target, options);
+            new EntityUpdater(dataService, new SimulatorAuditService()).Update(target, options);
             auditService.Add(RequestMessage, target.LogicalName, target.Id);
 
             return new UpsertResponse
@@ -32,14 +36,18 @@ public sealed class UpsertRequestHandler : IRequestHandler
                 Results = new ParameterCollection
                 {
                     ["RecordCreated"] = false,
-                    ["Target"] = target.ToEntityReference()
+                    ["Target"] = new EntityReference(target.LogicalName, target.Id)
                 }
             };
         }
 
         ApplyKeyAttributesToCreateTarget(target);
+        var primaryId = options?.Metadata?.GetEntity(target.LogicalName).PrimaryIdAttribute ?? $"{target.LogicalName}id";
+        if (target.Id == Guid.Empty && target.Attributes.TryGetValue(primaryId, out var value) && value is Guid keyId && keyId != Guid.Empty)
+            target.Id = keyId;
+        target.KeyAttributes.Clear();
         RequestFailureHandler.Handle(options, RequestMessage, target.Id);
-        var createdId = new EntityCreator(dataService, auditService).Create(target, options);
+        var createdId = new EntityCreator(dataService, new SimulatorAuditService()).Create(target, options);
         target.Id = createdId;
         auditService.Add(RequestMessage, target.LogicalName, createdId);
 
@@ -49,12 +57,12 @@ public sealed class UpsertRequestHandler : IRequestHandler
             Results = new ParameterCollection
             {
                 ["RecordCreated"] = true,
-                ["Target"] = target.ToEntityReference()
+                ["Target"] = new EntityReference(target.LogicalName, createdId)
             }
         };
     }
 
-    private static Entity? ResolveExisting(MockedEntityDataService dataService, Entity target)
+    private static Entity? ResolveExisting(MockedEntityDataService dataService, Entity target, ISimulatorOptions? options)
     {
         var existingRecords = dataService.Get(target.LogicalName);
         if (target.Id != Guid.Empty)
@@ -67,10 +75,31 @@ public sealed class UpsertRequestHandler : IRequestHandler
             return null;
         }
 
-        return existingRecords.SingleOrDefault(entity =>
+        var metadata = options?.Metadata?.GetEntity(target.LogicalName);
+        if (metadata is not null)
+            foreach (var key in target.KeyAttributes.Keys) metadata.GetAttribute(key);
+
+        var primaryId = metadata?.PrimaryIdAttribute ?? $"{target.LogicalName}id";
+        if (target.KeyAttributes.Count == 1 && target.KeyAttributes.TryGetValue(primaryId, out var id) && id is Guid guid)
+            return existingRecords.SingleOrDefault(entity => entity.Id == guid);
+
+        var matches = existingRecords.Where(entity =>
             target.KeyAttributes.All(keyAttribute =>
                 entity.Attributes.TryGetValue(keyAttribute.Key, out var value) &&
-                AttributeValuesEqual(value, keyAttribute.Value)));
+                keyAttribute.Value is not null && AttributeValuesEqual(value, keyAttribute.Value))).ToList();
+
+        // Dataverse permits an unmatched key to flow to Create. Declared-key validation
+        // is required when a matching row would otherwise be updated.
+        if (matches.Count > 0 && metadata is not null && !metadata.AlternateKeys.Any(key =>
+                (key.KeyStatus is null || string.Equals(key.KeyStatus, "Active", StringComparison.OrdinalIgnoreCase)) &&
+                key.AttributeLogicalNames.Count == target.KeyAttributes.Count &&
+                key.AttributeLogicalNames.All(name => target.KeyAttributes.ContainsKey(name))))
+            throw DataverseServiceFaults.InvalidUpsertKey(target.LogicalName, target.KeyAttributes.Keys, metadata.AlternateKeys);
+
+        if (matches.Count > 1)
+            throw DataverseServiceFaults.DuplicateKey();
+
+        return matches.SingleOrDefault();
     }
 
     private static void ApplyKeyAttributesToCreateTarget(Entity target)
@@ -90,7 +119,7 @@ public sealed class UpsertRequestHandler : IRequestHandler
         {
             (OptionSetValue leftOption, OptionSetValue rightOption) => leftOption.Value == rightOption.Value,
             (EntityReference leftReference, EntityReference rightReference) =>
-                leftReference.LogicalName == rightReference.LogicalName && leftReference.Id == rightReference.Id,
+                string.Equals(leftReference.LogicalName, rightReference.LogicalName, StringComparison.OrdinalIgnoreCase) && leftReference.Id == rightReference.Id,
             (Money leftMoney, Money rightMoney) => leftMoney.Value == rightMoney.Value,
             _ => Equals(left, right)
         };

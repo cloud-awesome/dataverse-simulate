@@ -15,7 +15,7 @@ public class RetrieveMultipleHandler : IRequestHandler
         ISimulatorOptions? options = null)
     {
         var retrieveMultipleRequest = (RetrieveMultipleRequest)request;
-        var retriever = new EntityMultipleRetriever(dataService);
+        var retriever = new EntityMultipleRetriever(dataService, auditService);
         var entityCollection = retrieveMultipleRequest.Query switch
         {
             QueryExpression query => retriever.RetrieveMultiple(query, options),

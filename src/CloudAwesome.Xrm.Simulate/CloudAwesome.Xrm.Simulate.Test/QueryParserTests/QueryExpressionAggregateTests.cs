@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Test.EarlyBoundEntities;
@@ -44,7 +44,7 @@ public class QueryExpressionAggregateTests
 		};
 
 		var aggregate = _organizationService.RetrieveMultiple(query);
-		aggregate.Entities.FirstOrDefault()!.Attributes["SumOfChildren"].Should().Be(3);
+		aggregate.Entities.FirstOrDefault()!.GetAttributeValue<AliasedValue>("SumOfChildren").Value.Should().Be(3);
 	}
 	
 	[Test]
@@ -70,7 +70,7 @@ public class QueryExpressionAggregateTests
 		};
 
 		var aggregate = _organizationService.RetrieveMultiple(query);
-		aggregate.Entities.FirstOrDefault()!.Attributes["AverageNumberOfChildren"].Should().Be(1);
+		aggregate.Entities.FirstOrDefault()!.GetAttributeValue<AliasedValue>("AverageNumberOfChildren").Value.Should().Be(1);
 	}
 	
 	[Test]
@@ -96,7 +96,7 @@ public class QueryExpressionAggregateTests
 		};
 
 		var aggregate = _organizationService.RetrieveMultiple(query);
-		aggregate.Entities.FirstOrDefault()!.Attributes["MinNumberOfChildren"].Should().Be(0);
+		aggregate.Entities.FirstOrDefault()!.GetAttributeValue<AliasedValue>("MinNumberOfChildren").Value.Should().Be(0);
 	}
 	
 	[Test]
@@ -122,7 +122,7 @@ public class QueryExpressionAggregateTests
 		};
 
 		var aggregate = _organizationService.RetrieveMultiple(query);
-		aggregate.Entities.FirstOrDefault()!.Attributes["MaxNumberOfChildren"].Should().Be(2);
+		aggregate.Entities.FirstOrDefault()!.GetAttributeValue<AliasedValue>("MaxNumberOfChildren").Value.Should().Be(2);
 	}
 	
 	[Test]
@@ -156,7 +156,7 @@ public class QueryExpressionAggregateTests
 		};
 
 		var aggregate = _organizationService.RetrieveMultiple(query);
-		aggregate.Entities.FirstOrDefault()!.Attributes["ContactsWithChildren"].Should().Be(2);
+		aggregate.Entities.FirstOrDefault()!.GetAttributeValue<AliasedValue>("ContactsWithChildren").Value.Should().Be(2);
 	}
 	
 	[Test]
@@ -187,7 +187,7 @@ public class QueryExpressionAggregateTests
 		// for avoidance of future doubt:
 		//	This is the number of rows with data populated in this column
 		//	Value should be three (Arthur, Bruce, Siobhan; Daniel should not be counted as column is NULL)
-		aggregate.Entities.FirstOrDefault()!.Attributes["RecordsWithChildrenDataPopulated"].Should().Be(3);
+		aggregate.Entities.FirstOrDefault()!.GetAttributeValue<AliasedValue>("RecordsWithChildrenDataPopulated").Value.Should().Be(3);
 	}
 
 	/// <summary>
@@ -248,14 +248,14 @@ public class QueryExpressionAggregateTests
 		var sut = _organizationService.RetrieveMultiple(query);
 		var result = sut.Entities.FirstOrDefault()!;
 
-		var average = (decimal)result.Attributes["Average"];
-		Math.Floor(average).Should().Be(3911);
+		var average = (int)result.GetAttributeValue<AliasedValue>("Average").Value;
+		average.Should().Be(3911);
 		
-		result.Attributes["Count"].Should().Be(10);
-		result.Attributes["ColumnCount"].Should().Be(9);
-		result.Attributes["Maximum"].Should().Be(6200);
-		result.Attributes["Minimum"].Should().Be(1500);
-		result.Attributes["Sum"].Should().Be(35200);
+		result.GetAttributeValue<AliasedValue>("Count").Value.Should().Be(10);
+		result.GetAttributeValue<AliasedValue>("ColumnCount").Value.Should().Be(9);
+		result.GetAttributeValue<AliasedValue>("Maximum").Value.Should().Be(6200);
+		result.GetAttributeValue<AliasedValue>("Minimum").Value.Should().Be(1500);
+		result.GetAttributeValue<AliasedValue>("Sum").Value.Should().Be(35200);
 	}
 	
 	/// <summary>
@@ -307,15 +307,15 @@ public class QueryExpressionAggregateTests
 		sut.Count.Should().Be(8);
 		
 		// NULL
-		sut.First(x => (string)x.Attributes["City"] is null).Attributes["Total"].Should().Be(0);
+		sut.First(x => (string?)x.GetAttributeValue<AliasedValue>("City")?.Value is null).GetAttributeValue<AliasedValue>("Total").Value.Should().Be(0);
 		
 		// Redmond (multiple rows, summed)
-		var redmond = sut.First(x => (string)x.Attributes["City"] == "Redmond"); 
-		redmond.Attributes["Total"].Should().Be(10600);
-		redmond.Attributes["Count"].Should().Be(3);
+		var redmond = sut.First(x => (string?)x.GetAttributeValue<AliasedValue>("City")?.Value == "Redmond");
+		redmond.GetAttributeValue<AliasedValue>("Total").Value.Should().Be(10600);
+		redmond.GetAttributeValue<AliasedValue>("Count").Value.Should().Be(3);
 
 		// Los Angeles (single row, still returned)
-		sut.First(x => (string)x.Attributes["City"] == "Los Angeles").Attributes["Total"].Should().Be(2900);
+		sut.First(x => (string?)x.GetAttributeValue<AliasedValue>("City")?.Value == "Los Angeles").GetAttributeValue<AliasedValue>("Total").Value.Should().Be(2900);
 	}
 	
 	/// <summary>
@@ -340,8 +340,8 @@ public class QueryExpressionAggregateTests
 		sut.Count.Should().Be(2);
 		
 		// Totals by fiscal grouping
-		sut.First(x => (int)x.Attributes["Month"] == 3).Attributes["Total"].Should().Be(35200);
-		sut.First(x => (int)x.Attributes["Month"] == 8).Attributes["Total"].Should().Be(0);
+		sut.First(x => (int)x.GetAttributeValue<AliasedValue>("Month").Value == 3).GetAttributeValue<AliasedValue>("Total").Value.Should().Be(35200);
+		sut.First(x => (int)x.GetAttributeValue<AliasedValue>("Month").Value == 8).GetAttributeValue<AliasedValue>("Total").Value.Should().Be(0);
 		
 	}
 	
@@ -361,14 +361,14 @@ public class QueryExpressionAggregateTests
 		// Row Count
 		sut.Count.Should().Be(1);
 		
-		sut.FirstOrDefault()!.Attributes["Total"].Should().Be(35200);
+		sut.FirstOrDefault()!.GetAttributeValue<AliasedValue>("Total").Value.Should().Be(35200);
 		
 		// Totals by fiscal grouping
-		sut.FirstOrDefault()!.Attributes["Day"].Should().Be(25);
-		sut.FirstOrDefault()!.Attributes["Week"].Should().Be(12);
-		sut.FirstOrDefault()!.Attributes["Month"].Should().Be(3);
-		sut.FirstOrDefault()!.Attributes["Year"].Should().Be(2023);
-		sut.FirstOrDefault()!.Attributes["FiscalYear"].Should().Be("FY2023");
+		sut.FirstOrDefault()!.GetAttributeValue<AliasedValue>("Day").Value.Should().Be(25);
+		sut.FirstOrDefault()!.GetAttributeValue<AliasedValue>("Week").Value.Should().Be(12);
+		sut.FirstOrDefault()!.GetAttributeValue<AliasedValue>("Month").Value.Should().Be(3);
+		sut.FirstOrDefault()!.GetAttributeValue<AliasedValue>("Year").Value.Should().Be(2023);
+		sut.FirstOrDefault()!.GetAttributeValue<AliasedValue>("FiscalYear").Value.Should().Be("FY2023");
 	}
 	
 	[Test]
@@ -395,10 +395,10 @@ public class QueryExpressionAggregateTests
 
 		var sut = _organizationService.RetrieveMultiple(query).Entities;
 		
-		sut.FirstOrDefault()!.Attributes["Year"].Should().Be(2023);
+		sut.FirstOrDefault()!.GetAttributeValue<AliasedValue>("Year").Value.Should().Be(2023);
 		
 		// Uses 'AF' as prefix and 2024 as ending year
-		sut.FirstOrDefault()!.Attributes["FiscalYear"].Should().Be("AF2024");
+		sut.FirstOrDefault()!.GetAttributeValue<AliasedValue>("FiscalYear").Value.Should().Be("AF2024");
 	}
 
 	private void AddMicrosoftSampleData()

@@ -6,7 +6,7 @@ Date reviewed: 2026-10-22
 
 The simulator should be Dataverse-compatible enough that an isolated failing test predicts a failing live operation. Implemented behavior must be distinguished from complete platform parity.
 
-The order of work is [P1-P7 in the executive summary](00-executive-summary.md#updated-order-of-work). Checked items below describe delivered implementation, with limitations kept open. Integration fixtures mentioned here exist in source; they were not executed against a live sandbox during this review.
+The order of work is [P1-P7 in the executive summary](00-executive-summary.md#updated-order-of-work). Checked items describe delivered implementation, with limitations kept open. The original 22 October review used source/build evidence; dated P1 follow-ups record the subsequent live runs.
 
 ## Correctness foundations delivered
 
@@ -21,7 +21,7 @@ The order of work is [P1-P7 in the executive summary](00-executive-summary.md#up
 
 Evidence: `ServiceRequests/EntityCreator.cs`, `EntityRetriever.cs`, `EntityUpdater.cs`, `EntityAssociator.cs`, `EntityDisassociator.cs`, `DataverseServiceFaults.cs`, `RequestHandlerRegistry.cs`, and the corresponding unit fixtures. Paths in this document are relative to the library project unless a project is named.
 
-Do not equate these fixes with complete CRUD parity. Relationship/cascade behavior, ownership, full metadata validation, concurrency, and audit coverage still need work.
+Do not equate these fixes with complete CRUD parity. Relationship/cascade behavior, full metadata validation, concurrency, and broader operation-specific security still need work. The 23 October mutation pass unifies audit coverage for the direct/request equivalents below.
 
 ## OrganizationRequest support matrix
 
@@ -29,13 +29,13 @@ Do not equate these fixes with complete CRUD parity. Relationship/cascade behavi
 
 | Area | Implemented requests | Remaining qualification |
 | --- | --- | --- |
-| Direct equivalents | `CreateRequest`, `RetrieveRequest`, `RetrieveMultipleRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest` | Shared operation paths exist; auditing and relationship semantics are not uniformly complete. |
-| Identity and ownership | `WhoAmIRequest`, `AssignRequest` | Assign changes owner fields, but assignee validity, stale owning fields, business-unit fields, and cascade behavior need hardening. |
-| Upsert and state | `UpsertRequest`, `SetStateRequest` | Upsert matches id or supplied `KeyAttributes`; it does not enforce declared metadata keys/uniqueness. State/status validation uses metadata when loaded. |
-| Batches | `ExecuteMultipleRequest`, `ExecuteTransactionRequest` | Continue-on-error/response handling and entity/relationship/audit/security rollback exist. Transaction fault envelopes and faulted request indexes need live comparison. |
+| Direct equivalents | `CreateRequest`, `RetrieveRequest`, `RetrieveMultipleRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest` | Shared operation and success-only audit paths exist; full relationship semantics remain open. |
+| Identity and ownership | Per-service caller identity, connection identity from `WhoAmIRequest`, shared ownership validation for Create/Assign/Update/Upsert | Valid user/owner teams and owning fields are covered; cascades, modernized BU settings, and broad denied-operation parity remain open. |
+| Upsert and state | `UpsertRequest`, `SetStateRequest` | Upsert honors primary-id precedence, copies create keys, removes identifying key columns on update, validates matching declared keys when metadata is loaded, and preserves request input. Global alternate-key uniqueness and direct key-based CRUD remain P4. |
+| Batches | `ExecuteMultipleRequest`, `ExecuteTransactionRequest` | Batch settings/partial commit, transaction response defaults/order, rollback, fault type/code/message/index, and nested-batch rejection now have live comparisons. External side effects from custom handlers are outside snapshot rollback. |
 | Sharing | `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest` | Table/record checks and explicit share state exist; exact privilege/fault semantics need broader live fixtures. |
 | Teams | `AddMembersTeamRequest`, `RemoveMembersTeamRequest` | Membership affects owner-team privileges. Full access-team template behavior remains deferred. |
-| Queues | `AddToQueueRequest`, `RemoveFromQueueRequest`, `PickFromQueueRequest`, `ReleaseToQueueRequest`, `RouteToRequest` | Typed responses and shared services exist; no dedicated live queue fixture suite yet. See [07](07-queue-simulation.md). |
+| Queues | `AddToQueueRequest`, `RemoveFromQueueRequest`, `PickFromQueueRequest`, `ReleaseToQueueRequest`, `RouteToRequest` | Shared services, validation before mutation, stable move identity, and a dedicated live fixture now exist. Full property/privilege validation and received-email special cases remain scoped work. See [07](07-queue-simulation.md). |
 | Metadata | `RetrieveEntityRequest`, `RetrieveAttributeRequest`, `RetrieveAllEntitiesRequest`, `RetrieveRelationshipRequest` | Requires loaded metadata. Selected SDK fields are projected; global option-set retrieval is absent. See [05](05-metadata-simulation.md). |
 
 - [x] Direct request equivalents, sharing/team requests, queues, and the four metadata retrieval requests are implemented.
@@ -51,10 +51,10 @@ Custom typed handlers are available through `.Simulated().CustomOrgRequests().Ad
 | Surface | Delivered | Still open |
 | --- | --- | --- |
 | Query forms | `QueryExpression`, converted FetchXML, and converted `QueryByAttribute` share execution | FetchXML-specific validation and richer syntax. |
-| Filtering/projection/order | Full base rows filtered before projection; ordering before top; projected distinct; cloned query rows | Empty column sets, exact primary-id/distinct output, nested/OR FetchXML filters, alias-reference edge cases. |
-| Links | Inner/left outer joins, `AliasedValue`, selected linked columns, unselected join/filter columns, focused immutability tests | Linked-row security; ordering by unprojected linked columns; nested alias behavior; advanced joins. |
-| Paging | Count/page slicing, `MoreRecords`, generated cookie, capped total count across all three forms | Incoming cookie consumption, maximum page size, stable ordering, invalid option combinations, live cookie semantics. |
-| Aggregation | Sum/average/min/max/count/countcolumn, distinct countcolumn, grouping/date/fiscal settings, default limit fault | SDK value wrappers/types, empty inputs, synthetic ids, explicit limit semantics, timezone and live aggregate fixtures. |
+| Filtering/projection/order | Full rows filtered before projection; ordering before top; distinct/primary-id/empty-column contracts; nested FetchXML filters; cloned SDK values | Alias-referenced/post-join filter edge cases and complete platform collation. |
+| Links | Inner/left outer joins, readable linked rows, `AliasedValue`, selected linked columns, unselected join/filter columns, immutability tests | Ordering by unprojected linked columns; nested alias behavior; advanced joins. |
+| Paging | Standard-table caps, value-based base-query cookies, final-page metadata, exact selected faults, all three query forms, live continuation after result-set changes | Linked/distinct/grouped cookies; elastic-table limits; remaining invalid-cookie/option envelopes. |
+| Aggregation | Typed SDK aliases with empty ids; verified numeric/empty/grouped output; distinct countcolumn; default limit fault; live explicit-limit/invalid-limit contract | Timezone/fiscal behavior, mixed-currency conversion, complete group/linked aggregation, BigInt live evidence. |
 
 The old broad query rewrite has been substantially delivered. The remaining work is a focused correctness pass (P1), followed by evidence-led expansion (P6), not restarting the query engine. See [08](08-query-execution-phase-review.md) for source-level findings.
 
@@ -67,17 +67,18 @@ The old broad query rewrite has been substantially delivered. The remaining work
 - [ ] `Exists`, `In`, `MatchFirstRowUsingCrossApply`, and any/all joins.
 - [ ] Broader SDK type and null semantics across operators.
 
-Unsupported `QueryExpression` condition operators currently throw `NotImplementedException`; unsupported link operators throw `NotSupportedException`. FetchXML unknown operators currently silently become `Equal`, making rejection/validation a P1 correctness item.
+Unsupported `QueryExpression` condition operators currently throw `NotImplementedException`; unsupported link operators throw `NotSupportedException`. The first P1 pass added explicit rejection of unknown FetchXML operators and unsupported input syntax.
 
 ## Security and ownership
 
 - [x] Security is optional and now applies to CRUD, base query visibility, associations, assignment, sharing, team requests, and queues.
 - [x] Runtime users, business units, roles, owner teams, memberships, shares, and privilege depths exist.
 - [x] Security fixture setup seeds normal system-table rows, including per-business-unit role records and relevant relationship rows.
-- [ ] Apply read security to linked rows before joins/aggregation/paging (P1).
-- [ ] Honor the principal requested through `IOrganizationServiceFactory`, including supported null/system semantics (P1).
-- [ ] Validate create/reassignment ownership and organization-owned tables; align association append direction with metadata (P1/P4).
-- [ ] Extend live security fixtures beyond missing-object faults and selected metadata request behavior (P2).
+- [x] Apply read security to linked rows before joins/aggregation/paging, with 23 October unit regressions (P1).
+- [x] Honor the factory principal with per-service identities and defined null/empty behavior; live plugin-host parity remains open (P1/P2).
+- [x] Validate create/reassignment ownership and metadata-driven organization-owned tables in the supported contract (P1).
+- [ ] Align association append direction with metadata; cascades and modernized BU ownership remain deferred (P4).
+- [x] Extend live security fixtures: seven new ownership/fault cases and five restricted-caller link cases passed live (P2). The restricted follow-up corrected `WhoAmI` connection identity; broader depths remain open.
 - [ ] Field-level security and full access-team templates remain later, explicit features (P6).
 
 See [06](06-security-model.md). Basic access-team representation and explicit team shares do not mean full access-team workflows are complete.
@@ -85,7 +86,7 @@ See [06](06-security-model.md). Basic access-team representation and explicit te
 ## Metadata and relationship behavior
 
 - [x] Versioned optional metadata, create/update checks/defaults, selected-column/query validation, and four retrieval handlers exist.
-- [ ] Validate converted FetchXML through the metadata path (P1).
+- [x] Validate converted FetchXML through the metadata path (first P1 pass; see [08](08-query-execution-phase-review.md#p1-query-inputoutput-implementation---22-october-2026)).
 - [ ] Validate general association schemas/roles and update lookup/intersect rows using relationship metadata (P4).
 - [ ] Add ownership-aware defaults, declared-key uniqueness, strict value types, and validation of merged state/status updates (P4).
 - [ ] Add selected cascade rules, formatted-value generation, row versions, and optimistic concurrency where tests need them (P4).
@@ -98,10 +99,24 @@ A relationship store is already present. It does not yet make ordinary associati
 - [x] Stage, depth, parameters, shared variables, and pre/post images can be supplied and consumed; factory services preserve provider data/audit state.
 - [ ] Complete exposed context wiring for mode/isolation, initiating-user distinctions, parent context, correlation/request identifiers, and transaction flags where required (P5).
 - [ ] Add convenient, deterministic fixtures for these values and verify telemetry/notification return contracts (P5).
-- [ ] Fix factory identity handling as part of P1, before advertising impersonation parity.
+- [x] Fix factory identity handling with isolated shared-store views; full live impersonation parity remains qualified by [06](06-security-model.md).
 
 **Scope decision retained:** test one plugin/code unit with a supplied execution context. Automatic registration of plugin steps and cascading execution of other plugins are unsupported by design. Transaction context fixtures do not require building an event pipeline.
 
 ## Exit criteria for the next parity milestone
 
 Close or document each P1 gap, add targeted unit regressions and live fixtures, and publish a feature matrix that distinguishes implemented behavior from recorded live verification. Preserve useful exactness checks for fault type/code/message, response names/keys/types, entity projection, and side effects. The existing 560 passing tests are the baseline, not evidence that every table or SDK request is covered.
+
+## P1 mutation/response implementation - 23 October 2026
+
+- [x] Direct calls and request wrappers share success-only audit behavior for Create, Retrieve, RetrieveMultiple, Update, Delete, Associate, and Disassociate. Query audits contain the base table and a null record id. Upsert produces one `Upsert` entry; its internal Create/Update still runs the relevant processor but does not add another audit entry. These are simulator diagnostics, not a simulation of Dataverse audit-table retention or event history.
+- [x] Assign retains the shared ownership validation/defaults delivered in the security pass, with one successful Assign audit. Those regression and live ownership fixtures remain part of verification.
+- [x] Upsert operates on a clone, preserves the caller's id/attributes/keys, and returns a fresh id-only `EntityReference`. Id takes precedence over keys; a single primary-id key is resolved from stored entity identity. The update path removes identifying key columns; the create path copies missing key values while preserving explicit body values. This follows the [documented standard-table algorithm](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/use-upsert-insert-update-record).
+- [x] Loaded metadata checks that a matching alternate-key column set is declared and active (unspecified status remains accepted), including composite keys. The live sandbox rejects a matching undeclared key with `-2147088247`, but permits unmatched values to flow to Create; the simulator retains that distinction. Without metadata, existing permissive key matching remains available. Ambiguous seeded matches fault instead of selecting an arbitrary row.
+- [x] Transactions restore entity, relationship, audit, and concrete security snapshots, then return `ExecuteTransactionFault` as the detail of `FaultException<OrganizationServiceFault>`, preserving the underlying code/message/details and adding the zero-based request index. Non-service exceptions still roll back and retain their original type. Responses default to enabled when omitted; explicit false returns an empty collection. Nested ExecuteMultiple/ExecuteTransaction requests are rejected before any mutation, following the [transaction contract](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/org-service/use-executetransaction).
+- [x] ExecuteMultiple live comparisons cover all ContinueOnError/ReturnResponses combinations, response keys/indexes, fault entries even when successes are suppressed, and committed mutations before/after failure.
+- [x] Queue source selection and validation finish before a cloned candidate is written. Ordinary task moves preserve item identity, including implicit moves, repeated adds, and same-queue moves. Queue facade/request failures share the same injection and audit path. See [queue contracts and remaining limits](07-queue-simulation.md#p1p2-implementation-and-verification---23-october-2026).
+
+Verification: **123 new regression cases; 913 unit tests passed, 0 skipped** in Release. The four-project Release build succeeded with **28 existing warnings, 0 errors**. **47 new live parity cases** cover response/transaction/upsert contracts (17) and queues (30). Full-run results are recorded in [03](03-integration-testing.md).
+
+Remaining P2/P4 work: positive live comparisons against a provisioned active alternate key, alternate-key uniqueness across ordinary Create/Update, platform string collation and key lookup resolution, direct retrieve/update/delete by key, full queue metadata/privilege enforcement, received-email multi-queue behavior, team routing, and broader platform fault envelopes. No table keys or security roles were provisioned by this pass.

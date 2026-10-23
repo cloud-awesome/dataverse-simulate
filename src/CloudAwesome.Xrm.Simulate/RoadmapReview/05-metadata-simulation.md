@@ -61,15 +61,16 @@ The loader already rejects missing/unsupported contract versions, empty document
 | Attribute model | Names/types, required/read/create/update flags, secured flag, lookup targets, limits, precision, options, integer defaults | Strict SDK runtime type checks, datetime behavior, full boolean/choice defaults, field-level security. |
 | Create | Known entity/attributes, configured create validity, selected required fields/value rules, primary id and state/status defaults | Ownership-aware system defaults, related-entity creation, full required-level parity. |
 | Update | Attribute/value validity and state/status pair when both supplied | Validate effective merged state/status for partial updates; key-based direct operations and ownership transitions. |
-| Retrieve/queries | Known/readable selected columns, QueryExpression filter/order/link attributes, QueryByAttribute attributes | FetchXML bypasses validation; aggregate expressions/alias-aware validation and all-columns filtering need review. |
+| Retrieve/queries | Known/readable selected columns, converted FetchXML and QueryExpression filter/order/link/aggregate source attributes, QueryByAttribute attributes, aggregate order aliases | Complete all-columns/readability and richer alias/link validation still need review. |
+| Paging/aggregation | Metadata-backed primary-id cookie keys and numeric type hints for empty-table aggregates | Elastic-table limits, full type/aggregate validity, timezone/fiscal and mixed-currency behavior. |
 | Relationships | Shape stored and projected to SDK metadata; query link column existence checked | General associate/disassociate schema/direction rules and lookup/intersect mutations are not implemented. |
-| Alternate keys | Definitions load; referenced attributes checked; upsert scans supplied key values | Declared-key matching/status/uniqueness, duplicate-key fault behavior, and indexed resolution. |
+| Alternate keys | Definitions load; referenced attributes checked; Upsert validates declared column sets/status when matching existing rows and recognizes primary-id keys | Global Create/Update uniqueness, platform collation, richer key lookup resolution, and direct key-based CRUD. |
 | Metadata requests | Four retrieval handlers and selected SDK properties | Full SDK property/filter/identifier behavior, richer options/labels, global `RetrieveOptionSetRequest`. |
 
 Important distinctions:
 
 - `IsSecured` is metadata storage/projection, not field-level access enforcement.
-- `OwnershipType` and `ValidMessages` being loaded do not mean create ownership or message capability validation is complete.
+- `OwnershipType` now drives organization-owned defaults/access and shared user/team ownership validation in the [23 October security pass](06-security-model.md#p1-implementation-and-verification---23-october-2026). Modernized BU ownership/cascades and general `ValidMessages` capability validation remain incomplete.
 - Lookup validation currently checks allowed logical targets, not general referenced-row existence.
 - Query links check referenced column existence; that does not prove relationship schema validation.
 - The required-create rule currently selects create-valid `ApplicationRequired` attributes. Capture real SDK behavior for required levels before treating that rule as exact platform parity.
@@ -93,7 +94,8 @@ Important distinctions:
 - [ ] Strict value-type handling rather than silently skipping a rule when the value has an unexpected CLR type.
 - [ ] Ownership-specific defaults and valid-message enforcement where supported by the contract.
 - [ ] Primary-id/readability rules, formatted values, lookup names, and supported datetime behavior.
-- [ ] Declared alternate-key validation, uniqueness, and key-based operations.
+- [x] Validate matching Upsert key column sets/status using loaded metadata, with composite/partial/inactive-key regressions and live undeclared-key rejection (P1). See [the mutation contract](01-simulation-parity.md#p1-mutationresponse-implementation---23-october-2026); unmatched values follow the verified Create path and metadata remains optional.
+- [ ] Enforce alternate-key uniqueness across Create/Update, capture positive live declared-key cases, and extend direct key-based operations.
 - [ ] Relationship references checked against loaded tables/attributes; partial allowlists must remain possible.
 - [ ] General associate/disassociate schema, endpoint, entity-role, and direction validation.
 - [ ] One-to-many lookup mutation and many-to-many intersect rows so ordinary queries see relationship effects.

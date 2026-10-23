@@ -19,10 +19,12 @@ public static class OrganisationServiceFactorySimulator
         
         var serviceFactory = Substitute.For<IOrganizationServiceFactory>();
 
-        serviceFactory.CreateOrganizationService(Arg.Any<Guid>())
+        serviceFactory.CreateOrganizationService(Arg.Any<Guid?>())
             .Returns(x => OrganisationServiceSimulator.SimulateWithExistingState(
                 options,
-                dataService,
+                dataService.ForUser(x.Arg<Guid?>() == Guid.Empty
+                    ? dataService.AuthenticatedUser.Id
+                    : x.Arg<Guid?>()),
                 auditService));
 
         return serviceFactory;

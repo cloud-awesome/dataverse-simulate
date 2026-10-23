@@ -1,0 +1,20 @@
+{
+  "contractVersion": "1.0",
+  "entities": [
+    {
+      "logicalName": "ca_item",
+      "schemaName": "ca_Item",
+      "primaryIdAttribute": "ca_key",
+      "primaryNameAttribute": "ca_name",
+      "attributes": [
+        { "logicalName": "ca_key", "attributeType": "Uniqueidentifier", "isPrimaryId": true, "isValidForRead": true },
+        { "logicalName": "ca_name", "attributeType": "String", "isValidForRead": true },
+        { "logicalName": "ca_sort", "attributeType": "Integer", "isValidForRead": true },
+        { "logicalName": "ca_money", "attributeType": "Money", "isValidForRead": true },
+        { "logicalName": "ca_decimal", "attributeType": "Decimal", "isValidForRead": true },
+        { "logicalName": "ca_double", "attributeType": "Double", "isValidForRead": true },
+        { "logicalName": "ca_integer", "attributeType": "Integer", "isValidForRead": true }
+      ]
+    }
+  ]
+}

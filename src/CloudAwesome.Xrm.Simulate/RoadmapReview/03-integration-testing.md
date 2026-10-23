@@ -20,7 +20,7 @@ The original connectivity-only stage is complete. A reusable dual-execution harn
 
 The harness does not automatically capture/compare every exception or every SDK response field. Fault scenarios capture the contract they need themselves. Extend shared capture helpers only where this reduces repetition without hiding important assertions.
 
-## Existing fixture inventory
+## Baseline fixture inventory - 22 October 2026
 
 | Fixture area | Tests discovered | Current purpose |
 | --- | --- | --- |
@@ -40,15 +40,30 @@ Follow [P1-P7](00-executive-summary.md#updated-order-of-work). P2 fixtures shoul
 
 ### P1/P2 - Existing behavior with the highest risk
 
-- [ ] Empty and explicit column sets, primary-id projection, and distinct result identity across query forms.
-- [ ] FetchXML OR/nested filters, unsupported operators, multiple values, malformed XML, and metadata-backed unknown entity/attribute behavior.
-- [ ] Paging across multiple pages: cookie continuation, count caps, total-count boundaries, deterministic order, and top/paging conflicts.
-- [ ] Aggregate SDK output wrappers/types, empty input, distinct count, default/explicit limits, and grouping/timezones.
-- [ ] Read security for inner/outer linked rows before aggregates/counts/paging.
-- [ ] Service-factory caller identity and supported null/system behavior.
-- [ ] Ownership changes, assignee validation, organization-owned tables, and stale owning fields.
-- [ ] Queue add/remove/pick/release/route responses, side effects, duplicate targets, source moves, and faults. No queue-specific integration fixture exists yet.
-- [ ] Upsert update/key paths and declared-key uniqueness; batch settings and transaction fault details/indexes as well as rollback.
+The first query input/output implementation adds **23 `QuerySemantics` cases** for projection/identity, default/all FetchXML columns, OR/nested filters, metadata rejection, invalid operators, malformed input, and empty base projections with selected/filter-only links. Together with the original 40 cases, the project now contains 63 cases. After refreshing authentication and shortening fixture last names to meet the platform limit, the final focused live run on 2026-10-22 passed **all 23 cases**. It also corrected the empty distinct projection behavior and tightened rejection assertions to exclude unrelated service failures. This result covers this category, not a rerun of all integration fixtures. See the [query implementation notes](08-query-execution-phase-review.md#p1-query-inputoutput-implementation---22-october-2026) for the command and simulator exception limitations.
+
+The 23 October security pass adds **12 `SecurityIdentity` cases** (75 integration cases in total). The initial focused Release run passed seven and skipped five. After configuring the restricted user, **all five restricted linked visibility/count/aggregate cases passed live**, establishing pass evidence for all twelve. The follow-up corrected an invalid `WhoAmI` assertion: that request reports the authenticated connection user, while record reads and joins apply the impersonated caller's permissions. The fixture now checks both connection identity and effective visible/hidden record access. Restricted cases require `DATAVERSE_SECURITY_USER_ID` and skip before connecting when absent. See [security setup, commands, and limits](06-security-model.md#p1-implementation-and-verification---23-october-2026). Factory null/empty semantics have unit coverage and SDK documentation evidence, not a live plugin-host parity result.
+
+The paging/aggregate pass adds **36 `PagingAggregates` cases**, all passing live, taking integration discovery to **111 cases**. The fixture compares SDK wrappers and numeric types, empty/grouped/limit output, multi-page metadata, default SDK counts, value-based continuation after boundary changes, and selected exact input faults. See [the supported contract and command](08-query-execution-phase-review.md#p1-paging-and-aggregates-implementation---23-october-2026). Large 5,001/50,001-row boundaries remain unit/documentation evidence rather than expensive live fixtures; special cookie shapes, elastic tables, timezones, and mixed-currency aggregation remain open.
+
+The final combined Release run passed **71 tests, 0 skipped, 0 failed** using `--filter "TestCategory=PagingAggregates|TestCategory=QuerySemantics|TestCategory=SecurityIdentity"`. This reran all three new P1 categories, including the configured restricted-user cases; it did not rerun the remaining original 40 integration cases.
+
+The mutation/response pass adds **47 `MutationConsistency` cases**: 17 response/upsert/transaction cases and 30 `Queues` cases, taking the current inventory to **158 integration cases**. Focused live runs cover all 47. They compare response names/keys/SDK ids, Upsert request isolation and undeclared matching keys, transaction default/explicit responses and indexed faults, all batch settings, task queue move identity, selected exact validation faults, removal, release, routing, and target survival. See [the mutation contract](01-simulation-parity.md#p1-mutationresponse-implementation---23-october-2026) and [queue limits](07-queue-simulation.md#p1p2-implementation-and-verification---23-october-2026). These use the existing app connection and temporary records; no schema keys, users, or roles are provisioned.
+
+The full Release integration run passed **158 tests, 0 skipped, 0 failed**, including all original fixtures and the configured restricted-user cases, using `dotnet test CloudAwesome.Xrm.Simulate.Integration/CloudAwesome.Xrm.Simulate.Integration.csproj --no-build --no-restore --configuration Release`. Its TRX is `CloudAwesome.Xrm.Simulate.Integration/TestResults/mutation-consistency-release.trx`. Initial queue cleanup exposed platform deletion faults and one remaining fixture queue/task; the exact tracked records were subsequently released/removed and deleted. Cleanup now releases/removes queue items through SDK messages, retries failures once after dependent records, and accepts confirmed missing-record faults as already clean.
+
+After the cleanup correction, the final Release queue run passed **30 tests, 0 skipped, 0 failed**, with **no cleanup errors reported**, using `--filter "TestCategory=Queues"`. The local artifact is `CloudAwesome.Xrm.Simulate.Integration/TestResults/queue-cleanup-release.trx`. The earlier 47-case mutation rerun also passed; the final queue run verifies the last harness change without repeating unrelated query/security cases.
+
+- [x] Initial empty/explicit column-set, primary-id projection, and distinct identity comparisons, covered by the 23 query input/output cases.
+- [x] Initial FetchXML OR/nested filters, unsupported operators, multiple values, malformed input, and metadata-backed unknown entity/attribute comparisons; richer syntax and full fault envelopes remain open.
+- [x] Initial multi-page/cookie/default-count/TopCount parity with result-set mutation and final-page metadata. Standard-table large count/page caps have unit coverage; large live, special-cookie, and elastic-table cases remain open.
+- [x] Initial typed aggregate/empty/null-group/distinct/explicit-limit/invalid-limit parity. Timezone/fiscal/mixed-currency and default-limit large live cases remain open.
+- [x] Execute the five restricted-user linked read/count/aggregate cases: all passed in the configured follow-up. Broader paging/depth parity remains open.
+- [ ] Add live plugin-host service-factory caller/null/system comparisons; the per-service implementation and unit regressions are complete.
+- [x] Add/run initial ownership-change, missing-assignee, organization-owned read, and stale-owning-field parity cases: seven live passes on 23 October. Cross-BU/access-team/denied-privilege parity remains open.
+- [x] Initial ordinary-task queue add/remove/pick/release/route responses, duplicate/source move identity, selected faults, worker state, and target survival: 30 dedicated cases. Team routes, received-email behavior, custom fields, and the privilege matrix remain open.
+- [x] Upsert primary-id/key-attribute create/update paths and matching undeclared-key rejection; batch settings/partial commits; transaction response defaults, fault type/code/message/index, nested-batch rejection, and rollback.
+- [ ] Positive live declared alternate-key provisioning, collation/uniqueness, and direct key-based CRUD.
 - [ ] Successful sparse update, delete, assign, and relationship lookup/intersect effects, beyond the existing fault/payload checks.
 
 ### P2/P4 - Metadata and security depth
@@ -89,6 +104,7 @@ No credentials or live settings need to be copied into the review.
 ## Cleanup and reproducibility
 
 - [x] The cleanup scope deletes tracked records in reverse order, and existing scenarios use purpose-specific test data.
+- [x] Queue deletion tests remove confirmed-deleted items from tracking through `MarkDeleted`; queue cleanup uses ReleaseToQueue/RemoveFromQueue. A bounded second pass handles dependent/transient failures; unresolved failures remain visible in test output.
 - [ ] Track every created side effect, including failures partway through arrange/act, and verify cleanup for queue, batch, and security fixtures.
 - [ ] Surface cleanup failures in CI results. The current scope logs them to `TestContext.Error` and continues; a green test alone does not prove no data was left behind.
 - [ ] Add a narrowly scoped cleanup utility for abandoned records with identifiable run prefixes/ids.
@@ -105,7 +121,7 @@ P2 implementation order:
 3. Add scheduled runs and require recorded supported-subset parity before release.
 4. Retain TRX and focused mismatch reports; make expected behavior changes explicit in reviewed tests/baselines.
 
-Current categories include `Parity`, `ParitySmoke`, `Exceptions`, `QueryBase`, `QueryExpression`, `OrganizationRequests`, `Metadata`, and `Security`. They are not yet a uniform `ParityCore`/`ParityQuery`/`ParitySecurity` scheme; `Parity` alone does not include every existing fixture. Define and document the final filters before scheduling subsets. Run credentialed jobs through a trusted workflow path.
+Current categories include `Parity`, `ParitySmoke`, `Exceptions`, `QueryBase`, `QueryExpression`, `OrganizationRequests`, `Metadata`, `Security`, `QuerySemantics`, `SecurityIdentity`, `PagingAggregates`, `MutationConsistency`, and `Queues`. They are not yet a uniform `ParityCore`/`ParityQuery`/`ParitySecurity` scheme; `Parity` alone does not include every existing fixture. Define and document the final filters before scheduling subsets. Run credentialed jobs through a trusted workflow path.
 
 A recurring run should detect Microsoft service changes through exact contract differences. Do not automatically bless changed results or require a large baseline framework before useful scheduled tests can run.
 

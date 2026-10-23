@@ -9,6 +9,10 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 public class EntityDisassociator(MockedEntityDataService dataService) : IEntityDisassociator
 {
     private const string RequestMessage = "Disassociate";
+    private readonly SimulatorAuditService? _auditService;
+
+    public EntityDisassociator(MockedEntityDataService dataService, SimulatorAuditService auditService) : this(dataService)
+        => _auditService = auditService;
 
     public void MockRequest(
         IOrganizationService organizationService,
@@ -53,9 +57,11 @@ public class EntityDisassociator(MockedEntityDataService dataService) : IEntityD
 
         if (RoleAssignmentAssociationHandler.TryDisassociate(dataService, target, relationship, relatedRefs, options))
         {
+            _auditService?.Add(RequestMessage, entityName, targetId);
             return;
         }
 
         dataService.Disassociate(target, relationship, relatedRefs);
+        _auditService?.Add(RequestMessage, entityName, targetId);
     }
 }

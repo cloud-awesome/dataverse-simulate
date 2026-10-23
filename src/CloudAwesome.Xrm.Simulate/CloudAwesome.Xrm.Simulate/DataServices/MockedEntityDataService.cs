@@ -10,7 +10,33 @@ namespace CloudAwesome.Xrm.Simulate.DataServices;
 
 public class MockedEntityDataService
 {
-    private readonly MockedEntityDataStore _dataStore = new();
+    private readonly MockedEntityDataStore _dataStore;
+    private EntityReference? _serviceUser;
+
+    public MockedEntityDataService() => _dataStore = new MockedEntityDataStore();
+
+    private MockedEntityDataService(MockedEntityDataStore dataStore, EntityReference user, bool isSystemUser)
+    {
+        _dataStore = dataStore;
+        _serviceUser = user;
+        IsSystemUser = isSystemUser;
+    }
+
+    // SYSTEM has a simulator-local identity; the explicit flag, never the id, grants bypass.
+    internal static readonly Guid SystemUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+    internal bool IsSystemUser { get; }
+
+    // WhoAmI identifies the authenticated connection, rather than the effective caller.
+    internal EntityReference ConnectionUser => _dataStore.AuthenticatedUser;
+    internal EntityReference ConnectionBusinessUnit => _dataStore.BusinessUnit;
+
+    internal MockedEntityDataService ForUser(Guid? userId)
+    {
+        var principal = new EntityReference("systemuser", userId ?? SystemUserId);
+        if (userId.HasValue)
+            Get(principal);
+        return new MockedEntityDataService(_dataStore, principal, isSystemUser: !userId.HasValue);
+    }
     
     /// <summary>
     /// Initialise the in memory store with multiple entities and records.
@@ -195,7 +221,7 @@ public class MockedEntityDataService
                 }
 
                 existingEntity["modifiedon"] = _dataStore.SystemTime;
-                existingEntity["modifiedby"] = _dataStore.AuthenticatedUser;
+                existingEntity["modifiedby"] = AuthenticatedUser;
             }
             else
             {
@@ -322,8 +348,12 @@ public class MockedEntityDataService
     /// </summary>
     public EntityReference AuthenticatedUser
     {
-        get => _dataStore.AuthenticatedUser;
-        set => _dataStore.AuthenticatedUser = value;
+        get => _serviceUser ?? _dataStore.AuthenticatedUser;
+        set
+        {
+            if (_serviceUser is not null) _serviceUser = value;
+            else _dataStore.AuthenticatedUser = value;
+        }
     }
 
     /// <summary>
@@ -345,7 +375,10 @@ public class MockedEntityDataService
 
     public EntityReference BusinessUnit
     {
-        get => _dataStore.BusinessUnit;
+        get => _serviceUser is not null
+            ? Get("systemuser").FirstOrDefault(user => user.Id == _serviceUser.Id)
+                  ?.GetAttributeValue<EntityReference>("businessunitid") ?? _dataStore.BusinessUnit
+            : _dataStore.BusinessUnit;
         set => _dataStore.BusinessUnit = value;
     }
 

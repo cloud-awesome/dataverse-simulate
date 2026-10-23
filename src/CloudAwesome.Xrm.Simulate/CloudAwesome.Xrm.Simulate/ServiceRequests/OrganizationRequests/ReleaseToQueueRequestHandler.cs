@@ -16,11 +16,6 @@ public class ReleaseToQueueRequestHandler : IRequestHandler
     {
         var releaseRequest = (ReleaseToQueueRequest)request;
 
-        RequestFailureHandler.Handle(
-            options,
-            SimulatedQueueService.ReleaseToQueueMessage,
-            releaseRequest.QueueItemId);
-
         new SimulatedQueueService(dataService, auditService, options)
             .ReleaseToQueue(releaseRequest.QueueItemId);
 

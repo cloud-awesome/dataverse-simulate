@@ -147,7 +147,7 @@ public class ServiceProviderSimulatorTests
 
         var factory = (IOrganizationServiceFactory)
             serviceProvider.GetService(typeof(IOrganizationServiceFactory))!;
-        var service = factory.CreateOrganizationService(Guid.NewGuid());
+        var service = factory.CreateOrganizationService(Guid.Empty);
 
         var retrieved = service.Retrieve("account", account.Id, new ColumnSet(true));
 
@@ -161,7 +161,7 @@ public class ServiceProviderSimulatorTests
         var serviceProvider = _serviceProvider.Simulate();
         var factory = (IOrganizationServiceFactory)
             serviceProvider.GetService(typeof(IOrganizationServiceFactory))!;
-        var service = factory.CreateOrganizationService(Guid.NewGuid());
+        var service = factory.CreateOrganizationService(Guid.Empty);
 
         var createdId = service.Create(new Entity("task")
         {

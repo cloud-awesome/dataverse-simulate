@@ -7,26 +7,26 @@ public static class Order
 {
     public static IQueryable<Entity> Apply(IList<OrderExpression> orders, IQueryable<Entity> records)
     {
-        // TODO - Need more robust tests for the different paths of this method
         if (orders == null || orders.Count == 0)
         {
             return records;
         }
 
-        IOrderedQueryable<Entity> orderedRecords = null;
+        IOrderedEnumerable<Entity>? orderedRecords = null;
+        var comparer = Comparer<object?>.Create(QueryValueComparer.Compare);
 
         for (var i = 0; i < orders.Count; i++)
         {
             var order = orders[i];
 
             string orderAttributeOrAlias;
-            if (!string.IsNullOrWhiteSpace(order.AttributeName))
-            {
-                orderAttributeOrAlias = order.AttributeName;
-            }
-            else if (!string.IsNullOrWhiteSpace(order.Alias))
+            if (!string.IsNullOrWhiteSpace(order.Alias))
             {
                 orderAttributeOrAlias = order.Alias;
+            }
+            else if (!string.IsNullOrWhiteSpace(order.AttributeName))
+            {
+                orderAttributeOrAlias = order.AttributeName;
             }
             else
             {
@@ -36,21 +36,21 @@ public static class Order
             if (i == 0)
             {
                 orderedRecords = order.OrderType == OrderType.Ascending
-                    ? records.OrderBy(entity => GetOrderValue(entity, orderAttributeOrAlias))
-                    : records.OrderByDescending(entity => GetOrderValue(entity, orderAttributeOrAlias));
+                    ? records.AsEnumerable().OrderBy(entity => GetOrderValue(entity, orderAttributeOrAlias), comparer)
+                    : records.AsEnumerable().OrderByDescending(entity => GetOrderValue(entity, orderAttributeOrAlias), comparer);
             }
             else
             {
                 orderedRecords = order.OrderType == OrderType.Ascending
-                    ? orderedRecords.ThenBy(entity => GetOrderValue(entity, orderAttributeOrAlias))
-                    : orderedRecords.ThenByDescending(entity => GetOrderValue(entity, orderAttributeOrAlias));
+                    ? orderedRecords!.ThenBy(entity => GetOrderValue(entity, orderAttributeOrAlias), comparer)
+                    : orderedRecords!.ThenByDescending(entity => GetOrderValue(entity, orderAttributeOrAlias), comparer);
             }
         }
             
-        return orderedRecords ?? records;
+        return orderedRecords?.AsQueryable() ?? records;
     }
 
-    private static object GetOrderValue(Entity entity, string attributeName)
+    private static object? GetOrderValue(Entity entity, string attributeName)
     {
         var value = entity.GetAttributeValue<object>(attributeName);
 

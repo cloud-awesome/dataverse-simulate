@@ -26,18 +26,10 @@ public class AssignRequestHandler : IRequestHandler
             SecurityPrivilege.Assign,
             options);
 
-        switch (assignRequest.Assignee.LogicalName)
-        {
-            case "systemuser":
-                entity["owninguser"] = assignRequest.Assignee;
-                break;
-            case "team":
-                entity["owningteam"] = assignRequest.Assignee;
-                break;
-        }
-
-        entity["ownerid"] = assignRequest.Assignee;
-        dataService.Update(entity);
+        var changes = new Entity(entity.LogicalName, entity.Id) { ["ownerid"] = assignRequest.Assignee };
+        new RecordOwnership(dataService, options).PrepareUpdate(changes, entity, assign: true);
+        dataService.Update(changes);
+        auditService.Add(RequestMessage, entity.LogicalName, entity.Id);
 
         return new AssignResponse { ResponseName = "Assign" };
     }
