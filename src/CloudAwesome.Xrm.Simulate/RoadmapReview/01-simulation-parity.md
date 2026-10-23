@@ -30,7 +30,7 @@ Do not equate these fixes with complete CRUD parity. Relationship/cascade behavi
 | Area | Implemented requests | Remaining qualification |
 | --- | --- | --- |
 | Direct equivalents | `CreateRequest`, `RetrieveRequest`, `RetrieveMultipleRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest` | Shared operation paths exist; auditing and relationship semantics are not uniformly complete. |
-| Identity and ownership | `WhoAmIRequest`, `AssignRequest` | Assign changes owner fields, but assignee validity, stale owning fields, business-unit fields, and cascade behavior need hardening. |
+| Identity and ownership | Per-service caller identity, connection identity from `WhoAmIRequest`, shared ownership validation for Create/Assign/Update/Upsert | Valid user/owner teams and owning fields are covered; cascades, modernized BU settings, and broad denied-operation parity remain open. |
 | Upsert and state | `UpsertRequest`, `SetStateRequest` | Upsert matches id or supplied `KeyAttributes`; it does not enforce declared metadata keys/uniqueness. State/status validation uses metadata when loaded. |
 | Batches | `ExecuteMultipleRequest`, `ExecuteTransactionRequest` | Continue-on-error/response handling and entity/relationship/audit/security rollback exist. Transaction fault envelopes and faulted request indexes need live comparison. |
 | Sharing | `GrantAccessRequest`, `ModifyAccessRequest`, `RevokeAccessRequest`, `RetrievePrincipalAccessRequest`, `RetrieveSharedPrincipalsAndAccessRequest` | Table/record checks and explicit share state exist; exact privilege/fault semantics need broader live fixtures. |
@@ -74,10 +74,11 @@ Unsupported `QueryExpression` condition operators currently throw `NotImplemente
 - [x] Security is optional and now applies to CRUD, base query visibility, associations, assignment, sharing, team requests, and queues.
 - [x] Runtime users, business units, roles, owner teams, memberships, shares, and privilege depths exist.
 - [x] Security fixture setup seeds normal system-table rows, including per-business-unit role records and relevant relationship rows.
-- [ ] Apply read security to linked rows before joins/aggregation/paging (P1).
-- [ ] Honor the principal requested through `IOrganizationServiceFactory`, including supported null/system semantics (P1).
-- [ ] Validate create/reassignment ownership and organization-owned tables; align association append direction with metadata (P1/P4).
-- [ ] Extend live security fixtures beyond missing-object faults and selected metadata request behavior (P2).
+- [x] Apply read security to linked rows before joins/aggregation/paging, with 23 October unit regressions (P1).
+- [x] Honor the factory principal with per-service identities and defined null/empty behavior; live plugin-host parity remains open (P1/P2).
+- [x] Validate create/reassignment ownership and metadata-driven organization-owned tables in the supported contract (P1).
+- [ ] Align association append direction with metadata; cascades and modernized BU ownership remain deferred (P4).
+- [x] Extend live security fixtures: seven new ownership/fault cases and five restricted-caller link cases passed live (P2). The restricted follow-up corrected `WhoAmI` connection identity; broader depths remain open.
 - [ ] Field-level security and full access-team templates remain later, explicit features (P6).
 
 See [06](06-security-model.md). Basic access-team representation and explicit team shares do not mean full access-team workflows are complete.
@@ -98,7 +99,7 @@ A relationship store is already present. It does not yet make ordinary associati
 - [x] Stage, depth, parameters, shared variables, and pre/post images can be supplied and consumed; factory services preserve provider data/audit state.
 - [ ] Complete exposed context wiring for mode/isolation, initiating-user distinctions, parent context, correlation/request identifiers, and transaction flags where required (P5).
 - [ ] Add convenient, deterministic fixtures for these values and verify telemetry/notification return contracts (P5).
-- [ ] Fix factory identity handling as part of P1, before advertising impersonation parity.
+- [x] Fix factory identity handling with isolated shared-store views; full live impersonation parity remains qualified by [06](06-security-model.md).
 
 **Scope decision retained:** test one plugin/code unit with a supplied execution context. Automatic registration of plugin steps and cascading execution of other plugins are unsupported by design. Transaction context fixtures do not require building an event pipeline.
 

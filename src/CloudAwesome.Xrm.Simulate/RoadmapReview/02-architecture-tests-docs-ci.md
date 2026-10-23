@@ -23,7 +23,7 @@ The entity store is still a logical-name dictionary of lists. This is acceptable
 
 ### Remaining architectural work
 
-- [ ] P1: apply security consistently to linked data and service-factory identities.
+- [x] P1: apply security to linked data and isolate service-factory identities over the shared store (23 October). See [security implementation/evidence](06-security-model.md#p1-implementation-and-verification---23-october-2026).
 - [ ] P1: route converted FetchXML through the same metadata validation contract as QueryExpression.
 - [ ] P1: define one audit policy for direct SDK calls, request equivalents, nested batch requests, failures, and rollback. Direct delete/association/retrieve-multiple paths currently do not all write audits; some composed requests produce both inner-operation and request audit entries.
 - [ ] P1/P4: keep shared mutation paths consistent for metadata, timestamps, ownership, security, processors, and rollback. Queue services currently mutate the data store directly and enforce only a subset of metadata rules.
@@ -83,7 +83,7 @@ P3 deliverables:
 
 - [ ] Publish the [current support matrix](01-simulation-parity.md), with partial behavior and live-verification status, in user-facing docs.
 - [ ] Document metadata contract/loading, security role/team/share setup, queues, batches, transaction scope, paging limits, and current unsupported behavior.
-- [ ] Document factory identity limitations until corrected; distinguish context fixtures from automatic plugin execution.
+- [x] Document factory explicit/null/empty identities, simulator-local SYSTEM identity, and current live evidence in [06](06-security-model.md). Automatic plugin execution remains outside the supported contract.
 - [ ] Keep docs examples executable and expand the existing example tests for new supported APIs.
 - [ ] Add contribution guidance for a request handler, unit regressions, and the corresponding live parity scenario.
 - [ ] Document sandbox configuration/cleanup, opt-in test commands, release checks, and behavior-breaking accuracy fixes.

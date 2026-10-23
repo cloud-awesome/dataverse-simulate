@@ -62,6 +62,8 @@ public class EntityUpdater(
             entity = processor.Process(entity);
         }
 
+        new RecordOwnership(dataService, options).PrepareUpdate(entity, e);
+
         dataService.Update(entity);
         auditService.Add(RequestMessage, entity.LogicalName, entity.Id);
     }

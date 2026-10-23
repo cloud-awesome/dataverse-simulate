@@ -1,0 +1,16 @@
+{
+  "contractVersion": "1.0",
+  "entities": [
+    {
+      "logicalName": "transactioncurrency",
+      "schemaName": "TransactionCurrency",
+      "primaryIdAttribute": "transactioncurrencyid",
+      "primaryNameAttribute": "currencyname",
+      "ownershipType": "OrganizationOwned",
+      "attributes": [
+        { "logicalName": "transactioncurrencyid", "attributeType": "Uniqueidentifier", "isPrimaryId": true, "isValidForRead": true },
+        { "logicalName": "currencyname", "attributeType": "String", "isValidForRead": true }
+      ]
+    }
+  ]
+}

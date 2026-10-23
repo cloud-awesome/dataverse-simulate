@@ -69,7 +69,7 @@ The loader already rejects missing/unsupported contract versions, empty document
 Important distinctions:
 
 - `IsSecured` is metadata storage/projection, not field-level access enforcement.
-- `OwnershipType` and `ValidMessages` being loaded do not mean create ownership or message capability validation is complete.
+- `OwnershipType` now drives organization-owned defaults/access and shared user/team ownership validation in the [23 October security pass](06-security-model.md#p1-implementation-and-verification---23-october-2026). Modernized BU ownership/cascades and general `ValidMessages` capability validation remain incomplete.
 - Lookup validation currently checks allowed logical targets, not general referenced-row existence.
 - Query links check referenced column existence; that does not prove relationship schema validation.
 - The required-create rule currently selects create-valid `ApplicationRequired` attributes. Capture real SDK behavior for required levels before treating that rule as exact platform parity.

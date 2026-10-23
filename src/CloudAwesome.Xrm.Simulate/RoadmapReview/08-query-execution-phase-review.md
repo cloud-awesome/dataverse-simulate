@@ -87,8 +87,8 @@ dotnet test CloudAwesome.Xrm.Simulate.Integration/CloudAwesome.Xrm.Simulate.Inte
 
 ### Read security and links
 
-- [ ] Filter linked tables by read access before joins and aggregation/count/paging. Only the base table is currently replaced with readable rows.
-- [ ] Preserve left-outer semantics when a matching physical linked row is unreadable.
+- [x] Filter base and linked tables by read access before joins and aggregation/count/paging, including nested/self links (23 October security pass).
+- [x] Preserve left-outer rows without exposing unreadable matches. Unit regressions and all five configured restricted-user live join/count/aggregate cases pass. See [security verification](06-security-model.md#p1-implementation-and-verification---23-october-2026).
 - [ ] Ordering on a linked attribute currently operates after linked projection; an unselected sort column can be lost. Add a live case and a regression for it.
 - [ ] Check nested alias propagation and alias-referenced/post-join filter behavior; base filters currently execute before joins.
 

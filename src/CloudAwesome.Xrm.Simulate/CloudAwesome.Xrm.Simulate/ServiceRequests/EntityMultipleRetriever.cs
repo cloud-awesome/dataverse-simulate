@@ -128,12 +128,9 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
         if (string.IsNullOrWhiteSpace(entityName))
             return data;
 
-        if (!data.TryGetValue(entityName, out var records))
-            return data;
-
-        data[entityName] = new SimulatedSecurityEnforcer(dataService)
-            .FilterReadableRecords(entityName, records, options)
-            .ToList();
+        var enforcer = new SimulatedSecurityEnforcer(dataService);
+        foreach (var table in data.Keys.ToList())
+            data[table] = enforcer.FilterReadableRecords(table, data[table], options).ToList();
 
         return data;
     }

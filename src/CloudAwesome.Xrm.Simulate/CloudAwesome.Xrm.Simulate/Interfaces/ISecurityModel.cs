@@ -1,5 +1,10 @@
 ﻿namespace CloudAwesome.Xrm.Simulate.Interfaces;
 
+/// <summary>
+/// Legacy table-permission shape. Service simulation supports SimulatedSecurityModel;
+/// other implementations are explicitly rejected because this interface alone does
+/// not describe principals, ownership, or record access.
+/// </summary>
 public interface ISecurityModel
 {
 	/// <summary>

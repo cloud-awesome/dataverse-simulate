@@ -29,6 +29,11 @@ internal sealed class SimulatedSecurityEnforcer(MockedEntityDataService dataServ
         SecurityPrivilege privilege,
         ISimulatorOptions? options)
     {
+        if (privilege is SecurityPrivilege.Assign or SecurityPrivilege.Share
+            && options?.Metadata?.TryGetEntity(record.LogicalName, out var metadata) == true
+            && string.Equals(metadata.OwnershipType, "OrganizationOwned", StringComparison.OrdinalIgnoreCase))
+            throw DataverseServiceFaults.AccessDenied($"Organization-owned table '{record.LogicalName}' does not support {privilege}.");
+
         if (!TryGetContext(options, out var context))
             return;
 
@@ -56,13 +61,16 @@ internal sealed class SimulatedSecurityEnforcer(MockedEntityDataService dataServ
             records);
     }
 
-    private static bool TryGetContext(
+    private bool TryGetContext(
         ISimulatorOptions? options,
         out SecurityEvaluationContext context)
     {
-        if (options?.SimulatedSecurityModel is SimulatedSecurityModel securityModel)
+        if (options?.SimulatedSecurityModel is not null and not SimulatedSecurityModel)
+            throw new NotSupportedException("Custom ISecurityModel implementations are not supported. Use SimulatedSecurityModel to configure enforced security.");
+
+        if (!dataService.IsSystemUser && options?.SimulatedSecurityModel is SimulatedSecurityModel securityModel)
         {
-            context = new SecurityEvaluationContext(securityModel);
+            context = new SecurityEvaluationContext(securityModel, options.Metadata);
             return true;
         }
 

@@ -70,6 +70,9 @@ public static class SimulatorOptionsProcessor
 		MockedEntityDataService dataService,
 		ISimulatorOptions? options)
 	{
+		if (options?.SimulatedSecurityModel is not null and not SimulatedSecurityModel)
+			throw new NotSupportedException("Custom ISecurityModel implementations are not supported. Use SimulatedSecurityModel to configure enforced security.");
+
 		if (options?.SimulatedSecurityModel is SimulatedSecurityModel securityModel)
 		{
 			securityModel.Validate();

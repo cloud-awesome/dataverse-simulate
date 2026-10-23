@@ -48,6 +48,8 @@ public sealed class EntityCreator
             e = processor.Process(e);
         }
 
+        new RecordOwnership(dataService, options).PrepareCreate(e);
+
         // Submit to data store
         dataService.Add(e);
         auditService.Add(RequestMessage, e.LogicalName, e.Id);
@@ -68,7 +70,6 @@ public sealed class EntityCreator
         
         e.SetAttributeIfEmpty(EntityConstants.CreatedBy, dataService.AuthenticatedUser);
         e.SetAttributeIfEmpty(EntityConstants.ModifiedBy, dataService.AuthenticatedUser);
-        e.SetAttributeIfEmpty(EntityConstants.OwnerId, dataService.AuthenticatedUser);
 
         return e;
     }

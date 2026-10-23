@@ -28,10 +28,12 @@ public static class ServiceProviderSimulator
         context.DataService.ExecutionContext = localOptions.PluginExecutionContextMock;
         context.DataService.FakeServiceFailureSettings = localOptions.FakeServiceFailureSettings;
 
-        SimulatorOptionsProcessor.ConfigureAuthenticatedUser(context.DataService, localOptions);
         SimulatorOptionsProcessor.InitialiseMockedData(context.DataService, localOptions);
         SimulatorOptionsProcessor.ConfigureUsersBusinessUnit(context.DataService, localOptions);
         SimulatorOptionsProcessor.ConfigureOrganization(context.DataService, localOptions);
+        SimulatorOptionsProcessor.ConfigureAuthenticatedUser(context.DataService, localOptions);
+        SimulatorOptionsProcessor.InitialiseSecurityModelEntities(context.DataService, localOptions);
+        SimulatorOptionsProcessor.InitialiseMockedRelationships(context.DataService, localOptions);
         SimulatorOptionsProcessor.SetSystemTime(context.DataService, localOptions);
         SimulatorOptionsProcessor.ConfigureFiscalYearSettings(context.DataService, localOptions);
         SimulatorOptionsProcessor.InitialiseQueues(context.DataService, localOptions);

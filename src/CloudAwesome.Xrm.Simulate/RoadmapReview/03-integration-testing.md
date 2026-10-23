@@ -42,13 +42,15 @@ Follow [P1-P7](00-executive-summary.md#updated-order-of-work). P2 fixtures shoul
 
 The first query input/output implementation adds **23 `QuerySemantics` cases** for projection/identity, default/all FetchXML columns, OR/nested filters, metadata rejection, invalid operators, malformed input, and empty base projections with selected/filter-only links. Together with the original 40 cases, the project now contains 63 cases. After refreshing authentication and shortening fixture last names to meet the platform limit, the final focused live run on 2026-10-22 passed **all 23 cases**. It also corrected the empty distinct projection behavior and tightened rejection assertions to exclude unrelated service failures. This result covers this category, not a rerun of all integration fixtures. See the [query implementation notes](08-query-execution-phase-review.md#p1-query-inputoutput-implementation---22-october-2026) for the command and simulator exception limitations.
 
+The 23 October security pass adds **12 `SecurityIdentity` cases** (75 integration cases in total). The initial focused Release run passed seven and skipped five. After configuring the restricted user, **all five restricted linked visibility/count/aggregate cases passed live**, establishing pass evidence for all twelve. The follow-up corrected an invalid `WhoAmI` assertion: that request reports the authenticated connection user, while record reads and joins apply the impersonated caller's permissions. The fixture now checks both connection identity and effective visible/hidden record access. Restricted cases require `DATAVERSE_SECURITY_USER_ID` and skip before connecting when absent. See [security setup, commands, and limits](06-security-model.md#p1-implementation-and-verification---23-october-2026). Factory null/empty semantics have unit coverage and SDK documentation evidence, not a live plugin-host parity result.
+
 - [ ] Empty and explicit column sets, primary-id projection, and distinct result identity across query forms.
 - [ ] FetchXML OR/nested filters, unsupported operators, multiple values, malformed XML, and metadata-backed unknown entity/attribute behavior.
 - [ ] Paging across multiple pages: cookie continuation, count caps, total-count boundaries, deterministic order, and top/paging conflicts.
 - [ ] Aggregate SDK output wrappers/types, empty input, distinct count, default/explicit limits, and grouping/timezones.
-- [ ] Read security for inner/outer linked rows before aggregates/counts/paging.
-- [ ] Service-factory caller identity and supported null/system behavior.
-- [ ] Ownership changes, assignee validation, organization-owned tables, and stale owning fields.
+- [x] Execute the five restricted-user linked read/count/aggregate cases: all passed in the configured follow-up. Broader paging/depth parity remains open.
+- [ ] Add live plugin-host service-factory caller/null/system comparisons; the per-service implementation and unit regressions are complete.
+- [x] Add/run initial ownership-change, missing-assignee, organization-owned read, and stale-owning-field parity cases: seven live passes on 23 October. Cross-BU/access-team/denied-privilege parity remains open.
 - [ ] Queue add/remove/pick/release/route responses, side effects, duplicate targets, source moves, and faults. No queue-specific integration fixture exists yet.
 - [ ] Upsert update/key paths and declared-key uniqueness; batch settings and transaction fault details/indexes as well as rollback.
 - [ ] Successful sparse update, delete, assign, and relationship lookup/intersect effects, beyond the existing fault/payload checks.
