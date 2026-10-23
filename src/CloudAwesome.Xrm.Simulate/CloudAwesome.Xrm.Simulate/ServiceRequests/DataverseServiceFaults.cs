@@ -65,6 +65,27 @@ internal static class DataverseServiceFaults
 		return new FaultException<OrganizationServiceFault>(fault, new FaultReason(message));
 	}
 
+	internal static FaultException<OrganizationServiceFault> InvalidAggregateLimit()
+	{
+		const string message = "Expected value between 1 and 50000 inclusive.";
+		var fault = new OrganizationServiceFault { ErrorCode = -2147220989, Message = message };
+		return new FaultException<OrganizationServiceFault>(fault, new FaultReason(message));
+	}
+
+	internal static FaultException<OrganizationServiceFault> InvalidPageNumber(int page)
+	{
+		var message = $"A non valid page number was received: {page}";
+		var fault = new OrganizationServiceFault { ErrorCode = -2147220989, Message = message };
+		return new FaultException<OrganizationServiceFault>(fault, new FaultReason(message));
+	}
+
+	internal static FaultException<OrganizationServiceFault> TopCountWithPaging(int top)
+	{
+		var message = $"The Top.Count = {top} can't be specified with pagingInfo";
+		var fault = new OrganizationServiceFault { ErrorCode = -2147220891, Message = message };
+		return new FaultException<OrganizationServiceFault>(fault, new FaultReason(message));
+	}
+
 	private static string GetEntityDisplayName(string logicalName)
 	{
 		return string.IsNullOrEmpty(logicalName)

@@ -16,21 +16,26 @@ public static class QueryExpressionParser
 
     internal static IEnumerable<Entity> Parse(QueryExpression query, Dictionary<string, List<Entity>> data,
         MockedEntityDataService dataService, SimulatedMetadata? metadata)
+        => Parse(query, data, dataService, metadata, null);
+
+    internal static IEnumerable<Entity> Parse(QueryExpression query, Dictionary<string, List<Entity>> data,
+        MockedEntityDataService dataService, SimulatedMetadata? metadata, QueryPaging? paging)
     {
-        if (query == null || data == null || !data.ContainsKey(query.EntityName))
+        if (query == null || data == null)
         {
             return Enumerable.Empty<Entity>();
         }
 
         var primaryIdAttribute = metadata?.GetEntity(query.EntityName).PrimaryIdAttribute;
-        var records = data[query.EntityName]
+        var source = data.GetValueOrDefault(query.EntityName) ?? [];
+        var records = source
             .Select(EntityCloner.Clone)
             .ToList()
             .AsQueryable();
 
         records = Filter.Apply(query.Criteria, records, dataService);
         records = LinkedEntities.Apply(query.LinkEntities.ToList(), records.ToList(), data, dataService);
-        records = Aggregates.Apply(query.ColumnSet, records, query.EntityName, dataService.FiscalYearSettings);
+        records = Aggregates.Apply(query.ColumnSet, records, query.EntityName, dataService.FiscalYearSettings!, metadata?.GetEntity(query.EntityName), source);
         records = Order.Apply(query.Orders, records);
         if (query.Distinct)
         {
@@ -42,6 +47,8 @@ public static class QueryExpressionParser
 
         records = Distinct.Apply(query.Distinct, records);
         records = TopCount.Apply(query.TopCount, records.ToList());
+        if (paging is not null)
+            records = paging.Apply(records, query, primaryIdAttribute).AsQueryable();
         if (!query.Distinct)
         {
             records = Columns.Apply(query.ColumnSet, records, true, primaryIdAttribute);

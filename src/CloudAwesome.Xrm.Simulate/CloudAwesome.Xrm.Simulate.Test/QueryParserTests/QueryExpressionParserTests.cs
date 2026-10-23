@@ -695,7 +695,7 @@ public class QueryExpressionParserTests
             .Should()
             .Equal("Record 5");
         results.MoreRecords.Should().BeFalse();
-        results.PagingCookie.Should().BeNullOrEmpty();
+        results.PagingCookie.Should().NotBeNullOrWhiteSpace();
         results.TotalRecordCount.Should().Be(-1);
     }
 

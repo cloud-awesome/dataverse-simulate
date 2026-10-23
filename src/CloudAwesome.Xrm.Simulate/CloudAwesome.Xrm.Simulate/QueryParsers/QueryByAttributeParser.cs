@@ -13,16 +13,17 @@ public static class QueryByAttributeParser
 
     internal static IEnumerable<Entity> Parse(QueryByAttribute query, Dictionary<string, List<Entity>> data,
         MockedEntityDataService dataService, SimulatedMetadata? metadata)
+        => Parse(query, data, dataService, metadata, null);
+
+    internal static IEnumerable<Entity> Parse(QueryByAttribute query, Dictionary<string, List<Entity>> data,
+        MockedEntityDataService dataService, SimulatedMetadata? metadata, QueryPaging? paging)
     {
         if (query.Values == null
             || query.Attributes == null
-            || data == null
-            || !data.ContainsKey(query.EntityName))
+            || data == null)
         {
             return Enumerable.Empty<Entity>();
         }
-
-        var records = data[query.EntityName].AsQueryable();
 
         var queryExpression = new QueryExpression
         {
@@ -34,7 +35,7 @@ public static class QueryByAttributeParser
         queryExpression.Orders.AddRange(query.Orders);
         queryExpression.Criteria = ConstructFilters(query.Attributes, query.Values);
 
-        return QueryExpressionParser.Parse(queryExpression, data, dataService, metadata);
+        return QueryExpressionParser.Parse(queryExpression, data, dataService, metadata, paging);
     }
 
     private static FilterExpression ConstructFilters(DataCollection<string> attributes,

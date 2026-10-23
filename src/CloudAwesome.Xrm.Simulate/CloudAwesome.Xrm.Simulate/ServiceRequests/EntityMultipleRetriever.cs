@@ -14,8 +14,6 @@ namespace CloudAwesome.Xrm.Simulate.ServiceRequests;
 public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEntityMultipleRetriever
 {
     private const string RequestMessage = "RetrieveMultiple";
-    private const int DefaultPageSize = 5000;
-    private const int TotalRecordCountLimit = 5000;
 
     public void MockRequest(
         IOrganizationService organizationService,
@@ -47,10 +45,11 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
     {
         RequestFailureHandler.Handle(options, RequestMessage);
 
+        var paging = new QueryPaging(query.PageInfo, query.TopCount);
         MetadataValidator.ValidateQuery(query, options);
         var data = ApplyReadableFilter(query.EntityName, options);
-        var results = QueryExpressionParser.Parse(query, data, dataService, options?.Metadata);
-        return ToEntityCollection(results, query.PageInfo);
+        var results = QueryExpressionParser.Parse(query, data, dataService, options?.Metadata, paging);
+        return paging.ToCollection(results);
     }
 
     internal EntityCollection RetrieveMultiple(FetchExpression query, ISimulatorOptions? options)
@@ -58,61 +57,24 @@ public class EntityMultipleRetriever(MockedEntityDataService dataService) : IEnt
         RequestFailureHandler.Handle(options, RequestMessage);
 
         var queryExpression = FetchExpressionParser.ConvertFetchXmlToQueryExpression(query.Query);
+        var paging = new QueryPaging(queryExpression.PageInfo, queryExpression.TopCount);
         MetadataValidator.ValidateQuery(queryExpression, options);
         var data = ApplyReadableFilter(queryExpression.EntityName, options);
-        var results = QueryExpressionParser.Parse(queryExpression, data, dataService, options?.Metadata);
+        var results = QueryExpressionParser.Parse(queryExpression, data, dataService, options?.Metadata, paging);
 
-        return ToEntityCollection(results, queryExpression.PageInfo);
+        return paging.ToCollection(results);
     }
 
     internal EntityCollection RetrieveMultiple(QueryByAttribute query, ISimulatorOptions? options)
     {
         RequestFailureHandler.Handle(options, RequestMessage);
 
+        var paging = new QueryPaging(query.PageInfo, query.TopCount);
         MetadataValidator.ValidateQuery(query, options);
         var data = ApplyReadableFilter(query.EntityName, options);
-        var results = QueryByAttributeParser.Parse(query, data, dataService, options?.Metadata);
+        var results = QueryByAttributeParser.Parse(query, data, dataService, options?.Metadata, paging);
 
-        return ToEntityCollection(results, query.PageInfo);
-    }
-
-    private static EntityCollection ToEntityCollection(IEnumerable<Entity> results, PagingInfo? pageInfo)
-    {
-        var materialized = results.ToList();
-        var pageNumber = pageInfo?.PageNumber > 0 ? pageInfo.PageNumber : 1;
-        var pageSize = pageInfo?.Count > 0 ? pageInfo.Count : DefaultPageSize;
-        var skip = (pageNumber - 1) * pageSize;
-        var page = materialized
-            .Skip(skip)
-            .Take(pageSize)
-            .ToList();
-
-        var collection = new EntityCollection(page)
-        {
-            MoreRecords = materialized.Count > skip + pageSize,
-            TotalRecordCount = -1
-        };
-
-        if (collection.MoreRecords && page.Count > 0)
-        {
-            collection.PagingCookie = BuildPagingCookie(pageNumber, page);
-        }
-
-        if (pageInfo?.ReturnTotalRecordCount == true)
-        {
-            collection.TotalRecordCount = Math.Min(materialized.Count, TotalRecordCountLimit);
-            collection.TotalRecordCountLimitExceeded = materialized.Count > TotalRecordCountLimit;
-        }
-
-        return collection;
-    }
-
-    private static string BuildPagingCookie(int pageNumber, IReadOnlyList<Entity> page)
-    {
-        var first = page[0].Id.ToString("D");
-        var last = page[^1].Id.ToString("D");
-
-        return $"<cookie page=\"{pageNumber}\" first=\"{first}\" last=\"{last}\" />";
+        return paging.ToCollection(results);
     }
 
     private Dictionary<string, List<Entity>> ApplyReadableFilter(

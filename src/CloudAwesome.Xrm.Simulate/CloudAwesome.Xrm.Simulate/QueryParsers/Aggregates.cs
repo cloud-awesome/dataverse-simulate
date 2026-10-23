@@ -1,5 +1,6 @@
-﻿using CloudAwesome.Xrm.Simulate.DataStores;
+using CloudAwesome.Xrm.Simulate.DataStores;
 using Microsoft.Xrm.Sdk;
+using CloudAwesome.Xrm.Simulate.Metadata;
 using Microsoft.Xrm.Sdk.Query;
 using CloudAwesome.Xrm.Simulate.ServiceRequests;
 
@@ -11,6 +12,10 @@ public static class Aggregates
 
     public static IQueryable<Entity> Apply(ColumnSet columnSet, IEnumerable<Entity> records, string entityName,
         FiscalYearSettings fiscalYearSettings)
+        => Apply(columnSet, records, entityName, fiscalYearSettings, null, null);
+
+    internal static IQueryable<Entity> Apply(ColumnSet columnSet, IEnumerable<Entity> records, string entityName,
+        FiscalYearSettings fiscalYearSettings, SimulatedEntityMetadata? metadata, IEnumerable<Entity>? sourceRecords)
     {
         // If there are no aggregate expressions, don't touch the pipeline.
         if (columnSet == null ||
@@ -22,7 +27,14 @@ public static class Aggregates
             return records.AsQueryable();
         }
 
-        records = ApplyAggregateLimit(columnSet, records);
+        var input = ApplyAggregateLimit(columnSet, records).ToList();
+        var source = sourceRecords?.ToList() ?? input;
+        var aliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var expression in columnSet.AttributeExpressions)
+        {
+            if (!aliases.Add(GetAliasOrAttributeName(expression)))
+                throw new ArgumentException("Aggregate and group aliases must be unique.");
+        }
 
         var groupByExpressions = columnSet.AttributeExpressions
             .Where(e => e.HasGroupBy)
@@ -33,35 +45,37 @@ public static class Aggregates
             .ToList();
 
         // If no GROUP BY, we aggregate across the whole input as a single group.
-        var grouped = groupByExpressions.Count == 0
-            ? records.GroupBy(_ => GroupKey.Empty, GroupKeyComparer.Instance)
-            : records.GroupBy(
+        IEnumerable<List<Entity>> grouped = groupByExpressions.Count == 0
+            ? new[] { input }
+            : input.GroupBy(
                 r => new GroupKey(groupByExpressions
                     .Select(g => NormalizeGroupByValue(
                         GetAttributeValue(r, g.AttributeName), g, fiscalYearSettings))
                     .ToArray()),
-                GroupKeyComparer.Instance);
+                GroupKeyComparer.Instance).Select(group => group.ToList());
 
         var output = new List<Entity>();
 
         foreach (var group in grouped)
         {
-            var row = new Entity(entityName) { Id = Guid.NewGuid() };
+            var row = new Entity(entityName);
 
             // Emit group-by columns using their alias if provided
             for (int i = 0; i < groupByExpressions.Count; i++)
             {
                 var expr = groupByExpressions[i];
                 var alias = GetAliasOrAttributeName(expr);
-                row[alias] = group.Key.Values[i];
+                var value = NormalizeGroupByValue(GetAttributeValue(group[0], expr.AttributeName), expr, fiscalYearSettings);
+                if (value is not null)
+                    row[alias] = new AliasedValue(entityName, expr.AttributeName, value);
             }
 
             // Emit aggregate columns
             foreach (var expr in aggregateExpressions)
             {
                 var alias = GetAliasOrAttributeName(expr);
-                object value = ComputeAggregate(expr, group);
-                row[alias] = value;
+                var value = ComputeAggregateValue(expr, group, InferAttributeType(expr.AttributeName, metadata, source));
+                row[alias] = new AliasedValue(entityName, expr.AttributeName, value);
             }
 
             output.Add(row);
@@ -70,103 +84,52 @@ public static class Aggregates
         return output.AsQueryable();
     }
 
-    private static object ComputeAggregate(XrmAttributeExpression expr, IGrouping<GroupKey, Entity> group)
+    private static Type InferAttributeType(string attribute, SimulatedEntityMetadata? metadata, IEnumerable<Entity> source)
     {
-        switch (expr.AggregateType)
+        if (metadata?.TryGetAttribute(attribute, out var attributeMetadata) == true)
         {
-            case XrmAggregateType.Sum:
-                return Sum(group, expr.AttributeName);
-
-            case XrmAggregateType.Avg:
-                return Avg(group, expr.AttributeName);
-
-            case XrmAggregateType.Min:
-                return Min(group, expr.AttributeName);
-
-            case XrmAggregateType.Max:
-                return Max(group, expr.AttributeName);
-
-            case XrmAggregateType.Count:
-                // COUNT(*) semantics per Dataverse QueryExpression
-                return group.Count();
-
-            case XrmAggregateType.CountColumn:
-                // Count of non-null values for that column
-                return FetchXmlAggregateOptions.IsDistinct(expr)
-                    ? group
-                        .Select(e => GetAttributeValue(e, expr.AttributeName))
-                        .Where(value => value != null)
-                        .Distinct(AggregateValueComparer.Instance)
-                        .Count()
-                    : group.Count(e => GetAttributeValue(e, expr.AttributeName) != null);
-            
-            case XrmAggregateType.None:
-            default:
-                return null;
-        }
-    }
-
-    private static object Sum(IEnumerable<Entity> group, string attribute)
-    {
-        decimal sum = 0m;
-        bool any = false;
-        foreach (var v in Values(group, attribute))
-        {
-            if (TryToDecimal(v, out var d))
+            var type = attributeMetadata.AttributeType.ToLowerInvariant() switch
             {
-                sum += d;
-                any = true;
-            }
+                "integer" => typeof(int), "bigint" => typeof(long), "decimal" => typeof(decimal),
+                "double" => typeof(double), "money" => typeof(Money), _ => null
+            };
+            if (type is not null) return type;
         }
-        return any ? (object)sum : 0;
+        return source.Select(row => GetAttributeValue(row, attribute)).FirstOrDefault(value => value is not null)?.GetType() ?? typeof(int);
     }
 
-    private static object Avg(IEnumerable<Entity> group, string attribute)
+    private static object? ComputeAggregateValue(XrmAttributeExpression expression, IReadOnlyList<Entity> group, Type type)
     {
-        decimal sum = 0m;
-        int count = 0;
-        foreach (var v in Values(group, attribute))
+        if (expression.AggregateType == XrmAggregateType.Count) return group.Count;
+        var values = group.Select(row => GetAttributeValue(row, expression.AttributeName)).OfType<object>().ToList();
+        if (expression.AggregateType == XrmAggregateType.CountColumn)
+            return FetchXmlAggregateOptions.IsDistinct(expression) ? values.Distinct(AggregateValueComparer.Instance).Count() : values.Count;
+
+        if (values.Count == 0 && type != typeof(int) && type != typeof(long))
+            return null;
+
+        if (expression.AggregateType is XrmAggregateType.Min or XrmAggregateType.Max && values.Count > 0)
+            return values.Aggregate((best, value) =>
+                (Compare(best, value) > 0) == (expression.AggregateType == XrmAggregateType.Min) ? value : best);
+
+        if (type == typeof(double))
         {
-            if (TryToDecimal(v, out var d))
-            {
-                sum += d;
-                count++;
-            }
+            var numbers = values.Select(value => Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+            return numbers.Count == 0 ? 0d : expression.AggregateType == XrmAggregateType.Avg ? numbers.Average() : numbers.Sum();
         }
-        return count > 0 ? (object)(sum / count) : null;
+        if (type != typeof(int) && type != typeof(long) && type != typeof(decimal) && type != typeof(Money))
+            return values.Count == 0 ? null : throw new NotSupportedException($"Aggregate {expression.AggregateType} requires a numeric attribute.");
+
+        var total = values.Sum(value => value is Money money ? money.Value : Convert.ToDecimal(value, System.Globalization.CultureInfo.InvariantCulture));
+        var result = expression.AggregateType == XrmAggregateType.Avg && values.Count > 0 ? total / values.Count : total;
+        if (type == typeof(Money)) return new Money(result);
+        if (type == typeof(int)) return checked((int)decimal.Truncate(result));
+        if (type == typeof(long)) return checked((long)decimal.Truncate(result));
+        return result;
     }
 
-    private static object Min(IEnumerable<Entity> group, string attribute)
-    {
-        object best = null;
-        foreach (var v in Values(group, attribute))
-        {
-            if (v == null) continue;
-            if (best == null) { best = v; continue; }
-
-            if (Compare(best, v) > 0) best = v;
-        }
-        return best;
-    }
-
-    private static object Max(IEnumerable<Entity> group, string attribute)
-    {
-        object best = null;
-        foreach (var v in Values(group, attribute))
-        {
-            if (v == null) continue;
-            if (best == null) { best = v; continue; }
-
-            if (Compare(best, v) < 0) best = v;
-        }
-        return best;
-    }
-
-    private static IEnumerable<object> Values(IEnumerable<Entity> group, string attribute)
-        => group.Select(e => GetAttributeValue(e, attribute));
-
-    private static object GetAttributeValue(Entity e, string attribute)
-        => e.Attributes != null && e.Attributes.TryGetValue(attribute, out var v) ? v : null;
+    private static object? GetAttributeValue(Entity entity, string attribute)
+        => entity.GetAttributeValue<object>(attribute);
 
     private static IEnumerable<Entity> ApplyAggregateLimit(ColumnSet columnSet, IEnumerable<Entity> records)
     {
@@ -176,6 +139,8 @@ public static class Aggregates
 
         if (explicitLimit.HasValue)
         {
+            if (explicitLimit.Value <= 0 || explicitLimit.Value > DefaultAggregateRecordLimit)
+                throw DataverseServiceFaults.InvalidAggregateLimit();
             return records.Take(explicitLimit.Value + 1).ToList();
         }
 
@@ -240,15 +205,15 @@ public static class Aggregates
     private sealed class GroupKey
     {
         public static readonly GroupKey Empty = new GroupKey(Array.Empty<object>());
-        public GroupKey(object[] values) { Values = values; }
-        public object[] Values { get; }
+        public GroupKey(object?[] values) { Values = values; }
+        public object?[] Values { get; }
     }
 
     private sealed class GroupKeyComparer : IEqualityComparer<GroupKey>
     {
         public static readonly GroupKeyComparer Instance = new GroupKeyComparer();
 
-        public bool Equals(GroupKey x, GroupKey y)
+        public bool Equals(GroupKey? x, GroupKey? y)
         {
             if (ReferenceEquals(x, y)) return true;
             if (x is null || y is null) return false;
@@ -313,12 +278,9 @@ public static class Aggregates
         }
     }
     
-        private static object NormalizeGroupByValue(object value, XrmAttributeExpression expr, FiscalYearSettings options)
+    private static object? NormalizeGroupByValue(object? value, XrmAttributeExpression expr, FiscalYearSettings options)
     {
         if (value == null) return null;
-
-        // Unwrap Money to underlying numeric if it shows up accidentally
-        if (value is Microsoft.Xrm.Sdk.Money m) value = m.Value;
 
         // Accept DateTimeOffset too (Dataverse sometimes)
         if (value is DateTimeOffset dto) value = dto.UtcDateTime;

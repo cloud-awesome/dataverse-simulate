@@ -94,6 +94,7 @@ public sealed class SecurityIdentityRegressionTests
         results.TotalRecordCount.Should().Be(1);
         results.MoreRecords.Should().BeFalse();
         query.TopCount = 1;
+        query.PageInfo = new PagingInfo();
         f.Service.RetrieveMultiple(query).Entities.Should().ContainSingle().Which.Id.Should().Be(visible.Id);
     }
 
@@ -104,7 +105,7 @@ public sealed class SecurityIdentityRegressionTests
         f.Add("contact", f.User, f.Add("account", f.Other));
         f.Add("contact", f.User, f.Add("account", f.User));
         var result = f.Service.RetrieveMultiple(new FetchExpression("<fetch aggregate='true'><entity name='contact'><attribute name='contactid' alias='n' aggregate='count'/><link-entity name='account' from='accountid' to='parentcustomerid'/></entity></fetch>"));
-        Convert.ToInt32(result.Entities.Single()["n"]).Should().Be(1);
+        result.Entities.Single().GetAttributeValue<AliasedValue>("n").Value.Should().Be(1);
     }
 
     [TestCase(false)]

@@ -51,10 +51,10 @@ Custom typed handlers are available through `.Simulated().CustomOrgRequests().Ad
 | Surface | Delivered | Still open |
 | --- | --- | --- |
 | Query forms | `QueryExpression`, converted FetchXML, and converted `QueryByAttribute` share execution | FetchXML-specific validation and richer syntax. |
-| Filtering/projection/order | Full base rows filtered before projection; ordering before top; projected distinct; cloned query rows | Empty column sets, exact primary-id/distinct output, nested/OR FetchXML filters, alias-reference edge cases. |
-| Links | Inner/left outer joins, `AliasedValue`, selected linked columns, unselected join/filter columns, focused immutability tests | Linked-row security; ordering by unprojected linked columns; nested alias behavior; advanced joins. |
-| Paging | Count/page slicing, `MoreRecords`, generated cookie, capped total count across all three forms | Incoming cookie consumption, maximum page size, stable ordering, invalid option combinations, live cookie semantics. |
-| Aggregation | Sum/average/min/max/count/countcolumn, distinct countcolumn, grouping/date/fiscal settings, default limit fault | SDK value wrappers/types, empty inputs, synthetic ids, explicit limit semantics, timezone and live aggregate fixtures. |
+| Filtering/projection/order | Full rows filtered before projection; ordering before top; distinct/primary-id/empty-column contracts; nested FetchXML filters; cloned SDK values | Alias-referenced/post-join filter edge cases and complete platform collation. |
+| Links | Inner/left outer joins, readable linked rows, `AliasedValue`, selected linked columns, unselected join/filter columns, immutability tests | Ordering by unprojected linked columns; nested alias behavior; advanced joins. |
+| Paging | Standard-table caps, value-based base-query cookies, final-page metadata, exact selected faults, all three query forms, live continuation after result-set changes | Linked/distinct/grouped cookies; elastic-table limits; remaining invalid-cookie/option envelopes. |
+| Aggregation | Typed SDK aliases with empty ids; verified numeric/empty/grouped output; distinct countcolumn; default limit fault; live explicit-limit/invalid-limit contract | Timezone/fiscal behavior, mixed-currency conversion, complete group/linked aggregation, BigInt live evidence. |
 
 The old broad query rewrite has been substantially delivered. The remaining work is a focused correctness pass (P1), followed by evidence-led expansion (P6), not restarting the query engine. See [08](08-query-execution-phase-review.md) for source-level findings.
 

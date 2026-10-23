@@ -303,7 +303,7 @@ public sealed class QueryInputOutputSemanticsTests
                                                                   """)).Entities.Should().ContainSingle().Subject;
 
         result.Attributes.Keys.Should().Equal("total");
-        result["total"].Should().Be(3m);
+        result.GetAttributeValue<AliasedValue>("total").Value.Should().Be(3);
         var invalid = () => service.RetrieveMultiple(new FetchExpression("""
                                                                          <fetch aggregate='true'><entity name='ca_row'>
                                                                            <attribute name='unknown' alias='total' aggregate='sum'/>

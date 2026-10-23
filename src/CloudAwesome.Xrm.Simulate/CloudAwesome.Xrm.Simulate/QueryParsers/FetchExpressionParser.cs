@@ -47,9 +47,10 @@ public static class FetchExpressionParser
         var entityName = RequiredAttribute(entityNode, "name");
         var query = new QueryExpression(entityName);
 
-        if (int.TryParse(fetchNode.Attributes["top"]?.Value, out int topCount))
+        var topCount = GetIntegerXmlAttribute(fetchNode, "top");
+        if (topCount.HasValue)
         {
-            query.TopCount = topCount;
+            query.TopCount = topCount.Value;
         }
 
         var pageNumber = GetIntegerXmlAttribute(fetchNode, "page");
@@ -369,7 +370,12 @@ public static class FetchExpressionParser
         => bool.TryParse(n.Attributes?[name]?.Value, out var b) && b;
 
     private static int? GetIntegerXmlAttribute(XmlNode n, string name)
-        => int.TryParse(n.Attributes?[name]?.Value, out var value) ? value : null;
+    {
+        var raw = n.Attributes?[name]?.Value;
+        if (raw is null) return null;
+        return int.TryParse(raw, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var value)
+            ? value : throw new ArgumentException($"FetchXML '{name}' must be a valid integer.");
+    }
 
     private static XrmDateTimeGrouping MapDateGrouping(string? s)
     {
