@@ -1,6 +1,6 @@
 # Benchmarking roadmap
 
-Date reviewed: 2026-10-22
+Date reviewed: 2026-10-26
 
 ## Current position and priority
 
@@ -22,8 +22,8 @@ The benchmark project still contains only `Console.WriteLine("Hello, World!")`. 
 | --- | --- | --- |
 | Basic test workload | Initialize simulator; create; retrieve by id; sparse update; delete | Implemented; suitable first baseline. |
 | Queries | Filter and projection; date conditions; inner/outer links; distinct; ordered multi-page retrieval | Implemented subset; use the corrected P1 contracts. |
-| FetchXML and aggregates | Parse/execute; distinct count; date/fiscal grouping; aggregate-limit boundary | Implemented, with output/limit parity still to harden. |
-| Security | Base and linked readable-row filtering, owner teams, shares, depth checks | Base filtering exists; linked filtering is P1 work. |
+| FetchXML and aggregates | Parse/execute; distinct count; date/fiscal grouping; aggregate-limit boundary | Typed output and selected limits have passing P1/P2 comparisons; timezone/fiscal and broader aggregation remain qualified. |
+| Security | Base and linked readable-row filtering, owner teams, shares, depth checks | Base/linked filtering is delivered, including restricted-user live evidence; broader depth parity remains P2. |
 | Organization requests | ExecuteMultiple, successful transaction and rollback | Already implemented; remove the old dependency on first implementing ExecuteMultiple. |
 | Queues | Typed seeding; add/pick/release/route/remove | Already implemented; baseline after parity hardening. |
 | Isolated plugin unit | Context/provider initialization and execution of one plugin/code unit | Existing mocks support this; automatic plugin pipelines remain out of scope. |
@@ -42,7 +42,7 @@ Use 10, 100, 5,000, and 50,000 rows as initial scales. Add boundary fixtures suc
 - Clone/projection allocations and full-result materialization before paging.
 - Repeated FetchXML parsing where callers reuse identical queries.
 
-Query results already clone top-level entities to avoid the previously tested source-mutation bugs. Benchmark that implementation before changing its isolation contract. Do not sacrifice fidelity or remove useful validation merely to improve a throughput number.
+Query results recursively clone standard mutable SDK values to avoid tested source-mutation bugs. Ordinary CRUD input/result isolation remains an outstanding [P1 finding](09-p1-closeout-review.md); establish that corrected contract before a baseline is treated as stable. Do not sacrifice fidelity or remove useful validation merely to improve throughput.
 
 ## CI and comparisons
 

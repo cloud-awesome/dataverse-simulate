@@ -1,6 +1,6 @@
 # Queue simulation roadmap
 
-Date reviewed: 2026-10-22
+Date reviewed: 2026-10-26; implementation/live update: 2026-10-23
 
 ## Current position
 
@@ -15,6 +15,8 @@ First-class queue simulation is implemented. The 23 October P1/P2 pass hardens m
 - [x] Initial security checks and focused unit tests for allowed/denied operations.
 
 `QueueMutationParityTests` now supplies 30 live/simulator comparisons. They establish the supported subset below, rather than complete queue parity.
+
+The 26 October review confirms the scoped queue P1 work remains delivered; [ordinary CRUD isolation and query correctness](09-p1-closeout-review.md) are the outstanding P1 gates. No new live run was performed today; the passing queue/full-run evidence below is dated 23 October.
 
 ## Implemented setup API
 
@@ -100,7 +102,8 @@ Capture minimal fixtures using transient queue-enabled records:
 - [x] Wrong/missing source, empty/missing destination, missing task/item/worker, and empty worker. Selected validation fault messages/codes are exact; other missing-record comparisons retain codes only.
 - [x] Pick with/without removal, release before/after pick, queue/user routing, stable item ids, worker preservation/clearing, and task survival after removal.
 - [ ] Live team routing, disabled queue capability/invalid target types, broad custom fields, exact timestamps/owners, and other activity effects.
-- [ ] Security requirements and cleanup after partial failures or transactions.
+- [x] Track transient queue/task/item fixtures, remove confirmed-deleted items from tracking, and verify the lifecycle cleanup/retry follow-up: 30 live passes with no reported cleanup errors.
+- [ ] Expand live queue privilege-denial requirements and queue transaction rollback evidence. Rollback/security unit coverage is present; stricter cleanup failure reporting remains P2 harness work.
 
 Use the existing parity harness and cleanup scope; no new framework is necessary. See [03](03-integration-testing.md).
 

@@ -1,12 +1,14 @@
 # Simulation parity roadmap
 
-Date reviewed: 2026-10-22
+Date reviewed: 2026-10-26; implementation history: 2026-10-22/23
 
 ## Goal and status convention
 
 The simulator should be Dataverse-compatible enough that an isolated failing test predicts a failing live operation. Implemented behavior must be distinguished from complete platform parity.
 
 The order of work is [P1-P7 in the executive summary](00-executive-summary.md#updated-order-of-work). Checked items describe delivered implementation, with limitations kept open. The original 22 October review used source/build evidence; dated P1 follow-ups record the subsequent live runs.
+
+The [26 October close-out review](09-p1-closeout-review.md) reopens three P1 items: ordinary CRUD object isolation, ordering on unselected linked columns, and silent qualified QueryExpression misexecution. P2 preparation can proceed alongside this bounded follow-up.
 
 ## Correctness foundations delivered
 
@@ -29,7 +31,7 @@ Do not equate these fixes with complete CRUD parity. Relationship/cascade behavi
 
 | Area | Implemented requests | Remaining qualification |
 | --- | --- | --- |
-| Direct equivalents | `CreateRequest`, `RetrieveRequest`, `RetrieveMultipleRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest` | Shared operation and success-only audit paths exist; full relationship semantics remain open. |
+| Direct equivalents | `CreateRequest`, `RetrieveRequest`, `RetrieveMultipleRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest` | Shared operation and success-only audit paths exist. Direct Create/Update inputs and Retrieve outputs still share stored objects (P1); full relationship semantics remain P4. |
 | Identity and ownership | Per-service caller identity, connection identity from `WhoAmIRequest`, shared ownership validation for Create/Assign/Update/Upsert | Valid user/owner teams and owning fields are covered; cascades, modernized BU settings, and broad denied-operation parity remain open. |
 | Upsert and state | `UpsertRequest`, `SetStateRequest` | Upsert honors primary-id precedence, copies create keys, removes identifying key columns on update, validates matching declared keys when metadata is loaded, and preserves request input. Global alternate-key uniqueness and direct key-based CRUD remain P4. |
 | Batches | `ExecuteMultipleRequest`, `ExecuteTransactionRequest` | Batch settings/partial commit, transaction response defaults/order, rollback, fault type/code/message/index, and nested-batch rejection now have live comparisons. External side effects from custom handlers are outside snapshot rollback. |
@@ -51,8 +53,8 @@ Custom typed handlers are available through `.Simulated().CustomOrgRequests().Ad
 | Surface | Delivered | Still open |
 | --- | --- | --- |
 | Query forms | `QueryExpression`, converted FetchXML, and converted `QueryByAttribute` share execution | FetchXML-specific validation and richer syntax. |
-| Filtering/projection/order | Full rows filtered before projection; ordering before top; distinct/primary-id/empty-column contracts; nested FetchXML filters; cloned SDK values | Alias-referenced/post-join filter edge cases and complete platform collation. |
-| Links | Inner/left outer joins, readable linked rows, `AliasedValue`, selected linked columns, unselected join/filter columns, immutability tests | Ordering by unprojected linked columns; nested alias behavior; advanced joins. |
+| Filtering/projection/order | Full rows filtered before projection; ordering before top; distinct/primary-id/empty-column contracts; nested FetchXML filters; cloned SDK query values | Qualified QueryExpression filters silently use base rows (P1). Full alias support and platform collation remain deeper work; unsupported forms must fail explicitly. |
+| Links | Inner/left outer joins, readable linked rows, `AliasedValue`, selected linked columns, unselected join/filter columns, immutability tests | Ordering by unprojected linked columns remains P1. Wider nested aliases and advanced joins remain scoped follow-up. |
 | Paging | Standard-table caps, value-based base-query cookies, final-page metadata, exact selected faults, all three query forms, live continuation after result-set changes | Linked/distinct/grouped cookies; elastic-table limits; remaining invalid-cookie/option envelopes. |
 | Aggregation | Typed SDK aliases with empty ids; verified numeric/empty/grouped output; distinct countcolumn; default limit fault; live explicit-limit/invalid-limit contract | Timezone/fiscal behavior, mixed-currency conversion, complete group/linked aggregation, BigInt live evidence. |
 
@@ -105,9 +107,11 @@ A relationship store is already present. It does not yet make ordinary associati
 
 ## Exit criteria for the next parity milestone
 
-Close or document each P1 gap, add targeted unit regressions and live fixtures, and publish a feature matrix that distinguishes implemented behavior from recorded live verification. Preserve useful exactness checks for fault type/code/message, response names/keys/types, entity projection, and side effects. The existing 560 passing tests are the baseline, not evidence that every table or SDK request is covered.
+Close the three reproduced [P1 findings](09-p1-closeout-review.md), add targeted unit regressions and live fixtures, and publish a matrix distinguishing implemented behavior from recorded live verification. Preserve checks for fault type/code/message, response names/keys/types, projection, and side effects. The fresh 913 passing unit tests do not cover these newly reproduced defects.
 
 ## P1 mutation/response implementation - 23 October 2026
+
+This records the delivered 23 October scope. The 26 October review adds ordinary CRUD object isolation as a remaining P1 gate; it does not undo the audit, Upsert, transaction, or queue corrections below.
 
 - [x] Direct calls and request wrappers share success-only audit behavior for Create, Retrieve, RetrieveMultiple, Update, Delete, Associate, and Disassociate. Query audits contain the base table and a null record id. Upsert produces one `Upsert` entry; its internal Create/Update still runs the relevant processor but does not add another audit entry. These are simulator diagnostics, not a simulation of Dataverse audit-table retention or event history.
 - [x] Assign retains the shared ownership validation/defaults delivered in the security pass, with one successful Assign audit. Those regression and live ownership fixtures remain part of verification.

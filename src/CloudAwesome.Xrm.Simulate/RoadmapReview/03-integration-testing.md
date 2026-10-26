@@ -1,12 +1,14 @@
 # Integration testing roadmap
 
-Date reviewed: 2026-10-22
+Date reviewed: 2026-10-26; live evidence through 2026-10-23
 
 ## Current position
 
 The original connectivity-only stage is complete. A reusable dual-execution harness and several focused live/simulator parity suites now exist. The next priority is reliable execution and deeper coverage of the implemented features, not creating another harness.
 
-**Verification boundary:** 40 integration tests were discovered on 2026-10-22 with `dotnet test CloudAwesome.Xrm.Simulate.Integration/CloudAwesome.Xrm.Simulate.Integration.csproj --no-build --no-restore --configuration Release --list-tests`. The integration project built successfully as part of the solution. No live sandbox tests were executed during this review; fixture presence is not a claim of a current live pass.
+**Current verification boundary:** the 26 October local review rechecks the Release build and discovery of **158 cases**. The last full live result is **158 passes on 23 October**, with the final queue cleanup follow-up also passing. No live sandbox tests were rerun on 26 October. The original 40-case inventory below is retained as a dated baseline, followed by the implementation history.
+
+The [close-out review](09-p1-closeout-review.md) identifies three remaining P1 gates despite those green results. P2 configuration/automation can begin in parallel; the new CRUD-isolation and query-order/qualification cases should accompany the P1 follow-up.
 
 ## Delivered harness
 
@@ -40,13 +42,13 @@ Follow [P1-P7](00-executive-summary.md#updated-order-of-work). P2 fixtures shoul
 
 ### P1/P2 - Existing behavior with the highest risk
 
-The first query input/output implementation adds **23 `QuerySemantics` cases** for projection/identity, default/all FetchXML columns, OR/nested filters, metadata rejection, invalid operators, malformed input, and empty base projections with selected/filter-only links. Together with the original 40 cases, the project now contains 63 cases. After refreshing authentication and shortening fixture last names to meet the platform limit, the final focused live run on 2026-10-22 passed **all 23 cases**. It also corrected the empty distinct projection behavior and tightened rejection assertions to exclude unrelated service failures. This result covers this category, not a rerun of all integration fixtures. See the [query implementation notes](08-query-execution-phase-review.md#p1-query-inputoutput-implementation---22-october-2026) for the command and simulator exception limitations.
+The first query input/output implementation added **23 `QuerySemantics` cases** for projection/identity, default/all FetchXML columns, OR/nested filters, metadata rejection, invalid operators, malformed input, and empty base projections with selected/filter-only links. Together with the original 40 cases, that pass brought the inventory to 63. After refreshing authentication and shortening fixture last names to meet the platform limit, the final focused live run on 2026-10-22 passed **all 23 cases**. It also corrected the empty distinct projection behavior and tightened rejection assertions to exclude unrelated service failures. This result covered that category, not a rerun of all integration fixtures. See the [query implementation notes](08-query-execution-phase-review.md#p1-query-inputoutput-implementation---22-october-2026) for the command and simulator exception limitations.
 
 The 23 October security pass adds **12 `SecurityIdentity` cases** (75 integration cases in total). The initial focused Release run passed seven and skipped five. After configuring the restricted user, **all five restricted linked visibility/count/aggregate cases passed live**, establishing pass evidence for all twelve. The follow-up corrected an invalid `WhoAmI` assertion: that request reports the authenticated connection user, while record reads and joins apply the impersonated caller's permissions. The fixture now checks both connection identity and effective visible/hidden record access. Restricted cases require `DATAVERSE_SECURITY_USER_ID` and skip before connecting when absent. See [security setup, commands, and limits](06-security-model.md#p1-implementation-and-verification---23-october-2026). Factory null/empty semantics have unit coverage and SDK documentation evidence, not a live plugin-host parity result.
 
 The paging/aggregate pass adds **36 `PagingAggregates` cases**, all passing live, taking integration discovery to **111 cases**. The fixture compares SDK wrappers and numeric types, empty/grouped/limit output, multi-page metadata, default SDK counts, value-based continuation after boundary changes, and selected exact input faults. See [the supported contract and command](08-query-execution-phase-review.md#p1-paging-and-aggregates-implementation---23-october-2026). Large 5,001/50,001-row boundaries remain unit/documentation evidence rather than expensive live fixtures; special cookie shapes, elastic tables, timezones, and mixed-currency aggregation remain open.
 
-The final combined Release run passed **71 tests, 0 skipped, 0 failed** using `--filter "TestCategory=PagingAggregates|TestCategory=QuerySemantics|TestCategory=SecurityIdentity"`. This reran all three new P1 categories, including the configured restricted-user cases; it did not rerun the remaining original 40 integration cases.
+The paging pass's combined Release run passed **71 tests, 0 skipped, 0 failed** using `--filter "TestCategory=PagingAggregates|TestCategory=QuerySemantics|TestCategory=SecurityIdentity"`. This reran those three P1 categories, including the configured restricted-user cases; it did not rerun the original 40 integration cases. The later full run is recorded below.
 
 The mutation/response pass adds **47 `MutationConsistency` cases**: 17 response/upsert/transaction cases and 30 `Queues` cases, taking the current inventory to **158 integration cases**. Focused live runs cover all 47. They compare response names/keys/SDK ids, Upsert request isolation and undeclared matching keys, transaction default/explicit responses and indexed faults, all batch settings, task queue move identity, selected exact validation faults, removal, release, routing, and target survival. See [the mutation contract](01-simulation-parity.md#p1-mutationresponse-implementation---23-october-2026) and [queue limits](07-queue-simulation.md#p1p2-implementation-and-verification---23-october-2026). These use the existing app connection and temporary records; no schema keys, users, or roles are provisioned.
 
@@ -55,7 +57,7 @@ The full Release integration run passed **158 tests, 0 skipped, 0 failed**, incl
 After the cleanup correction, the final Release queue run passed **30 tests, 0 skipped, 0 failed**, with **no cleanup errors reported**, using `--filter "TestCategory=Queues"`. The local artifact is `CloudAwesome.Xrm.Simulate.Integration/TestResults/queue-cleanup-release.trx`. The earlier 47-case mutation rerun also passed; the final queue run verifies the last harness change without repeating unrelated query/security cases.
 
 - [x] Initial empty/explicit column-set, primary-id projection, and distinct identity comparisons, covered by the 23 query input/output cases.
-- [x] Initial FetchXML OR/nested filters, unsupported operators, multiple values, malformed input, and metadata-backed unknown entity/attribute comparisons; richer syntax and full fault envelopes remain open.
+- [x] Initial FetchXML OR/nested filters, explicit unsupported-operator/multiple-value rejection, malformed input, and metadata-backed unknown entity/attribute comparisons; richer syntax and full fault envelopes remain open.
 - [x] Initial multi-page/cookie/default-count/TopCount parity with result-set mutation and final-page metadata. Standard-table large count/page caps have unit coverage; large live, special-cookie, and elastic-table cases remain open.
 - [x] Initial typed aggregate/empty/null-group/distinct/explicit-limit/invalid-limit parity. Timezone/fiscal/mixed-currency and default-limit large live cases remain open.
 - [x] Execute the five restricted-user linked read/count/aggregate cases: all passed in the configured follow-up. Broader paging/depth parity remains open.
@@ -65,6 +67,7 @@ After the cleanup correction, the final Release queue run passed **30 tests, 0 s
 - [x] Upsert primary-id/key-attribute create/update paths and matching undeclared-key rejection; batch settings/partial commits; transaction response defaults, fault type/code/message/index, nested-batch rejection, and rollback.
 - [ ] Positive live declared alternate-key provisioning, collation/uniqueness, and direct key-based CRUD.
 - [ ] Successful sparse update, delete, assign, and relationship lookup/intersect effects, beyond the existing fault/payload checks.
+- [ ] P1 follow-up: ordinary Create/Update/Retrieve reference isolation, ordering on unselected linked columns, and qualified QueryExpression correctness or explicit rejection. The current 158 live cases do not establish these contracts.
 
 ### P2/P4 - Metadata and security depth
 
@@ -116,8 +119,8 @@ Existing [PR CI](../../../.github/workflows/ci.yml) builds the integration proje
 
 P2 implementation order:
 
-1. Document a reproducible local smoke/core command and sandbox requirements.
-2. Add manual dispatch using repository secrets, exact category filters, timeouts, and cleanup reporting.
+1. Document a reproducible local smoke/core command, explicit opt-in/readiness/missing-settings behavior, and sandbox/restricted-user requirements while closing the three P1 findings.
+2. Add manual dispatch using repository secrets, exact category filters, timeouts, and failing cleanup reporting; verify the existing Ubuntu workflow's Windows-style test-project path.
 3. Add scheduled runs and require recorded supported-subset parity before release.
 4. Retain TRX and focused mismatch reports; make expected behavior changes explicit in reviewed tests/baselines.
 
