@@ -9,6 +9,20 @@ public static class LinkedEntities
     public static IQueryable<Entity> Apply(List<LinkEntity>? linkedEntities, List<Entity> records, 
         Dictionary<string, List<Entity>> data, MockedEntityDataService dataService)
     {
+        var ordering = new LinkedOrdering(linkedEntities ?? []);
+        var joined = ApplyLinks(linkedEntities, records, data, dataService, ordering);
+        // Sort using execution-only keys. Remove them before projection/distinct so they cannot
+        // leak into output or change distinct identity; top and paging consume this ordered sequence.
+        var ordered = Order.Apply(ordering.Orders, joined).ToList();
+        foreach (var row in ordered)
+            foreach (var key in ordering.HiddenKeys)
+                row.Attributes.Remove(key);
+        return ordered.AsQueryable();
+    }
+
+    private static IQueryable<Entity> ApplyLinks(List<LinkEntity>? linkedEntities, List<Entity> records,
+        Dictionary<string, List<Entity>> data, MockedEntityDataService dataService, LinkedOrdering ordering)
+    {
         if (linkedEntities == null || !linkedEntities.Any())
         {
             return records.AsQueryable();
@@ -29,9 +43,8 @@ public static class LinkedEntities
                 .ToList();
 
             linkedRecords = Filter.Apply(linkedEntity.LinkCriteria, linkedRecords.AsQueryable(), dataService).ToList();
-            linkedRecords = Apply(linkedEntity.LinkEntities.ToList(), linkedRecords, data, dataService).ToList();
-            records = JoinEntities(records, linkedRecords, linkedEntity).ToList();
-            records = ApplyLinkedOrders(linkedEntity, records).ToList();
+            linkedRecords = ApplyLinks(linkedEntity.LinkEntities.ToList(), linkedRecords, data, dataService, ordering).ToList();
+            records = JoinEntities(records, linkedRecords, linkedEntity, ordering).ToList();
         }
 
         return records.AsQueryable();
@@ -61,7 +74,7 @@ public static class LinkedEntities
     }
 
     private static IEnumerable<Entity> JoinEntities(IEnumerable<Entity> primaryEntities,
-        IEnumerable<Entity> linkedEntities, LinkEntity linkedEntity)
+        IEnumerable<Entity> linkedEntities, LinkEntity linkedEntity, LinkedOrdering ordering)
     {
         var linkedEntityList = linkedEntities.ToList();
 
@@ -83,7 +96,7 @@ public static class LinkedEntities
 
             foreach (var linked in matches)
             {
-                yield return MergeEntities(primary, linked, linkedEntity);
+                yield return MergeEntities(primary, linked, linkedEntity, ordering);
             }
         }
     }
@@ -99,11 +112,19 @@ public static class LinkedEntities
         return Equals(GetJoinKeyValue(primaryKey), GetJoinKeyValue(linkedKey));
     }
 
-    private static Entity MergeEntities(Entity primaryEntity, Entity linkedEntity, LinkEntity linkEntity)
+    private static Entity MergeEntities(Entity primaryEntity, Entity linkedEntity, LinkEntity linkEntity,
+        LinkedOrdering ordering)
     {
         var result = EntityCloner.Clone(primaryEntity);
 
-        foreach (var attribute in GetProjectedAttributes(linkedEntity, linkEntity.Columns))
+        // Carry nested execution keys through the parent join without aliasing them.
+        foreach (var key in ordering.HiddenKeys)
+            if (linkedEntity.Attributes.TryGetValue(key, out var value)) result[key] = value;
+        foreach (var (attribute, key) in ordering.Keys[linkEntity])
+            if (linkedEntity.Attributes.TryGetValue(attribute, out var value)) result[key] = value;
+
+        foreach (var attribute in GetProjectedAttributes(linkedEntity, linkEntity.Columns)
+                     .Where(attribute => !ordering.HiddenKeys.Contains(attribute.Key)))
         {
             var attributeKey = string.IsNullOrWhiteSpace(linkEntity.EntityAlias)
                 ? attribute.Key
@@ -117,33 +138,31 @@ public static class LinkedEntities
         return result;
     }
 
-    private static IQueryable<Entity> ApplyLinkedOrders(LinkEntity linkedEntity, IEnumerable<Entity> records)
+    private sealed class LinkedOrdering
     {
-        if (linkedEntity.Orders == null || linkedEntity.Orders.Count == 0)
+        internal readonly Dictionary<LinkEntity, List<(string Attribute, string Key)>> Keys = new();
+        internal readonly HashSet<string> HiddenKeys = new(StringComparer.Ordinal);
+        internal readonly List<OrderExpression> Orders = [];
+
+        internal LinkedOrdering(IEnumerable<LinkEntity> links)
         {
-            return records.AsQueryable();
+            foreach (var link in links) Add(link);
         }
 
-        var projectedOrders = linkedEntity.Orders
-            .Select(order => new OrderExpression(GetProjectedOrderAttributeName(linkedEntity, order), order.OrderType))
-            .ToList();
-
-        return Order.Apply(projectedOrders, records.AsQueryable());
-    }
-
-    private static string GetProjectedOrderAttributeName(LinkEntity linkedEntity, OrderExpression order)
-    {
-        var attributeName = !string.IsNullOrWhiteSpace(order.AttributeName)
-            ? order.AttributeName
-            : order.Alias;
-
-        if (string.IsNullOrWhiteSpace(linkedEntity.EntityAlias) ||
-            attributeName.Contains(".", StringComparison.Ordinal))
+        private void Add(LinkEntity link)
         {
-            return attributeName;
+            var keys = new List<(string, string)>();
+            Keys.Add(link, keys);
+            foreach (var order in link.Orders)
+            {
+                var attribute = !string.IsNullOrWhiteSpace(order.AttributeName) ? order.AttributeName : order.Alias;
+                var key = $"__simulator_link_order_{Guid.NewGuid():N}";
+                keys.Add((attribute, key));
+                HiddenKeys.Add(key);
+                Orders.Add(new OrderExpression(key, order.OrderType));
+            }
+            foreach (var child in link.LinkEntities) Add(child);
         }
-
-        return $"{linkedEntity.EntityAlias}.{attributeName}";
     }
 
     private static IEnumerable<KeyValuePair<string, object>> GetProjectedAttributes(Entity linkedEntity,

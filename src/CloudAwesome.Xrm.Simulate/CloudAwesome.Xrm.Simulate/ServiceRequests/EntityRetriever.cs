@@ -1,6 +1,7 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.QueryParsers;
 using CloudAwesome.Xrm.Simulate.SecurityModel;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
@@ -93,6 +94,7 @@ public class EntityRetriever
                          .Single();
         }
                     
+        entity = EntityCloner.Clone(entity);
         auditService.Add(RequestMessage, entity.LogicalName, entity.Id);
                 
         return entity;

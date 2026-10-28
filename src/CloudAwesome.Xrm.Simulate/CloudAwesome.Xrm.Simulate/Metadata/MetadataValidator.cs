@@ -1,5 +1,6 @@
 using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.QueryParsers;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 
@@ -64,6 +65,7 @@ internal static class MetadataValidator
 
     internal static void ValidateQuery(QueryExpression query, ISimulatorOptions? options)
     {
+        QueryInputValidator.Validate(query);
         var metadata = options?.Metadata;
         if (metadata is null)
         {
@@ -89,6 +91,7 @@ internal static class MetadataValidator
 
     internal static void ValidateQuery(QueryByAttribute query, ISimulatorOptions? options)
     {
+        QueryInputValidator.Validate(query);
         var metadata = options?.Metadata;
         if (metadata is null)
         {

@@ -1,25 +1,29 @@
 # CloudAwesome.Xrm.Simulate maturity roadmap
 
-Date reviewed: 2026-10-22
+Date reviewed: 2026-10-28; implementation history: 2026-10-22/23/28
 
 Original review: 2026-06-02, with subsequent September updates
 
-## Executive update - 22 October 2026
+## Executive update - 28 October 2026
+
+**The three remaining P1 implementation findings are closed.** Ordinary CRUD now isolates caller/stored mutable SDK values, linked ordering uses unselected columns before top/paging, and unsupported qualified query inputs fail explicitly. Alias-qualified filters/orders and column comparisons remain explicit limitations. See the [completed findings, evidence, and P2 handoff](09-p1-closeout-review.md).
+
+Fresh Release unit execution passes **1,043 tests with no skips** (130 additions), and the four-project Release build succeeds with existing warnings. The full live run passes **174 tests with five restricted-user skips**; the configured follow-up passes **all five with no skips**. All **179 integration cases** have fresh pass evidence across those two runs, including 21 new close-out cases, with no reported cleanup errors. See [exact results and limitations](09-p1-closeout-review.md#verification---28-october-2026). The next implementation priority is P2 repeatability and deeper scoped parity.
 
 The project has moved from implementing its foundations to hardening a substantially broader simulator. Most original correctness fixes and the first implementations of metadata, security, queues, common organization requests, query projection, paging, and aggregation are now present. The immediate sequence in the previous review has largely been delivered, sometimes in a different order.
 
-The next milestone should be a trustworthy, documented release of that existing surface. Prioritize the specific correctness gaps below, repeatable live parity, and release automation before another broad feature expansion. A green unit suite proves the current simulator contract; it does not by itself establish exact Dataverse behavior.
+The next milestone should be a trustworthy, documented release of that existing surface. Preserve the completed scoped contracts below, and prioritize repeatable live parity and release automation before another broad feature expansion. A green unit suite proves the current simulator contract; it does not by itself establish exact Dataverse behavior.
 
 ## Scope and evidence
 
-This update reviews the four local projects, repository-root CI and packaging configuration, and checked-in tests at commit `2620652` (`Security model enhancements`, 2026-09-23). Only markdown in `RoadmapReview` was changed.
+The 26 October close-out review inspects the four projects, repository-root CI, tests, and all roadmap documents at `959c952` (`P1 roadmap fixes`, #399). Only markdown in `RoadmapReview` is retained from this review. The following original baseline inspected `2620652` (`Security model enhancements`, 2026-09-23); its counts are historical.
 
 Verification on 2026-10-22:
 
 - Unit suite: **560 passed, 4 skipped, 0 failed** using `dotnet test CloudAwesome.Xrm.Simulate.Test/CloudAwesome.Xrm.Simulate.Test.csproj --no-restore`.
 - Four-project Release build: succeeded with 0 warnings and 0 errors reported by this incremental build, using `dotnet build CloudAwesome.Xrm.Simulate.sln --no-restore --configuration Release`.
 - Integration discovery: **40 tests** using `dotnet test CloudAwesome.Xrm.Simulate.Integration/CloudAwesome.Xrm.Simulate.Integration.csproj --no-build --no-restore --configuration Release --list-tests`. Live sandbox execution was not performed during this review.
-- The four skipped unit tests are older empty projection/link TODOs. Newer focused tests cover these scenarios; reconcile or remove the placeholders in a future code change.
+- The four older empty projection/link TODOs were subsequently removed in the first P1 pass; active focused tests cover those behaviors. There are no skips in the current 1,043-test suite.
 
 Public documentation, NuGet, GitHub issue counts, and the separate `dvcli` repository were not refreshed. The previous claims about published version `1.0.4` and 60 open issues are historical, not current evidence. The local library project declares **1.1.1**; this does not prove publication.
 
@@ -47,7 +51,7 @@ This is the authoritative sequence for the companion documents. P1 and P2 should
 
 | Order | Work item | Why now / completion criterion |
 | --- | --- | --- |
-| **P1** | Harden the implemented behavior | Close the concrete gaps below with focused regressions and live comparisons where platform behavior is uncertain. Avoid marking whole subsystems as exact parity. |
+| **P1 - complete** | Harden the implemented behavior | The three final correctness gaps have implementations and focused unit/live fixtures. Preserve explicit unsupported contracts rather than claiming whole-subsystem parity. |
 | **P2** | Make live parity repeatable | Extend the harness beyond the delivered P1 comparisons into deeper metadata/security/activity cases; add opt-in/manual CI and a release parity run with recorded results. |
 | **P3** | Prepare a documented, reproducible release | Publish a support/limitations matrix and current examples; add package metadata, package validation, version policy, symbols/source support, and a release workflow. Existing PR CI is the starting point. |
 | **P4** | Complete metadata and relationship semantics | Implement relationship validation/direction, lookup/intersect mutation, ownership-aware defaults, declared alternate-key enforcement, type validation, and selected cascade/concurrency behavior as real unit-test scenarios require. |
@@ -55,12 +59,12 @@ This is the authoritative sequence for the companion documents. P1 and P2 should
 | **P6** | Add targeted request/query breadth | Prioritize `In`/`NotIn` and real consumer scenarios, then scoped/fiscal/multiselect operators, advanced joins, global option-set retrieval, bulk upsert or activity/platform helpers as justified. |
 | **P7** | Establish performance baselines | Add BenchmarkDotNet over supported scenarios, including security, paging, queues, and batches, before considering indexes or other optimizations. |
 
-### P1 findings to carry into implementation
+### P1 implementation status and close-out
 
-- [x] **Query output and input semantics:** implemented in the first P1 pass: empty column sets, metadata-backed primary-id projection, distinct identity, SDK value isolation, nested/OR FetchXML, explicit input rejection, and FetchXML metadata validation. Focused regressions and **23 passing live parity cases** accompany the changes. Live results corrected the empty distinct projection contract: an empty base column set includes primary ids, even with selected linked columns. See the [implementation contract and verification notes](08-query-execution-phase-review.md#p1-query-inputoutput-implementation---22-october-2026); broader query fidelity remains scoped work.
+- [x] **Query output and input semantics:** the first pass delivered projection/distinct identity, SDK query isolation, nested/OR FetchXML and metadata/input validation, with **23 passing live cases**. The 28 October follow-up closes unselected linked ordering and silent qualified-input misexecution through hidden sort values and explicit input rejection, with direct/FetchXML regressions and focused live comparisons. Wider qualified/post-join/column-comparison support remains P2/P6. See [close-out evidence](09-p1-closeout-review.md) and the [query contract](08-query-execution-phase-review.md).
 - [x] **Security and identity:** the 23 October implementation filters linked rows before joins/counts/paging/aggregates, isolates factory caller identity over shared state, rejects unsupported custom `ISecurityModel` implementations, and unifies owner validation/owning fields across Create, Assign, Update, and Upsert. Metadata drives organization-owned table access/defaults. **63 new regression cases; 669 unit tests passing.** The initial live run passed seven cases and skipped five; the configured restricted-user follow-up passed all five linked cases. Live evidence corrected `WhoAmI`: it reports the authenticated connection user, while CRUD/query permissions follow the impersonated caller. Exact privilege-denial envelopes, broader depth parity, cascades, and modernized business-unit ownership remain open in the [security implementation notes](06-security-model.md#p1-implementation-and-verification---23-october-2026).
 - [x] **Paging and aggregates:** the 23 October pass implements value-based cookie continuation for supported base queries, standard-table page caps, final-page cookie metadata, and verified paging-option faults. Aggregates now return typed `AliasedValue` results with empty ids, correct integer averages, and verified empty/grouped output. Live evidence confirms that explicit `aggregatelimit` intentionally aggregates up to `limit + 1` arbitrary rows. **121 new regression cases; 790 unit tests passing; 36 new live parity cases passing.** Linked/distinct/grouped cookie support, elastic-table limits, and timezone/fiscal grouping fidelity remain explicitly scoped follow-up work in the [paging/aggregate implementation notes](08-query-execution-phase-review.md#p1-paging-and-aggregates-implementation---23-october-2026).
-- [x] **Mutation/response consistency:** the final 23 October P1 pass unifies success-only auditing for direct calls/request handlers, preserves Upsert request payloads and key semantics, returns indexed transaction faults with verified response defaults, and validates queue candidates before writing while preserving move identity. Assign retains the shared ownership checks from the security pass. **123 new regression cases; 913 unit tests passing; 47 new live parity cases passing.** Global alternate-key uniqueness, positive live declared-key provisioning, full queue metadata/privileges, and special activity behavior remain scoped P2/P4 work in the [mutation implementation notes](01-simulation-parity.md#p1-mutationresponse-implementation---23-october-2026) and [queue review](07-queue-simulation.md#p1p2-implementation-and-verification---23-october-2026).
+- [x] **Mutation/response consistency:** the 23 October pass delivered success-only auditing, cloned Upsert payloads/key semantics, indexed transaction faults/response defaults and safe queue moves, with **123 new regressions and 47 new live cases** at that stage. The 28 October follow-up isolates ordinary Create/Update inputs, processor-retained values and Retrieve responses for direct/request forms, including mutable SDK graphs and failed/denied-operation audit regressions. Raw fixture access remains mutable. See [close-out evidence](09-p1-closeout-review.md). Global key uniqueness and full queue metadata/privileges remain P2/P4 work in the [mutation notes](01-simulation-parity.md) and [queue review](07-queue-simulation.md).
 
 ## Milestone exit criteria
 
@@ -78,3 +82,4 @@ Do not carry forward the old proposed version numbers as commitments. Choose the
 - [06 - Security model](06-security-model.md)
 - [07 - Queue simulation](07-queue-simulation.md)
 - [08 - Query execution](08-query-execution-phase-review.md)
+- [09 - P1 close-out review and P2 handoff](09-p1-closeout-review.md)

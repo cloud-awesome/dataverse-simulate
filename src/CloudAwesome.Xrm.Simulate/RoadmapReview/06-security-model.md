@@ -1,12 +1,14 @@
 # Security model roadmap
 
-Date reviewed: 2026-10-22; implementation update: 2026-10-23
+Date reviewed: 2026-10-28; implementation updates: 2026-10-23/28
 
 ## Current position
 
 The first security model and its service wiring are implemented. The old description of a create-only boolean guard is obsolete. The next work is to harden the implemented model and verify real privilege/ownership behavior, not to build another graph/calculator.
 
 Security remains opt-in. No configured model preserves permissive operation behavior. `IgnoreMissingEntities` controls missing table configuration for the concrete model. Source presence and passing local tests are distinguished from full live parity throughout this review.
+
+The scoped security/identity pass remains delivered. The [28 October close-out](09-p1-closeout-review.md) also fixes ordinary CRUD object isolation so caller-held mutable SDK values cannot bypass the service operation/audit boundary. Wider security-depth/denial evidence remains P2. The fresh unit suite passes 1,043 tests; current live regression results, including the existing twelve SecurityIdentity cases, are recorded in document 09.
 
 ## Delivered model and setup
 
@@ -75,9 +77,9 @@ The previous open question about authenticated-user representation has a partial
 - [x] Validate creating on behalf of another owner and reassignment to an existing user/owner team with table Read. Unsupported team/principal types and independent owning-BU changes fail explicitly.
 - [x] Clear stale `owninguser`/`owningteam` and derive `owningbusinessunit` across Create, Assign, Update/UpdateRequest, and Upsert. Failed validation leaves stored rows unchanged; transaction rollback restores ownership and audits.
 - [x] Use ownership metadata: organization-owned tables omit owner defaults, use table permissions without record-owner depth checks, and reject assignment/sharing and ownership-column mutation.
-- [ ] Capture operation-specific privilege-denial faults rather than treating the common `AccessDenied` code and simulator-generated message as exact live parity.
+- [x] Document that the common `AccessDenied` code/simulator-generated message is an approximation rather than an exact denied-operation envelope. Capturing operation-specific live faults remains P2 evidence work below.
 
-Use the P2 fixtures below while closing these gaps. General relationship direction/cascade completion belongs to P4, but misleading authorization on an already supported path should be fixed early.
+The [28 October close-out](09-p1-closeout-review.md) separately closes the CRUD-reference gap: supported caller/response SDK mutations no longer change stored rows without another operation/audit. New denial/failure regressions preserve stored data and success-only auditing. Use the P2 fixtures below to extend live security evidence. General relationship direction/cascade completion belongs to P4, while demonstrated misleading authorization on a supported path should be fixed early.
 
 ## P1 implementation and verification - 23 October 2026
 
@@ -92,7 +94,7 @@ Evidence:
 - `SecurityIdentityRegressionTests`: **63 new cases**, covering readable inner/outer/FetchXML/nested/self links, shares/teams, aggregate/count/top/page effects, isolated identities, SYSTEM, unsupported custom models, owning-field transitions, denial atomicity, invalid assignees, organization-owned CRUD, derived-field rejection, transaction rollback, and connection identity versus effective caller for explicit/empty/SYSTEM factory services.
 - Full unit run after the impersonation correction: **669 passed, 0 skipped, 0 failed**, versus the **606 passed** pre-change baseline. Command: `dotnet test CloudAwesome.Xrm.Simulate.Test/CloudAwesome.Xrm.Simulate.Test.csproj --no-restore`.
 - Four-project Release solution build succeeded. Existing compiler/nullability warnings remain; this is not a warning-free-build claim.
-- Live `SecurityIdentity` category: **7 passed, 5 skipped, 0 failed**. Seven ownership cases compare user/team/user fields through Assign, Update, and Upsert; missing-assignee fault codes and unchanged owners for those three paths; and organization-owned currency Retrieve/RetrieveMultiple. Transient teams reuse the caller's roles and are deleted with the account fixtures. No existing user or role assignments are changed.
+- Initial live `SecurityIdentity` run: **7 passed, 5 skipped, 0 failed**. Seven ownership cases compare user/team/user fields through Assign, Update, and Upsert; missing-assignee fault codes and unchanged owners for those three paths; and organization-owned currency Retrieve/RetrieveMultiple. Transient teams reuse the caller's roles and are deleted with the account fixtures. No existing user or role assignments are changed.
 - The initial five restricted-caller cases skipped for missing user configuration. The configured follow-up passed **all five** QueryExpression/FetchXML inner/outer/count and aggregate cases. Each verifies the clone retains `CallerId`, `WhoAmI` still identifies the connection, the restricted user's account is retrievable, and the connecting user's account is hidden. This proves effective read impersonation without relying on `WhoAmI` as the impersonated identity. No live plugin-host null/empty factory test was run.
 - Final combined follow-up: **12 passed, 0 skipped, 0 failed** using `dotnet test CloudAwesome.Xrm.Simulate.Integration/CloudAwesome.Xrm.Simulate.Integration.csproj --no-restore --filter "TestCategory=SecurityIdentity"` (Debug). The existing restricted-user id was supplied only to that test process; credentials, roles, and persistent environment settings were unchanged. Rider MCP could not resolve a runnable NUnit entry point, so reproduction and verification used the native test runner rather than a debugger session.
 
@@ -111,9 +113,11 @@ Priority cases:
 - [ ] None/user/business-unit/parent-child/organization depths across own, sibling, child, and parent business units.
 - [ ] Owner-team privilege inheritance and team-owned record access, including role assignment/removal through association requests.
 - [ ] Explicit user/team shares with missing/available table privileges, overlapping masks, modification, revocation, and effective-access responses.
-- [ ] Retrieve and RetrieveMultiple visibility, including inner/outer links, aggregates, count, and page boundaries.
+- [x] Initial restricted-user Retrieve/inner/outer/count/aggregate visibility, including connection-versus-effective identity: all five configured live cases passed.
+- [ ] Extend visibility across business-unit/owner-team/share depths and restricted-caller page boundaries.
 - [ ] Create/update/delete/assign/share/append authorization and exact denied faults.
-- [ ] Per-service caller identities, missing/invalid principals, owner-team versus access-team assignments, and organization-owned tables.
+- [x] Initial live ownership/missing-assignee/organization-owned comparisons, plus local factory null/empty/explicit identity regressions.
+- [ ] Live plugin-host factory null/empty/explicit comparisons and wider principal/team/ownership settings.
 - [ ] Queue-specific requirements and transaction rollback of memberships/shares/assignments.
 
 Use transient role/principal fixtures and customization automation where necessary. Avoid a permanent gold dataset. See [03](03-integration-testing.md) for configuration, cleanup, and CI work.

@@ -1,6 +1,6 @@
 # Metadata simulation roadmap
 
-Date reviewed: 2026-10-22
+Date reviewed: 2026-10-28; implementation history: 2026-10-22/23/28
 
 ## Current position
 
@@ -16,7 +16,7 @@ Optional metadata is implemented and is no longer a prerequisite waiting to be b
 - [x] Queue-enabled capability `IsValidForQueue` is loaded and consumed by queue setup/operations.
 - [x] No metadata preserves permissive operation behavior; metadata retrieval requests explicitly require a loaded model.
 
-`MetadataSimulationTests` and `QueueSimulationTests` cover these first implementations. Selected metadata/security integration fixtures also exist; they were not run live in this review.
+`MetadataSimulationTests` and `QueueSimulationTests` cover these first implementations. The two selected metadata/security integration cases passed in the full 23 October live run. The 28 October full unit suite passes 1,043 cases, including the three final P1 corrections. Unsupported qualified query inputs now fail consistently before optional metadata validation. See [close-out evidence and remaining scope](09-p1-closeout-review.md).
 
 ## Contract and generator status
 
@@ -59,8 +59,8 @@ The loader already rejects missing/unsupported contract versions, empty document
 | --- | --- | --- |
 | Entity model | Logical/schema/collection names, primary id/name, ownership, activity/intersect, valid messages, queue capability | Many properties are retained but do not yet drive every operation. |
 | Attribute model | Names/types, required/read/create/update flags, secured flag, lookup targets, limits, precision, options, integer defaults | Strict SDK runtime type checks, datetime behavior, full boolean/choice defaults, field-level security. |
-| Create | Known entity/attributes, configured create validity, selected required fields/value rules, primary id and state/status defaults | Ownership-aware system defaults, related-entity creation, full required-level parity. |
-| Update | Attribute/value validity and state/status pair when both supplied | Validate effective merged state/status for partial updates; key-based direct operations and ownership transitions. |
+| Create | Known entity/attributes, configured create validity, selected required fields/value rules, primary id, state/status, and supported ownership defaults | Ordinary input reference isolation (P1); broader ownership settings, related-entity creation, full required-level parity (P4). |
+| Update | Attribute/value validity, state/status pair when both supplied, and shared supported ownership-change checks | Mutable input reference isolation (P1); effective merged state/status, key-based direct operations, broader ownership/cascades (P4). |
 | Retrieve/queries | Known/readable selected columns, converted FetchXML and QueryExpression filter/order/link/aggregate source attributes, QueryByAttribute attributes, aggregate order aliases | Complete all-columns/readability and richer alias/link validation still need review. |
 | Paging/aggregation | Metadata-backed primary-id cookie keys and numeric type hints for empty-table aggregates | Elastic-table limits, full type/aggregate validity, timezone/fiscal and mixed-currency behavior. |
 | Relationships | Shape stored and projected to SDK metadata; query link column existence checked | General associate/disassociate schema/direction rules and lookup/intersect mutations are not implemented. |
@@ -77,17 +77,19 @@ Important distinctions:
 
 ## Remaining work in roadmap order
 
-### P1 - Validation consistency
+### P1 - Delivered validation consistency
 
-- [ ] Apply metadata validation to converted FetchXML before execution, with alias/aggregate-aware rules where necessary.
-- [ ] Resolve empty column-set and primary-id output semantics across retrieval/query paths; do not infer a primary key from every `id`-suffixed matching GUID.
-- [ ] Capture and test ownership/state/aggregate response cases that currently give misleading fidelity guarantees.
+- [x] Apply metadata validation to converted FetchXML before execution, including aggregate source/order aliases (first P1 pass).
+- [x] Resolve the supported empty column-set and metadata-backed primary-id output contract without matching unrelated GUID fields (first P1 pass).
+- [x] Capture the scoped ownership changes, existing SetState state/status mutation, and typed/empty/grouped aggregate response contracts. These delivered comparisons do not establish every invalid/partial state/status or ownership setting.
+
+The remaining [P1 review findings](09-p1-closeout-review.md) concern CRUD reference isolation and linked/qualified query execution. Full merged state/status validation, strict types, and broader metadata semantics remain P4; their evidence belongs to P2.
 
 ### P2 - Live validation fixtures
 
 - [ ] Exact faults/defaults for unknown entities/columns, required levels, invalid values/types, lookups, state/status, and ownership.
 - [ ] Compare metadata SDK property shapes, `EntityFilters`, missing names/identifiers, and option metadata beyond the existing narrow snapshots.
-- [ ] Keep metadata retrieval separate from record-read security; the current tests intentionally allow retrieval without simulated table-read privileges.
+- [x] Keep metadata retrieval separate from record-read security; unit tests and the two selected live metadata/security comparisons establish this scoped behavior.
 
 ### P4 - Deeper model consumption
 

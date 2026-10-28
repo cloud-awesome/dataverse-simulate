@@ -1,6 +1,6 @@
 # Architecture, tests, documentation, CI/CD, and publishing
 
-Date reviewed: 2026-10-22
+Date reviewed: 2026-10-28; implementation history: 2026-10-22/23/28
 
 ## Current assessment
 
@@ -19,15 +19,16 @@ Use the shared [P1-P7 sequence](00-executive-summary.md#updated-order-of-work): 
 - [x] `ExecuteTransaction` snapshots/restores entity, relationship, audit, and security state on failure.
 - [x] QueryExpression is the common execution representation for FetchXML and QueryByAttribute conversions.
 
-The entity store is still a logical-name dictionary of lists. This is acceptable until measurements show a need for id/key indexes. Query cloning protects the tested top-level result mutations, but `EntityCloner.Clone` copies attribute values and related collections shallowly; deep isolation of mutable SDK values is not established.
+The entity store is still a logical-name dictionary of lists. This is acceptable until measurements show a need for id/key indexes. `EntityCloner.Clone` recursively clones standard mutable SDK values and related collections, including tested cycles; arbitrary custom objects remain outside its contract. Query execution and ordinary CRUD service boundaries now use this clone path. Create/Update processors receive detached inputs; commits detach processor-retained values; Retrieve returns detached results. Raw `.Simulated().Data().Add/Get` remains explicitly mutable fixture access. See [28 October implementation/evidence](09-p1-closeout-review.md).
 
 ### Remaining architectural work
 
 - [x] P1: apply security to linked data and isolate service-factory identities over the shared store (23 October). See [security implementation/evidence](06-security-model.md#p1-implementation-and-verification---23-october-2026).
-- [ ] P1: route converted FetchXML through the same metadata validation contract as QueryExpression.
-- [ ] P1: define one audit policy for direct SDK calls, request equivalents, nested batch requests, failures, and rollback. Direct delete/association/retrieve-multiple paths currently do not all write audits; some composed requests produce both inner-operation and request audit entries.
-- [ ] P1/P4: keep shared mutation paths consistent for metadata, timestamps, ownership, security, processors, and rollback. Queue services currently mutate the data store directly and enforce only a subset of metadata rules.
-- [ ] P4: establish the supported isolation contract for seed data, returned entities, mutable SDK attribute values, and reused options/security models.
+- [x] P1: converted FetchXML uses the same metadata validation contract as QueryExpression, including aggregate source/order aliases.
+- [x] P1: direct/request equivalents now share success-only audit paths; Upsert has one outer audit entry, batches retain successful request audits, and transactions restore audits on failure. See [the delivered policy](01-simulation-parity.md#p1-mutationresponse-implementation---23-october-2026).
+- [x] P1: isolate ordinary CRUD inputs and returned entities/mutable SDK values, including direct/request forms and processor-retained output (28 October).
+- [ ] P4: extend shared metadata/type/relationship validation consistently. Queue operations have an explicit separate timestamp/audit contract and do not invoke general CRUD processors; full metadata validity remains open.
+- [ ] P4: establish any stronger fixture-seeding/raw-data, arbitrary custom-object, and reused options/security-model isolation contracts. Raw Add/Get currently remains mutable by design; ordinary service CRUD boundary correctness is delivered.
 - [ ] P5: consider extracting a reusable internal context or request pipeline only where these fixes expose duplication. The existing `SimulationContext` holders and `SimulatorOptions` already serve different purposes: runtime state versus configuration.
 - [ ] P7: measure before adding entity/alternate-key indexes, caching XML, or restructuring query execution for speed.
 
@@ -51,7 +52,9 @@ Remaining API decisions (P5 unless a consumer needs them sooner):
 
 ## Unit tests and verification
 
-On 2026-10-22:
+Current verification on 2026-10-28: **1,043 Release unit tests passed with no skips** (130 additions), and the four-project Release build succeeds with 28 existing warnings and no errors on this incremental run. Full live execution passes **174 cases with five restricted-user skips**; the configured follow-up passes **all five with no skips**. All **179 cases** (21 additions) have fresh pass evidence across the two runs. Both live TRX files report no stderr/cleanup failures. See [09](09-p1-closeout-review.md) for artifacts and limitations.
+
+Historical baseline on 2026-10-22:
 
 - **560 passed, 4 skipped, 0 failed** in the unit project with `dotnet test CloudAwesome.Xrm.Simulate.Test/CloudAwesome.Xrm.Simulate.Test.csproj --no-restore`.
 - The full four-project Release build succeeded, reporting **0 warnings and 0 errors** on this incremental build. This does not establish that a clean rebuild is warning-free.
@@ -68,8 +71,9 @@ On 2026-10-22:
 
 ### Remaining quality work
 
-- [ ] P1: add regression coverage for the concrete findings in [01](01-simulation-parity.md) and [08](08-query-execution-phase-review.md).
-- [ ] P1: reconcile the four ignored empty TODO tests against the newer projection/link tests. Do not treat skips as four proven outstanding feature gaps.
+- [x] P1: add the four delivered implementation passes' focused regressions, taking the suite from 560 passes/4 skips to 913 passes/0 skips.
+- [x] P1: remove the four ignored empty TODOs; active projection/link tests cover those behaviors.
+- [x] P1: add 130 corrected-contract/boundary regressions for the three [26 October findings](09-p1-closeout-review.md), plus 21 focused live cases (28 October).
 - [ ] P2: compare live fault codes/messages, response keys/types, and mutation side effects without normalizing away the property under test.
 - [ ] P3: review a fresh coverage report and set useful coverage/quality thresholds. Having coverlet configured is not evidence of a measured coverage percentage or enforced minimum.
 - [ ] P3: inventory clean-build nullable/analyzer warnings and adopt incremental gates rather than assuming the historical warning count still applies.
@@ -104,7 +108,7 @@ Configuration in source does not prove recent successful hosted runs or branch-p
 
 Remaining automation:
 
-- [ ] P2: manual/scheduled live parity workflow with sandbox secrets and explicit categories; retain run results and cleanup failures.
+- [ ] P2: manual/scheduled live parity workflow with sandbox secrets, explicit categories, opt-in/readiness guards, and timeouts; retain results and make unresolved cleanup fail the job. Verify Linux portability of the current Windows-style TEST_PROJECT_PATH before relying on hosted runs.
 - [ ] P3: validate `dotnet pack` output and package metadata; add main/tag/release checks as appropriate.
 - [ ] P3: publish only reviewed versions from a documented release path with source/symbol artifacts and recorded parity results.
 - [ ] P3: decide the role of `pipelines/build-and-release.yaml`. It currently restores NuGet and leaves build/test/release as a TODO; it is not a functioning release pipeline.

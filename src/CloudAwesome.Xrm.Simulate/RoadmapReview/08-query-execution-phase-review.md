@@ -1,6 +1,6 @@
 # Query execution phase review
 
-Date reviewed: 2026-10-22; implementation updates: 2026-10-22/23
+Date reviewed: 2026-10-28; implementation updates: 2026-10-22/23/28
 
 Previous focused review: 2026-09-19
 
@@ -8,7 +8,9 @@ Previous focused review: 2026-09-19
 
 The old broad query-pipeline rework is substantially delivered. Since the September review, paging, FetchXML count/page metadata, distinct aggregate count, and aggregate-limit handling have also been implemented. They should no longer appear as entirely missing features.
 
-Exact query parity is still partial. The next work is a focused correctness pass with live fixtures for the remaining semantic differences, followed by selective operator breadth. Use [P1/P2 for hardening and P6 for expansion](00-executive-summary.md#updated-order-of-work).
+Exact query parity remains scoped. The next work is repeatable live execution and deeper evidence for the implemented subset, followed by selective operator/alias breadth. Use [P2 for evidence and P6 for expansion](00-executive-summary.md#updated-order-of-work).
+
+The [28 October close-out implementation](09-p1-closeout-review.md) closes the two final query P1 defects: unselected linked ordering now uses hidden execution keys, and qualified inputs/column comparisons fail explicitly before execution. The Release unit suite passes 1,043 cases; 21 new focused live cases passed, with the full live regression result tracked in document 09. Wider qualified/post-join execution remains unsupported.
 
 ## Delivered query behavior
 
@@ -29,11 +31,11 @@ Exact query parity is still partial. The next work is a focused correctness pass
 
 ## Current execution order
 
-`EntityMultipleRetriever` obtains base/linked security-filtered data. The service's `QueryExpressionParser.Parse` path then applies:
+`EntityMultipleRetriever` validates query input flags and metadata before obtaining base/linked security-filtered data. The service's `QueryExpressionParser.Parse` path also validates unsupported input forms, then applies:
 
 1. clone base rows;
 2. base filters;
-3. linked rows/criteria and linked ordering;
+3. linked rows/criteria and linked ordering using hidden keys, removed before projection/distinct;
 4. aggregation;
 5. base ordering;
 6. projection before distinct where requested;
@@ -46,7 +48,7 @@ Exact query parity is still partial. The next work is a focused correctness pass
 
 This fixes the former early-projection problem. It does not establish correct semantics for every alias filter, linked sort, aggregate output, or paging combination.
 
-## P1 - Remaining correctness work
+## P1 - Delivered correctness contracts
 
 ### P1 query input/output implementation - 22 October 2026
 
@@ -56,11 +58,11 @@ The supported contract is:
 
 - Empty/default QueryExpression and QueryByAttribute column sets return the primary-id attribute and `Entity.Id`. Selected projections include that id automatically. Loaded metadata supplies its name; without metadata the existing `<logicalname>id` convention applies. Tables with a different primary-id name require metadata.
 - Distinct compares the selected attributes and does not carry a hidden source `Id`. Selecting the primary id explicitly, including through `AllColumns`, preserves it. Live execution established that an empty base QueryExpression column set defaults to primary-id output even when distinct is requested, including when linked columns are selected; the implementation and regressions preserve each row's id in those cases.
-- FetchXML without base `<attribute>` elements defaults to all base columns. `<all-attributes/>` is supported on base and linked tables. A link without selected attributes still returns no linked columns. Aggregate expressions retain their existing output rather than being mistaken for an empty projection; aggregate wrapper/identity fidelity remains a separate P1 item.
+- FetchXML without base `<attribute>` elements defaults to all base columns. `<all-attributes/>` is supported on base and linked tables. A link without selected attributes still returns no linked columns. Aggregate expressions retain their output rather than being mistaken for an empty projection; the subsequent 23 October pass corrected their wrappers/identity as described below.
 - Base and linked FetchXML filters preserve nested AND/OR structure. Multiple sibling filters are combined with AND. Literal equality values retain `%`; wildcard conversion applies only to `like`/`not-like`.
 - FetchXML executes the same loaded-metadata validation as QueryExpression, including nested criteria, links, selected columns, ordering, and aggregate source attributes. Aggregate order aliases resolve to their source attributes for validation.
 - Empty/malformed XML, missing required structure/attributes, and invalid condition value arity throw `ArgumentException`. Unsupported condition operators, filter types, non-aggregate attribute aliases, `entityname`/`valueof` conditions, and child `<value>` elements throw `NotSupportedException`. Metadata failures retain `SimulatedMetadataException`. Exact Dataverse fault envelopes are not claimed. `In`/`NotIn` and multiple-value execution remain P6 work.
-- Query cloning isolates standard mutable SDK values (`EntityReference`, `Money`, option values/collections, `AliasedValue`, entities/related collections, and byte arrays), including repeated/cyclic entity references. Arbitrary custom attribute objects are outside this cloning contract. `uiname`/`uitype` display hints and `no-lock` have no simulated execution effect.
+- Query cloning isolates standard mutable SDK values (`EntityReference`, `Money`, option values/collections, `AliasedValue`, entities/related collections, and byte arrays), including repeated/cyclic entity references. The [28 October follow-up](09-p1-closeout-review.md) applies the same cloning contract to ordinary Create/Update service inputs/commits and Retrieve results. Arbitrary custom attribute objects remain outside the cloning contract. `uiname`/`uitype` display hints and `no-lock` have no simulated execution effect.
 
 The four old empty, ignored projection/link TODO tests were removed; active focused projection/link fixtures cover those behaviors. Legacy tests that inspect returned names now select those names explicitly, and the invalid FetchXML operator spelling `equal` was corrected to `eq`. The live fixture's generated last name is 41 characters, within the platform's 50-character limit. Invalid-input fixtures also check query-specific fault messages so an unrelated database outage cannot pass as an expected rejection.
 
@@ -90,21 +92,22 @@ dotnet test CloudAwesome.Xrm.Simulate.Integration/CloudAwesome.Xrm.Simulate.Inte
 
 - [x] Filter base and linked tables by read access before joins and aggregation/count/paging, including nested/self links (23 October security pass).
 - [x] Preserve left-outer rows without exposing unreadable matches. Unit regressions and all five configured restricted-user live join/count/aggregate cases pass. See [security verification](06-security-model.md#p1-implementation-and-verification---23-october-2026).
-- [ ] Ordering on a linked attribute currently operates after linked projection; an unselected sort column can be lost. Add a live case and a regression for it.
-- [ ] Check nested alias propagation and alias-referenced/post-join filter behavior; base filters currently execute before joins.
+- [x] P1: preserve unselected linked sort values through joins, apply linked order precedence, and remove hidden keys before projection/distinct/output. Direct/FetchXML ascending/descending/top/page/count cases have focused live comparisons; unit cases also cover null/outer rows, base precedence, distinct, nested/sibling links and store immutability (28 October).
+- [x] P1: reject `ConditionExpression.EntityName`, `OrderExpression.EntityName`, `CompareColumns`, dotted input attribute names and `AnyAllFilterLinkEntity` recursively before execution/auditing, including empty data and metadata-enabled queries. FetchXML qualified orders also fail explicitly. Live comparisons prove qualified conditions/orders and column comparisons can succeed on Dataverse while the simulator deliberately throws `NotSupportedException`; unqualified inner-link filters remain supported (28 October).
+- [ ] P2/P6: establish wider nested alias propagation, post-join behavior, and advanced query support after the P1 explicit-rejection/correctness boundary is in place.
 
 ### Paging completion
 
 Implemented on 23 October: simple pages and value-based cookie continuation across QueryExpression, QueryByAttribute, and FetchXML for non-distinct base-row queries; default/capped standard-table page size 5,000; final-page cookies; MoreRecords and total-count flags; selected exact input faults. See the implementation contract below.
 
-Still open:
+Paging requirement status:
 
 - [x] Consume incoming simulator cookies using ordering values, including when the boundary row is deleted or no longer matches the filter.
 - [x] Cap standard-table pages at 5,000; zero/default counts use that size, and negative SDK counts also use the default as observed live.
 - [x] Preserve unselected ordering values for continuation and use the primary id as a deterministic base-query tie-breaker, including metadata-backed nonconventional primary-id names.
 - [x] Match live negative-page and TopCount/paging/total-count conflict codes/messages; reject malformed/incompatible simulator cookies and malformed integer FetchXML options explicitly.
-- [ ] Expand cookie support beyond base rows. Linked, distinct, and aggregate/grouped queries currently use simple paging and return no simulator cookie; supplying a cookie for those shapes is explicitly unsupported.
-- [ ] Elastic-table 500-row limits, complete SQL collation/choice-label/lookup-name ordering, and remaining invalid-cookie/option fault envelopes need targeted evidence and implementation.
+- [ ] P2/P4: expand cookie support beyond base rows as justified. Linked, distinct, and aggregate/grouped queries use simple paging and return no simulator cookie; supplying a cookie for those shapes is explicitly unsupported.
+- [ ] P2/P4: elastic-table 500-row limits, full SQL collation/choice-label/lookup-name ordering, and remaining invalid-cookie/option fault envelopes need targeted evidence and implementation.
 
 Compare cookie continuation and boundary metadata against live results; do not require byte-identical cookie text unless that is the intended tested contract.
 
@@ -112,12 +115,12 @@ Compare cookie continuation and boundary metadata against live results; do not r
 
 Implemented: SDK alias wrappers/source metadata, empty result ids, typed numeric output, verified empty/grouped behavior, distinct countcolumn, and aggregate limits. The default 50,000-row limit faults when exceeded. Explicit `aggregatelimit` intentionally takes at most **limit + 1** arbitrary rows, confirmed by live comparisons and Microsoft documentation.
 
-Still open:
+Aggregate requirement status:
 
 - [x] Compare explicit-limit input boundaries live and match the exact negative/zero/oversized-limit fault code/message. Tests compare counts rather than assuming which arbitrary rows are selected.
 - [x] Return `AliasedValue` values with source entity/attribute names and `Guid.Empty` aggregate ids.
 - [x] Verify integer, Money, Double, and Decimal aggregate output, integer average truncation, empty input, null groups, distinct/non-null counts, and empty count output live. Int64 numeric output and grouped SDK Money/option/reference isolation also have unit coverage; broader live wrapper coverage remains open.
-- [ ] Verify timezone/user-local date grouping, fiscal settings, joins, and aggregate input-limit counting.
+- [ ] P2/P4: verify wider timezone/user-local date grouping, fiscal settings, joins, and aggregate input-limit counting.
 - [x] Preserve source-attribute and order-alias metadata validation; use loaded numeric attribute types for empty-table aggregates, and reject duplicate aggregate/group aliases rather than overwriting output.
 
 ### P1 paging and aggregates implementation - 23 October 2026
@@ -150,17 +153,14 @@ It uses the existing `DATAVERSE_APPSETTINGS` JSON-path/connection mechanism. No 
 
 ## P2 - Parity fixtures to add
 
-The original 7 single-entity and 9 linked-query tests are now accompanied by the query input/output, restricted security, and 36 paging/aggregate cases. The integration project contains **111 cases** in total after this pass. Wider cookie shapes, large live limits, and timezone/currency behavior remain follow-up fixtures.
+The original 7 single-entity and 9 linked-query cases are accompanied by 23 QuerySemantics, 12 SecurityIdentity (including five restricted linked cases), and 36 PagingAggregates cases. The 47 mutation cases brought the inventory to 158, all passing in the 23 October full live run. The 28 October follow-up adds 21 `P1Closeout` cases, taking the current inventory to **179**; see [current evidence](09-p1-closeout-review.md).
 
-Add the P1 cases in this order:
+The earlier projection, nested/OR parsing, read security, base-cookie continuation, and typed/empty/limit aggregate additions are delivered. The final P1 follow-up also delivers unselected linked sorting/top/pages and explicit rejection of unsupported qualified conditions/orders/column comparisons. Next fixtures should cover:
 
-1. Empty/selected column projection and output identity.
-2. OR/nested FetchXML and metadata validation/rejection.
-3. Secure inner/outer links and ordering on unselected linked attributes.
-4. Two-page/cookie continuation and count limits across query forms.
-5. Aggregate output types, distinct/empty input, and limit behavior.
+1. P2/P4: wider cookie shapes, large live limits, and timezone/fiscal/mixed-currency grouping.
+2. P2/P4: broader security depths, linked/grouped aggregation, lookup/choice ordering, and remaining exact fault envelopes.
 
-Live fixtures were not executed during this review. Retain small deterministic datasets, exact contract assertions, and cleanup through the existing harness.
+Retain small deterministic datasets, exact assertions, and cleanup through the existing harness. New `P1Closeout` cases cover the bounded P1 corrections; broader nested/post-join and advanced semantics still require additional evidence and implementation.
 
 ## P6 - Targeted query breadth
 
@@ -181,11 +181,11 @@ The unit command on 2026-10-22 was:
 dotnet test 'CloudAwesome.Xrm.Simulate.Test/CloudAwesome.Xrm.Simulate.Test.csproj' --no-restore
 ```
 
-Review baseline result: **560 passed, 4 skipped, 0 failed**. The subsequent P1 implementation result is **606 passed, 0 skipped, 0 failed**.
+Review baseline result: **560 passed, 4 skipped, 0 failed**. The first P1 implementation reached **606 passed, 0 skipped, 0 failed**; security, paging/aggregates, and mutation subsequently reached **913 passes with no skips**, rechecked on 26 October.
 
 The ignored distinct aggregate count test from the September review is active and passing. The four empty TODOs for base filter/link projection in QueryExpression and FetchXML were removed during the P1 input/output implementation; active focused tests cover those scenarios.
 
-The older 543-passed/5-skipped result described the September baseline and is superseded by this run. The query phase can be described as a completed foundation with explicit P1 hardening, not either wholly unimplemented or fully live-compatible.
+The older 543-passed/5-skipped result described the September baseline. Historical intermediate counts remain dated evidence; the 28 October baseline is **1,043 passing unit cases** and **179 integration cases**. The three final P1 findings are implemented with focused fixtures; deeper parity limits remain explicit in [09](09-p1-closeout-review.md).
 
 ## Evidence anchors
 

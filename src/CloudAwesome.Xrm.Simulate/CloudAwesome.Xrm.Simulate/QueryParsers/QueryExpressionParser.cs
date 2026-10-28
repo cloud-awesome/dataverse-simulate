@@ -26,6 +26,7 @@ public static class QueryExpressionParser
             return Enumerable.Empty<Entity>();
         }
 
+        QueryInputValidator.Validate(query);
         var primaryIdAttribute = metadata?.GetEntity(query.EntityName).PrimaryIdAttribute;
         var source = data.GetValueOrDefault(query.EntityName) ?? [];
         var records = source
