@@ -1,6 +1,6 @@
 # Benchmarking roadmap
 
-Date reviewed: 2026-10-26
+Date reviewed: 2026-10-28
 
 ## Current position and priority
 
@@ -42,7 +42,7 @@ Use 10, 100, 5,000, and 50,000 rows as initial scales. Add boundary fixtures suc
 - Clone/projection allocations and full-result materialization before paging.
 - Repeated FetchXML parsing where callers reuse identical queries.
 
-Query results recursively clone standard mutable SDK values to avoid tested source-mutation bugs. Ordinary CRUD input/result isolation remains an outstanding [P1 finding](09-p1-closeout-review.md); establish that corrected contract before a baseline is treated as stable. Do not sacrifice fidelity or remove useful validation merely to improve throughput.
+Query results and ordinary CRUD service boundaries recursively clone standard mutable SDK values to avoid source-mutation bugs. The [28 October P1 close-out](09-p1-closeout-review.md) establishes the corrected input/result contract; future benchmarks should measure this behavior, including commit cloning and hidden linked sort keys. Raw fixture Add/Get remains mutable. Do not sacrifice fidelity or remove useful validation merely to improve throughput.
 
 ## CI and comparisons
 

@@ -230,6 +230,8 @@ public static class FetchExpressionParser
 
     private static OrderExpression ParseOrder(XmlNode orderNode)
     {
+        if (orderNode.Attributes?["entityname"] is not null)
+            throw new NotSupportedException("FetchXML ordering with 'entityname' is not supported by the simulator.");
         var attributeName = orderNode.Attributes?["attribute"]?.Value;
         var aliasName = orderNode.Attributes?["alias"]?.Value;
 

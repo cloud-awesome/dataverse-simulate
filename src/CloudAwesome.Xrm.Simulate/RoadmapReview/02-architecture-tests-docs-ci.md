@@ -1,6 +1,6 @@
 # Architecture, tests, documentation, CI/CD, and publishing
 
-Date reviewed: 2026-10-26; implementation history: 2026-10-22/23
+Date reviewed: 2026-10-28; implementation history: 2026-10-22/23/28
 
 ## Current assessment
 
@@ -19,16 +19,16 @@ Use the shared [P1-P7 sequence](00-executive-summary.md#updated-order-of-work): 
 - [x] `ExecuteTransaction` snapshots/restores entity, relationship, audit, and security state on failure.
 - [x] QueryExpression is the common execution representation for FetchXML and QueryByAttribute conversions.
 
-The entity store is still a logical-name dictionary of lists. This is acceptable until measurements show a need for id/key indexes. `EntityCloner.Clone` now recursively clones standard mutable SDK values and related collections, including tested cycles; arbitrary custom objects remain outside its contract. Query execution uses that clone path. Ordinary Retrieve/Create/Update still expose or retain stored objects and mutable values: the [26 October review](09-p1-closeout-review.md) reproduces this separate P1 boundary defect.
+The entity store is still a logical-name dictionary of lists. This is acceptable until measurements show a need for id/key indexes. `EntityCloner.Clone` recursively clones standard mutable SDK values and related collections, including tested cycles; arbitrary custom objects remain outside its contract. Query execution and ordinary CRUD service boundaries now use this clone path. Create/Update processors receive detached inputs; commits detach processor-retained values; Retrieve returns detached results. Raw `.Simulated().Data().Add/Get` remains explicitly mutable fixture access. See [28 October implementation/evidence](09-p1-closeout-review.md).
 
 ### Remaining architectural work
 
 - [x] P1: apply security to linked data and isolate service-factory identities over the shared store (23 October). See [security implementation/evidence](06-security-model.md#p1-implementation-and-verification---23-october-2026).
 - [x] P1: converted FetchXML uses the same metadata validation contract as QueryExpression, including aggregate source/order aliases.
 - [x] P1: direct/request equivalents now share success-only audit paths; Upsert has one outer audit entry, batches retain successful request audits, and transactions restore audits on failure. See [the delivered policy](01-simulation-parity.md#p1-mutationresponse-implementation---23-october-2026).
-- [ ] P1: isolate ordinary CRUD inputs and returned entities/mutable SDK values so caller mutation cannot change stored data without a service operation. Query, Upsert, and queue cloning do not close this gap.
+- [x] P1: isolate ordinary CRUD inputs and returned entities/mutable SDK values, including direct/request forms and processor-retained output (28 October).
 - [ ] P4: extend shared metadata/type/relationship validation consistently. Queue operations have an explicit separate timestamp/audit contract and do not invoke general CRUD processors; full metadata validity remains open.
-- [ ] P4: establish fixture-seeding/raw-data, arbitrary custom-object, and reused options/security-model isolation contracts. Ordinary service CRUD boundary correctness remains P1 rather than being deferred with these setup choices.
+- [ ] P4: establish any stronger fixture-seeding/raw-data, arbitrary custom-object, and reused options/security-model isolation contracts. Raw Add/Get currently remains mutable by design; ordinary service CRUD boundary correctness is delivered.
 - [ ] P5: consider extracting a reusable internal context or request pipeline only where these fixes expose duplication. The existing `SimulationContext` holders and `SimulatorOptions` already serve different purposes: runtime state versus configuration.
 - [ ] P7: measure before adding entity/alternate-key indexes, caching XML, or restructuring query execution for speed.
 
@@ -52,7 +52,7 @@ Remaining API decisions (P5 unless a consumer needs them sooner):
 
 ## Unit tests and verification
 
-Current verification on 2026-10-26: **913 Release unit tests passed with no skips**, the four-project Release build succeeds, and integration discovery contains **158 cases**. The last full live run passed **158 cases on 23 October**, followed by a clean queue cleanup follow-up; live tests were not rerun today. See [09](09-p1-closeout-review.md) for the new P1 findings and verification boundary.
+Current verification on 2026-10-28: **1,043 Release unit tests passed with no skips** (130 additions), and the four-project Release build succeeds with 28 existing warnings and no errors on this incremental run. Full live execution passes **174 cases with five restricted-user skips**; the configured follow-up passes **all five with no skips**. All **179 cases** (21 additions) have fresh pass evidence across the two runs. Both live TRX files report no stderr/cleanup failures. See [09](09-p1-closeout-review.md) for artifacts and limitations.
 
 Historical baseline on 2026-10-22:
 
@@ -73,7 +73,7 @@ Historical baseline on 2026-10-22:
 
 - [x] P1: add the four delivered implementation passes' focused regressions, taking the suite from 560 passes/4 skips to 913 passes/0 skips.
 - [x] P1: remove the four ignored empty TODOs; active projection/link tests cover those behaviors.
-- [ ] P1: add corrected-contract regressions for the three [26 October findings](09-p1-closeout-review.md), which are absent from the current suite.
+- [x] P1: add 130 corrected-contract/boundary regressions for the three [26 October findings](09-p1-closeout-review.md), plus 21 focused live cases (28 October).
 - [ ] P2: compare live fault codes/messages, response keys/types, and mutation side effects without normalizing away the property under test.
 - [ ] P3: review a fresh coverage report and set useful coverage/quality thresholds. Having coverlet configured is not evidence of a measured coverage percentage or enforced minimum.
 - [ ] P3: inventory clean-build nullable/analyzer warnings and adopt incremental gates rather than assuming the historical warning count still applies.

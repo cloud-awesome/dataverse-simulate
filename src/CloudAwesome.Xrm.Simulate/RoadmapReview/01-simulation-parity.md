@@ -1,6 +1,6 @@
 # Simulation parity roadmap
 
-Date reviewed: 2026-10-26; implementation history: 2026-10-22/23
+Date reviewed: 2026-10-28; implementation history: 2026-10-22/23/28
 
 ## Goal and status convention
 
@@ -8,7 +8,7 @@ The simulator should be Dataverse-compatible enough that an isolated failing tes
 
 The order of work is [P1-P7 in the executive summary](00-executive-summary.md#updated-order-of-work). Checked items describe delivered implementation, with limitations kept open. The original 22 October review used source/build evidence; dated P1 follow-ups record the subsequent live runs.
 
-The [26 October close-out review](09-p1-closeout-review.md) reopens three P1 items: ordinary CRUD object isolation, ordering on unselected linked columns, and silent qualified QueryExpression misexecution. P2 preparation can proceed alongside this bounded follow-up.
+The [28 October close-out implementation](09-p1-closeout-review.md) closes the three final P1 items: ordinary CRUD object isolation, unselected linked ordering, and silent qualified-input misexecution. Qualified filters/orders and column comparisons now fail explicitly; their execution remains P2/P6 work.
 
 ## Correctness foundations delivered
 
@@ -31,7 +31,7 @@ Do not equate these fixes with complete CRUD parity. Relationship/cascade behavi
 
 | Area | Implemented requests | Remaining qualification |
 | --- | --- | --- |
-| Direct equivalents | `CreateRequest`, `RetrieveRequest`, `RetrieveMultipleRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest` | Shared operation and success-only audit paths exist. Direct Create/Update inputs and Retrieve outputs still share stored objects (P1); full relationship semantics remain P4. |
+| Direct equivalents | `CreateRequest`, `RetrieveRequest`, `RetrieveMultipleRequest`, `UpdateRequest`, `DeleteRequest`, `AssociateRequest`, `DisassociateRequest` | Shared success-only audit paths and detached Create/Update inputs/Retrieve outputs, including supported mutable SDK values. Full relationship semantics remain P4. |
 | Identity and ownership | Per-service caller identity, connection identity from `WhoAmIRequest`, shared ownership validation for Create/Assign/Update/Upsert | Valid user/owner teams and owning fields are covered; cascades, modernized BU settings, and broad denied-operation parity remain open. |
 | Upsert and state | `UpsertRequest`, `SetStateRequest` | Upsert honors primary-id precedence, copies create keys, removes identifying key columns on update, validates matching declared keys when metadata is loaded, and preserves request input. Global alternate-key uniqueness and direct key-based CRUD remain P4. |
 | Batches | `ExecuteMultipleRequest`, `ExecuteTransactionRequest` | Batch settings/partial commit, transaction response defaults/order, rollback, fault type/code/message/index, and nested-batch rejection now have live comparisons. External side effects from custom handlers are outside snapshot rollback. |
@@ -53,12 +53,12 @@ Custom typed handlers are available through `.Simulated().CustomOrgRequests().Ad
 | Surface | Delivered | Still open |
 | --- | --- | --- |
 | Query forms | `QueryExpression`, converted FetchXML, and converted `QueryByAttribute` share execution | FetchXML-specific validation and richer syntax. |
-| Filtering/projection/order | Full rows filtered before projection; ordering before top; distinct/primary-id/empty-column contracts; nested FetchXML filters; cloned SDK query values | Qualified QueryExpression filters silently use base rows (P1). Full alias support and platform collation remain deeper work; unsupported forms must fail explicitly. |
-| Links | Inner/left outer joins, readable linked rows, `AliasedValue`, selected linked columns, unselected join/filter columns, immutability tests | Ordering by unprojected linked columns remains P1. Wider nested aliases and advanced joins remain scoped follow-up. |
+| Filtering/projection/order | Full rows filtered before projection; ordering before top; distinct/primary-id/empty-column contracts; nested FetchXML filters; cloned SDK query values; qualified inputs/column comparisons explicitly rejected | Qualified/post-join execution, full alias support and platform collation remain deeper work. |
+| Links | Inner/left outer joins, readable linked rows, `AliasedValue`, selected linked columns, unselected join/filter/order columns, hidden-sort removal before distinct/output, immutability tests | Wider nested alias projection and advanced joins remain scoped follow-up. |
 | Paging | Standard-table caps, value-based base-query cookies, final-page metadata, exact selected faults, all three query forms, live continuation after result-set changes | Linked/distinct/grouped cookies; elastic-table limits; remaining invalid-cookie/option envelopes. |
 | Aggregation | Typed SDK aliases with empty ids; verified numeric/empty/grouped output; distinct countcolumn; default limit fault; live explicit-limit/invalid-limit contract | Timezone/fiscal behavior, mixed-currency conversion, complete group/linked aggregation, BigInt live evidence. |
 
-The old broad query rewrite has been substantially delivered. The remaining work is a focused correctness pass (P1), followed by evidence-led expansion (P6), not restarting the query engine. See [08](08-query-execution-phase-review.md) for source-level findings.
+The scoped P1 query correctness work is delivered. The remaining work is repeatable/deeper evidence (P2) and evidence-led expansion (P6). See [08](08-query-execution-phase-review.md) for supported contracts and limitations.
 
 ### Operator backlog
 
@@ -107,11 +107,11 @@ A relationship store is already present. It does not yet make ordinary associati
 
 ## Exit criteria for the next parity milestone
 
-Close the three reproduced [P1 findings](09-p1-closeout-review.md), add targeted unit regressions and live fixtures, and publish a matrix distinguishing implemented behavior from recorded live verification. Preserve checks for fault type/code/message, response names/keys/types, projection, and side effects. The fresh 913 passing unit tests do not cover these newly reproduced defects.
+The three [P1 findings](09-p1-closeout-review.md) now have corrected-contract unit regressions and focused live fixtures. The Release unit suite passes 1,043 cases (130 additions). Preserve checks for fault type/code/message, response names/keys/types, projection and side effects as P2 expands repeatable parity and P3 prepares the release/support matrix.
 
 ## P1 mutation/response implementation - 23 October 2026
 
-This records the delivered 23 October scope. The 26 October review adds ordinary CRUD object isolation as a remaining P1 gate; it does not undo the audit, Upsert, transaction, or queue corrections below.
+This records the delivered 23 October scope. The 26 October review identified ordinary CRUD isolation as an additional P1 gate; the [28 October follow-up](09-p1-closeout-review.md) closes it while preserving the corrections below.
 
 - [x] Direct calls and request wrappers share success-only audit behavior for Create, Retrieve, RetrieveMultiple, Update, Delete, Associate, and Disassociate. Query audits contain the base table and a null record id. Upsert produces one `Upsert` entry; its internal Create/Update still runs the relevant processor but does not add another audit entry. These are simulator diagnostics, not a simulation of Dataverse audit-table retention or event history.
 - [x] Assign retains the shared ownership validation/defaults delivered in the security pass, with one successful Assign audit. Those regression and live ownership fixtures remain part of verification.

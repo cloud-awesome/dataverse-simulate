@@ -210,6 +210,8 @@ public class MockedEntityDataService
 
     public void Update(Entity entity)
     {
+        // Clone the complete patch before committing any attribute, preserving shared SDK graphs.
+        entity = EntityCloner.Clone(entity);
         if (_dataStore.Data.TryGetValue(entity.LogicalName, out var entities))
         {
             var existingEntity = entities.FirstOrDefault(e => e.Id == entity.Id);
@@ -221,7 +223,7 @@ public class MockedEntityDataService
                 }
 
                 existingEntity["modifiedon"] = _dataStore.SystemTime;
-                existingEntity["modifiedby"] = AuthenticatedUser;
+                existingEntity["modifiedby"] = EntityCloner.CloneValue(AuthenticatedUser);
             }
             else
             {

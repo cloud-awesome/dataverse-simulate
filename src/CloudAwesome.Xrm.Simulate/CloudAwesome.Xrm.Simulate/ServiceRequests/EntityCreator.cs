@@ -2,6 +2,7 @@
 using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.QueryParsers;
 using CloudAwesome.Xrm.Simulate.SecurityModel;
 using Microsoft.Xrm.Sdk;
 using NSubstitute;
@@ -26,6 +27,8 @@ public sealed class EntityCreator
 
     internal Guid Create(Entity e, ISimulatorOptions? options)
     {
+        // Service payloads are detached from callers, including custom processor inputs.
+        e = EntityCloner.Clone(e);
         RequestFailureHandler.Handle(options, RequestMessage);
 
         new SimulatedSecurityEnforcer(dataService).DemandTableAccess(
@@ -51,7 +54,8 @@ public sealed class EntityCreator
         new RecordOwnership(dataService, options).PrepareCreate(e);
 
         // Submit to data store
-        dataService.Add(e);
+        // Processors may retain their output. Raw Data().Add remains mutable fixture access.
+        dataService.Add(EntityCloner.Clone(e));
         auditService.Add(RequestMessage, e.LogicalName, e.Id);
         
         return e.Id;

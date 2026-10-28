@@ -1,6 +1,6 @@
 # Metadata simulation roadmap
 
-Date reviewed: 2026-10-26; implementation history: 2026-10-22/23
+Date reviewed: 2026-10-28; implementation history: 2026-10-22/23/28
 
 ## Current position
 
@@ -16,7 +16,7 @@ Optional metadata is implemented and is no longer a prerequisite waiting to be b
 - [x] Queue-enabled capability `IsValidForQueue` is loaded and consumed by queue setup/operations.
 - [x] No metadata preserves permissive operation behavior; metadata retrieval requests explicitly require a loaded model.
 
-`MetadataSimulationTests` and `QueueSimulationTests` cover these first implementations. The two selected metadata/security integration cases passed in the full 23 October live run; live tests were not rerun during the 26 October review. The fresh full unit suite passes 913 cases. See [the close-out findings](09-p1-closeout-review.md) for genuine remaining P1 issues outside these delivered validation checks.
+`MetadataSimulationTests` and `QueueSimulationTests` cover these first implementations. The two selected metadata/security integration cases passed in the full 23 October live run. The 28 October full unit suite passes 1,043 cases, including the three final P1 corrections. Unsupported qualified query inputs now fail consistently before optional metadata validation. See [close-out evidence and remaining scope](09-p1-closeout-review.md).
 
 ## Contract and generator status
 

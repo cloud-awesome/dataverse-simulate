@@ -1,6 +1,6 @@
 # Security model roadmap
 
-Date reviewed: 2026-10-26; implementation update: 2026-10-23
+Date reviewed: 2026-10-28; implementation updates: 2026-10-23/28
 
 ## Current position
 
@@ -8,7 +8,7 @@ The first security model and its service wiring are implemented. The old descrip
 
 Security remains opt-in. No configured model preserves permissive operation behavior. `IgnoreMissingEntities` controls missing table configuration for the concrete model. Source presence and passing local tests are distinguished from full live parity throughout this review.
 
-The scoped security/identity pass remains delivered. The [26 October review](09-p1-closeout-review.md) identifies a separate ordinary CRUD object-isolation gap that can undermine authorization/audit assertions through caller-held references; it must be closed as P1. Wider security-depth/denial evidence remains P2. The fresh unit suite passes 913 tests; the last full live run was 158 passes on 23 October, including all twelve SecurityIdentity cases.
+The scoped security/identity pass remains delivered. The [28 October close-out](09-p1-closeout-review.md) also fixes ordinary CRUD object isolation so caller-held mutable SDK values cannot bypass the service operation/audit boundary. Wider security-depth/denial evidence remains P2. The fresh unit suite passes 1,043 tests; current live regression results, including the existing twelve SecurityIdentity cases, are recorded in document 09.
 
 ## Delivered model and setup
 
@@ -79,7 +79,7 @@ The previous open question about authenticated-user representation has a partial
 - [x] Use ownership metadata: organization-owned tables omit owner defaults, use table permissions without record-owner depth checks, and reject assignment/sharing and ownership-column mutation.
 - [x] Document that the common `AccessDenied` code/simulator-generated message is an approximation rather than an exact denied-operation envelope. Capturing operation-specific live faults remains P2 evidence work below.
 
-The delivered P1 items above do not close the CRUD-reference gap in the close-out review. Use the P2 fixtures below to extend evidence. General relationship direction/cascade completion belongs to P4, while demonstrated misleading authorization on a supported path should be fixed early.
+The [28 October close-out](09-p1-closeout-review.md) separately closes the CRUD-reference gap: supported caller/response SDK mutations no longer change stored rows without another operation/audit. New denial/failure regressions preserve stored data and success-only auditing. Use the P2 fixtures below to extend live security evidence. General relationship direction/cascade completion belongs to P4, while demonstrated misleading authorization on a supported path should be fixed early.
 
 ## P1 implementation and verification - 23 October 2026
 

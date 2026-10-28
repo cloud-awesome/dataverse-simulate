@@ -1,6 +1,6 @@
 # Queue simulation roadmap
 
-Date reviewed: 2026-10-26; implementation/live update: 2026-10-23
+Date reviewed: 2026-10-28; implementation/live updates: 2026-10-23/28
 
 ## Current position
 
@@ -16,7 +16,7 @@ First-class queue simulation is implemented. The 23 October P1/P2 pass hardens m
 
 `QueueMutationParityTests` now supplies 30 live/simulator comparisons. They establish the supported subset below, rather than complete queue parity.
 
-The 26 October review confirms the scoped queue P1 work remains delivered; [ordinary CRUD isolation and query correctness](09-p1-closeout-review.md) are the outstanding P1 gates. No new live run was performed today; the passing queue/full-run evidence below is dated 23 October.
+The 26 October review confirmed the scoped queue P1 work remained delivered. The [28 October close-out](09-p1-closeout-review.md) also closes ordinary CRUD isolation and the two query correctness gates. The queue/full-run evidence below is dated 23 October; current regression results are recorded in document 09.
 
 ## Implemented setup API
 

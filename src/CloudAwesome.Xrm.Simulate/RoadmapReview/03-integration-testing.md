@@ -1,14 +1,14 @@
 # Integration testing roadmap
 
-Date reviewed: 2026-10-26; live evidence through 2026-10-23
+Date reviewed: 2026-10-28; live close-out evidence: 2026-10-28
 
 ## Current position
 
 The original connectivity-only stage is complete. A reusable dual-execution harness and several focused live/simulator parity suites now exist. The next priority is reliable execution and deeper coverage of the implemented features, not creating another harness.
 
-**Current verification boundary:** the 26 October local review rechecks the Release build and discovery of **158 cases**. The last full live result is **158 passes on 23 October**, with the final queue cleanup follow-up also passing. No live sandbox tests were rerun on 26 October. The original 40-case inventory below is retained as a dated baseline, followed by the implementation history.
+**Current verification boundary:** the 28 October implementation adds **21 `P1Closeout` cases**, taking the inventory to **179**. Full live execution passes **174 with five restricted-user skips**; the configured follow-up passes **all five with no skips**. All 179 therefore have fresh pass evidence across the two runs, including the strengthened Money/option CRUD assertions. Both final live TRX files report no stderr/cleanup failures. See [09](09-p1-closeout-review.md#verification---28-october-2026) for exact results, artifacts and commands. The original 40-case inventory and earlier full 158-case result below remain dated evidence.
 
-The [close-out review](09-p1-closeout-review.md) identifies three remaining P1 gates despite those green results. P2 configuration/automation can begin in parallel; the new CRUD-isolation and query-order/qualification cases should accompany the P1 follow-up.
+The [close-out implementation](09-p1-closeout-review.md) closes the three P1 findings through CRUD isolation, hidden linked sort values and explicit unsupported-query rejection. P2 now focuses on execution/configuration/automation and deeper evidence.
 
 ## Delivered harness
 
@@ -50,7 +50,7 @@ The paging/aggregate pass adds **36 `PagingAggregates` cases**, all passing live
 
 The paging pass's combined Release run passed **71 tests, 0 skipped, 0 failed** using `--filter "TestCategory=PagingAggregates|TestCategory=QuerySemantics|TestCategory=SecurityIdentity"`. This reran those three P1 categories, including the configured restricted-user cases; it did not rerun the original 40 integration cases. The later full run is recorded below.
 
-The mutation/response pass adds **47 `MutationConsistency` cases**: 17 response/upsert/transaction cases and 30 `Queues` cases, taking the current inventory to **158 integration cases**. Focused live runs cover all 47. They compare response names/keys/SDK ids, Upsert request isolation and undeclared matching keys, transaction default/explicit responses and indexed faults, all batch settings, task queue move identity, selected exact validation faults, removal, release, routing, and target survival. See [the mutation contract](01-simulation-parity.md#p1-mutationresponse-implementation---23-october-2026) and [queue limits](07-queue-simulation.md#p1p2-implementation-and-verification---23-october-2026). These use the existing app connection and temporary records; no schema keys, users, or roles are provisioned.
+The mutation/response pass adds **47 `MutationConsistency` cases**: 17 response/upsert/transaction cases and 30 `Queues` cases, taking the inventory at that stage to **158 integration cases**. Focused live runs cover all 47. They compare response names/keys/SDK ids, Upsert request isolation and undeclared matching keys, transaction default/explicit responses and indexed faults, all batch settings, task queue move identity, selected exact validation faults, removal, release, routing, and target survival. See [the mutation contract](01-simulation-parity.md#p1-mutationresponse-implementation---23-october-2026) and [queue limits](07-queue-simulation.md#p1p2-implementation-and-verification---23-october-2026). These use the existing app connection and temporary records; no schema keys, users, or roles are provisioned.
 
 The full Release integration run passed **158 tests, 0 skipped, 0 failed**, including all original fixtures and the configured restricted-user cases, using `dotnet test CloudAwesome.Xrm.Simulate.Integration/CloudAwesome.Xrm.Simulate.Integration.csproj --no-build --no-restore --configuration Release`. Its TRX is `CloudAwesome.Xrm.Simulate.Integration/TestResults/mutation-consistency-release.trx`. Initial queue cleanup exposed platform deletion faults and one remaining fixture queue/task; the exact tracked records were subsequently released/removed and deleted. Cleanup now releases/removes queue items through SDK messages, retries failures once after dependent records, and accepts confirmed missing-record faults as already clean.
 
@@ -67,7 +67,7 @@ After the cleanup correction, the final Release queue run passed **30 tests, 0 s
 - [x] Upsert primary-id/key-attribute create/update paths and matching undeclared-key rejection; batch settings/partial commits; transaction response defaults, fault type/code/message/index, nested-batch rejection, and rollback.
 - [ ] Positive live declared alternate-key provisioning, collation/uniqueness, and direct key-based CRUD.
 - [ ] Successful sparse update, delete, assign, and relationship lookup/intersect effects, beyond the existing fault/payload checks.
-- [ ] P1 follow-up: ordinary Create/Update/Retrieve reference isolation, ordering on unselected linked columns, and qualified QueryExpression correctness or explicit rejection. The current 158 live cases do not establish these contracts.
+- [x] P1 follow-up: add 21 `P1Closeout` cases for ordinary Create/Update/Retrieve reference isolation (direct/request and all/selected columns, including Money/options), unselected linked sorting/top/pages for QueryExpression/FetchXML, live qualified condition/order/column-comparison results versus explicit simulator rejection, and unqualified inner-link filter controls. See [results and commands](09-p1-closeout-review.md).
 
 ### P2/P4 - Metadata and security depth
 
@@ -119,12 +119,12 @@ Existing [PR CI](../../../.github/workflows/ci.yml) builds the integration proje
 
 P2 implementation order:
 
-1. Document a reproducible local smoke/core command, explicit opt-in/readiness/missing-settings behavior, and sandbox/restricted-user requirements while closing the three P1 findings.
+1. Document a reproducible local smoke/core command, explicit opt-in/readiness/missing-settings behavior, and sandbox/restricted-user requirements. The three P1 findings are implemented and have focused fixtures.
 2. Add manual dispatch using repository secrets, exact category filters, timeouts, and failing cleanup reporting; verify the existing Ubuntu workflow's Windows-style test-project path.
 3. Add scheduled runs and require recorded supported-subset parity before release.
 4. Retain TRX and focused mismatch reports; make expected behavior changes explicit in reviewed tests/baselines.
 
-Current categories include `Parity`, `ParitySmoke`, `Exceptions`, `QueryBase`, `QueryExpression`, `OrganizationRequests`, `Metadata`, `Security`, `QuerySemantics`, `SecurityIdentity`, `PagingAggregates`, `MutationConsistency`, and `Queues`. They are not yet a uniform `ParityCore`/`ParityQuery`/`ParitySecurity` scheme; `Parity` alone does not include every existing fixture. Define and document the final filters before scheduling subsets. Run credentialed jobs through a trusted workflow path.
+Current categories include `Parity`, `ParitySmoke`, `Exceptions`, `QueryBase`, `QueryExpression`, `OrganizationRequests`, `Metadata`, `Security`, `QuerySemantics`, `SecurityIdentity`, `PagingAggregates`, `MutationConsistency`, `Queues`, and `P1Closeout`. They are not yet a uniform `ParityCore`/`ParityQuery`/`ParitySecurity` scheme; `Parity` alone does not include every existing fixture. Define and document the final filters before scheduling subsets. Run credentialed jobs through a trusted workflow path.
 
 A recurring run should detect Microsoft service changes through exact contract differences. Do not automatically bless changed results or require a large baseline framework before useful scheduled tests can run.
 

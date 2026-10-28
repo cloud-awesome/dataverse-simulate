@@ -1,6 +1,6 @@
 # Query execution phase review
 
-Date reviewed: 2026-10-26; implementation updates: 2026-10-22/23
+Date reviewed: 2026-10-28; implementation updates: 2026-10-22/23/28
 
 Previous focused review: 2026-09-19
 
@@ -8,9 +8,9 @@ Previous focused review: 2026-09-19
 
 The old broad query-pipeline rework is substantially delivered. Since the September review, paging, FetchXML count/page metadata, distinct aggregate count, and aggregate-limit handling have also been implemented. They should no longer appear as entirely missing features.
 
-Exact query parity is still partial. The next work is a focused correctness pass with live fixtures for the remaining semantic differences, followed by selective operator breadth. Use [P1/P2 for hardening and P6 for expansion](00-executive-summary.md#updated-order-of-work).
+Exact query parity remains scoped. The next work is repeatable live execution and deeper evidence for the implemented subset, followed by selective operator/alias breadth. Use [P2 for evidence and P6 for expansion](00-executive-summary.md#updated-order-of-work).
 
-The [26 October close-out review](09-p1-closeout-review.md) reproduced two remaining query P1 defects: ordering on an unselected linked column and silent alias-qualified QueryExpression filter misexecution. The scoped paging/aggregate and input/output corrections below remain delivered. Fresh unit execution passes 913 tests; the last full live result is 158 passes on 23 October, not a new live run today.
+The [28 October close-out implementation](09-p1-closeout-review.md) closes the two final query P1 defects: unselected linked ordering now uses hidden execution keys, and qualified inputs/column comparisons fail explicitly before execution. The Release unit suite passes 1,043 cases; 21 new focused live cases passed, with the full live regression result tracked in document 09. Wider qualified/post-join execution remains unsupported.
 
 ## Delivered query behavior
 
@@ -31,11 +31,11 @@ The [26 October close-out review](09-p1-closeout-review.md) reproduced two remai
 
 ## Current execution order
 
-`EntityMultipleRetriever` obtains base/linked security-filtered data. The service's `QueryExpressionParser.Parse` path then applies:
+`EntityMultipleRetriever` validates query input flags and metadata before obtaining base/linked security-filtered data. The service's `QueryExpressionParser.Parse` path also validates unsupported input forms, then applies:
 
 1. clone base rows;
 2. base filters;
-3. linked rows/criteria and linked ordering;
+3. linked rows/criteria and linked ordering using hidden keys, removed before projection/distinct;
 4. aggregation;
 5. base ordering;
 6. projection before distinct where requested;
@@ -48,7 +48,7 @@ The [26 October close-out review](09-p1-closeout-review.md) reproduced two remai
 
 This fixes the former early-projection problem. It does not establish correct semantics for every alias filter, linked sort, aggregate output, or paging combination.
 
-## P1 - Delivered contracts and remaining correctness work
+## P1 - Delivered correctness contracts
 
 ### P1 query input/output implementation - 22 October 2026
 
@@ -62,7 +62,7 @@ The supported contract is:
 - Base and linked FetchXML filters preserve nested AND/OR structure. Multiple sibling filters are combined with AND. Literal equality values retain `%`; wildcard conversion applies only to `like`/`not-like`.
 - FetchXML executes the same loaded-metadata validation as QueryExpression, including nested criteria, links, selected columns, ordering, and aggregate source attributes. Aggregate order aliases resolve to their source attributes for validation.
 - Empty/malformed XML, missing required structure/attributes, and invalid condition value arity throw `ArgumentException`. Unsupported condition operators, filter types, non-aggregate attribute aliases, `entityname`/`valueof` conditions, and child `<value>` elements throw `NotSupportedException`. Metadata failures retain `SimulatedMetadataException`. Exact Dataverse fault envelopes are not claimed. `In`/`NotIn` and multiple-value execution remain P6 work.
-- Query cloning isolates standard mutable SDK values (`EntityReference`, `Money`, option values/collections, `AliasedValue`, entities/related collections, and byte arrays), including repeated/cyclic entity references. This does not describe ordinary single-row Retrieve or Create/Update input isolation: those are a separate open P1 finding in [09](09-p1-closeout-review.md). Arbitrary custom attribute objects are outside the cloning contract. `uiname`/`uitype` display hints and `no-lock` have no simulated execution effect.
+- Query cloning isolates standard mutable SDK values (`EntityReference`, `Money`, option values/collections, `AliasedValue`, entities/related collections, and byte arrays), including repeated/cyclic entity references. The [28 October follow-up](09-p1-closeout-review.md) applies the same cloning contract to ordinary Create/Update service inputs/commits and Retrieve results. Arbitrary custom attribute objects remain outside the cloning contract. `uiname`/`uitype` display hints and `no-lock` have no simulated execution effect.
 
 The four old empty, ignored projection/link TODO tests were removed; active focused projection/link fixtures cover those behaviors. Legacy tests that inspect returned names now select those names explicitly, and the invalid FetchXML operator spelling `equal` was corrected to `eq`. The live fixture's generated last name is 41 characters, within the platform's 50-character limit. Invalid-input fixtures also check query-specific fault messages so an unrelated database outage cannot pass as an expected rejection.
 
@@ -92,8 +92,8 @@ dotnet test CloudAwesome.Xrm.Simulate.Integration/CloudAwesome.Xrm.Simulate.Inte
 
 - [x] Filter base and linked tables by read access before joins and aggregation/count/paging, including nested/self links (23 October security pass).
 - [x] Preserve left-outer rows without exposing unreadable matches. Unit regressions and all five configured restricted-user live join/count/aggregate cases pass. See [security verification](06-security-model.md#p1-implementation-and-verification---23-october-2026).
-- [ ] P1: ordering on a linked attribute operates after linked projection, losing an unselected sort column. The 26 October reproduction returns Zulu rather than Alpha with TopCount=1; selecting the sort column makes the control pass. Preserve hidden sort values and add unit/live cases.
-- [ ] P1: alias-qualified QueryExpression criteria silently run against base rows before the join; a matching `c.lastname = Alpha` condition returns zero rows in the reproduction. Implement the qualified semantics or explicitly reject unsupported forms, with regressions and focused parity. Audit related qualification flags rather than silently ignoring them.
+- [x] P1: preserve unselected linked sort values through joins, apply linked order precedence, and remove hidden keys before projection/distinct/output. Direct/FetchXML ascending/descending/top/page/count cases have focused live comparisons; unit cases also cover null/outer rows, base precedence, distinct, nested/sibling links and store immutability (28 October).
+- [x] P1: reject `ConditionExpression.EntityName`, `OrderExpression.EntityName`, `CompareColumns`, dotted input attribute names and `AnyAllFilterLinkEntity` recursively before execution/auditing, including empty data and metadata-enabled queries. FetchXML qualified orders also fail explicitly. Live comparisons prove qualified conditions/orders and column comparisons can succeed on Dataverse while the simulator deliberately throws `NotSupportedException`; unqualified inner-link filters remain supported (28 October).
 - [ ] P2/P6: establish wider nested alias propagation, post-join behavior, and advanced query support after the P1 explicit-rejection/correctness boundary is in place.
 
 ### Paging completion
@@ -153,15 +153,14 @@ It uses the existing `DATAVERSE_APPSETTINGS` JSON-path/connection mechanism. No 
 
 ## P2 - Parity fixtures to add
 
-The original 7 single-entity and 9 linked-query cases are accompanied by 23 QuerySemantics, 12 SecurityIdentity (including five restricted linked cases), and 36 PagingAggregates cases. This brought the inventory to 111 at the paging pass; the subsequent 47 mutation cases bring the current total to **158**. All 158 passed in the full 23 October live run; no new live run was performed on 26 October.
+The original 7 single-entity and 9 linked-query cases are accompanied by 23 QuerySemantics, 12 SecurityIdentity (including five restricted linked cases), and 36 PagingAggregates cases. The 47 mutation cases brought the inventory to 158, all passing in the 23 October full live run. The 28 October follow-up adds 21 `P1Closeout` cases, taking the current inventory to **179**; see [current evidence](09-p1-closeout-review.md).
 
-The earlier projection, nested/OR parsing, read security, base-cookie continuation, and typed/empty/limit aggregate additions are delivered. Next fixtures should cover:
+The earlier projection, nested/OR parsing, read security, base-cookie continuation, and typed/empty/limit aggregate additions are delivered. The final P1 follow-up also delivers unselected linked sorting/top/pages and explicit rejection of unsupported qualified conditions/orders/column comparisons. Next fixtures should cover:
 
-1. P1: unselected linked sort columns, correct TopCount/page boundaries, and qualified QueryExpression conditions/orders or their explicit rejection.
-2. P2/P4: wider cookie shapes, large live limits, and timezone/fiscal/mixed-currency grouping.
-3. P2/P4: broader security depths, linked/grouped aggregation, lookup/choice ordering, and remaining exact fault envelopes.
+1. P2/P4: wider cookie shapes, large live limits, and timezone/fiscal/mixed-currency grouping.
+2. P2/P4: broader security depths, linked/grouped aggregation, lookup/choice ordering, and remaining exact fault envelopes.
 
-Retain small deterministic datasets, exact assertions, and cleanup through the existing harness. The historical live passes do not cover the newly reproduced P1 gaps.
+Retain small deterministic datasets, exact assertions, and cleanup through the existing harness. New `P1Closeout` cases cover the bounded P1 corrections; broader nested/post-join and advanced semantics still require additional evidence and implementation.
 
 ## P6 - Targeted query breadth
 
@@ -186,7 +185,7 @@ Review baseline result: **560 passed, 4 skipped, 0 failed**. The first P1 implem
 
 The ignored distinct aggregate count test from the September review is active and passing. The four empty TODOs for base filter/link projection in QueryExpression and FetchXML were removed during the P1 input/output implementation; active focused tests cover those scenarios.
 
-The older 543-passed/5-skipped result described the September baseline. Historical intermediate counts remain dated evidence; the current baseline is 913 unit cases and 158 integration cases. Query execution is an implemented foundation with two remaining P1 correctness findings and explicit deeper parity limits.
+The older 543-passed/5-skipped result described the September baseline. Historical intermediate counts remain dated evidence; the 28 October baseline is **1,043 passing unit cases** and **179 integration cases**. The three final P1 findings are implemented with focused fixtures; deeper parity limits remain explicit in [09](09-p1-closeout-review.md).
 
 ## Evidence anchors
 

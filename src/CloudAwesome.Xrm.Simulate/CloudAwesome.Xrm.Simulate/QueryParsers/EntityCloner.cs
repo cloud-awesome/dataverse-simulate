@@ -44,6 +44,9 @@ internal static class EntityCloner
         return clone;
     }
 
+    internal static object? CloneValue(object? value)
+        => CloneValue(value, new Dictionary<object, object>(ReferenceEqualityComparer.Instance));
+
     private static object? CloneValue(object? value, Dictionary<object, object> copies)
     {
         if (value is null) return null;

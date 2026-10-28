@@ -1,6 +1,7 @@
 ﻿using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.QueryParsers;
 using CloudAwesome.Xrm.Simulate.SecurityModel;
 using Microsoft.Xrm.Sdk;
 using NSubstitute;
@@ -36,6 +37,7 @@ public class EntityUpdater(
 
     internal void Update(Entity entity, ISimulatorOptions? options)
     {
+        entity = EntityCloner.Clone(entity);
         MetadataValidator.ValidateUpdate(entity, options);
 
         var e = dataService.Get(entity.LogicalName)
