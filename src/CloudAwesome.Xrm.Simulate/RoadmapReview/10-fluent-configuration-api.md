@@ -1,359 +1,186 @@
 # Fluent configuration API review and implementation plan
 
-Date reviewed: 2026-11-03; initial proposal: 2026-10-30
+Date reviewed: 2026-11-04; initial proposal: 2026-10-30; grouping amendments: 2026-11-03.
 
-Status: **proposed design; no library implementation in this review**.
+Status: **reworked around the existing simulator, following the agreed preference for simpler, shallower configuration**. This document supersedes the first implementation's transactional/snapshot design.
 
-## Recommendation and roadmap placement
+## Decision and scope
 
-Deliver a complete, concern-based configuration API through `.Simulate()` and `.Simulated()` before finalizing the documentation rewrite. Keep `SimulatorOptions`, `ISimulatorOptions`, existing extension signatures, and existing inspection/setup facades available for compatibility.
+Make existing configuration discoverable through `.Simulate()` and `.Simulated()`. Fluent methods should primarily set existing options or invoke existing model/facade methods. Preserve the current operation engines, initialization helpers, option/reference semantics, and public compatibility signatures.
 
-The public contract should have two forms:
+The first implementation added atomic configuration, graph copying, declaration reconciliation, a second plugin-context model, and application dependency lifetimes. Those guarantees exceeded the core setup requirement. They have been removed from this pass rather than supported through another configuration framework.
 
-- **Initial setup:** `.Simulate(configure: simulation => simulation.With...(...))`, returning the same SDK interface as today.
-- **Subsequent setup:** `.Simulated().Configure(simulation => simulation.With...(...))`, with direct `.Simulated().With...(...)` conveniences for common changes.
+Keep the agreed public grouping:
 
-Both forms use the same configuration engine. Shortcuts and grouped callbacks configure the same settings; consumers should never need a different setup mechanism to reach an existing option.
+- Roles, privileges, imports, and user/team assignments belong together under `WithSecurity`.
+- Both mocks use `WithServices` for handlers, processors, and request failures. The provider adds the existing missing-service switches in that same group.
+- Metadata supports loading and whole-model replacement. There is no metadata removal or merge API.
+- Fluent members and overloads have XML comments suitable for IntelliSense.
 
-This brings the configuration portion of [P5](00-executive-summary.md#updated-order-of-work) forward as a dependency of P3 documentation. Include the plugin-context wiring necessary to make the advertised configuration work. P2 live-parity automation and P4/P6 semantic expansion retain their own scope. This proposal does not require finishing every deeper simulator behavior before updating the documentation.
+This is the configuration/isolated-context slice of [P5](00-executive-summary.md#updated-order-of-work), brought forward for P3 documentation. Deeper platform semantics and release automation remain in their existing roadmap workstreams.
 
-The separate documentation repository has not been inspected here. Its reported rewrite is the reason to settle the API now, not evidence that particular published pages or samples are current. No package/version commitment is made.
+## Architecture: reuse the existing paths
 
-## Current implementation and gaps
+| Area | Implementation |
+| --- | --- |
+| Initial setup | The callback fills the same `ISimulatorOptions` object used by legacy setup. The existing organization-service/provider initializer runs once. |
+| Subsequent setup | `Simulated().Configure(...)` invokes a builder over the existing options, data, and facades. Each call applies directly, in order. |
+| Security | `WithSecurity(Action<SimulatedSecurityModelService>)` exposes the existing facade on both paths. Before initialization, its existing methods update the model without seeding rows. On a live simulation, the existing methods seed/update rows normally and the group validates at the end. |
+| Plugin context | `PluginExecutionContextMock` is the only configuration model. Formerly fixed fixture fields gain setters; the existing resolver maps the supported properties. Fluent setters are small extension methods on that mock. |
+| Metadata | Reuse `SimulatedMetadataService` and `SimulatedMetadata.Load`, without configuration-specific serialization or copying. |
+| Data/queues | Small conveniences delegate to `MockedEntityDataService.Add/Upsert/SetRelationship` and the existing queue model/seeder. |
+| Requests | Existing `CustomOrgRequests().Add<TRequest>()` handles registration. A short list defers initial registrations until the real service registry exists. Live registration is immediate. |
+| Shared provider state | Pass the existing request registry through factory creation, alongside the options/data/audit state already shared. Preserve each service's bound caller identity. |
 
-The current code already supplies useful pieces of the proposed API. Reuse them rather than introducing parallel metadata, security, queue, or request engines.
+`SimulationSetup` is only a small bridge: options, optional live data/request facades, an initial fixture-data view, and deferred initial request registration. It does not implement `ISimulatorOptions`, hold a second copy of the options, reconcile a temporary simulation, or commit snapshots.
 
-| Area             | Current implementation                                                                                                                                      | Work required for the fluent API                                                                                                                   |
-|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
-| Entry points     | Organization service and provider `.Simulate(options)` return SDK interfaces; `.Simulated()` resolves instance state.                                       | Add configuration callbacks without changing return types or losing existing call shapes.                                                          |
-| Options          | `SimulatorOptions` and `ISimulatorOptions` expose 13 flat properties.                                                                                       | Cover every property, group new configuration by concern, and retain the compatibility surface.                                                    |
-| Data             | Initial dictionaries/relationships and mutable `.Data().Add/Get` fixture access. Dictionary `Add` replaces the store rather than appending.                 | Add explicit, additive fluent seeding with an ownership/duplicate policy; preserve raw access semantics.                                           |
-| Metadata         | Initial `Metadata`, plus organization-service `.Metadata().Load(path)` mutating the options object.                                                         | Add path/model shortcuts and provider access; preserve optional contract 1.0 loading and split-file behavior.                                      |
-| Security         | Typed model and organization-service `.SecurityModel()` support BUs, users, teams, roles, XML import, memberships, assignments, and shares.                 | Integrate these capabilities into grouped setup and provider access; distinguish selecting the authenticated user from adding security principals. |
-| Queues           | `SimulatedQueueModel.WithQueue/WithQueueItem` seeds through options; both facades expose runtime queue operations.                                          | Make queue fixture configuration discoverable under data; retain `.Queues()` as runtime operations.                                                |
-| Requests         | Typed `.CustomOrgRequests().Add<TRequest>()`, processors, and request failure settings.                                                                     | Initial and runtime registration, grouped behavior configuration, and consistent provider/factory propagation.                                     |
-| Services         | Provider resolves five fixed SDK service types; failure settings can make individual resolutions return null.                                               | Group missing-service behavior and provide registration of additional service types.                                                               |
-| Plugin execution | `PluginExecutionContextMock` exists, but several values are read-only/generated; the resolver copies only a subset.                                         | Make the complete supported context configurable and wire it into resolved contexts.                                                               |
-| State sharing    | Factory services share data/audits and retain their own caller identities. Each factory-created service currently creates its own request-handler registry. | Share configured handlers across the provider's service family, while retaining per-service identity.                                              |
-| Clock            | `IClockSimulator.Now` is sampled at initialization into `SystemTime`.                                                                                       | Expose it fluently and define explicit subsequent changes; do not silently promise a ticking clock.                                                |
+The first implementation's `ConfigurationDraft`, `ConfigurationCopies`, `SimulationRuntime`, `PluginContextFrame`, `SimulationSecurityBuilder`, and separate plugin builder are removed. The metadata/role configuration-copy helpers are removed too. Existing CRUD input/output cloning remains part of operation correctness and is unaffected by this simplification.
 
-Important compatibility details found in source:
+## Public API and examples
 
-- Operations read some options live. Existing tests change metadata/failure settings after initialization. Replacing every legacy options object with an immutable snapshot would change observable behavior.
-- Reading `.SecurityModel()` currently creates a model when none exists. New configuration/inspection entry points should avoid enabling security merely through discovery; retain the existing method's behavior.
-- The provider stores context/failure settings in its data service as well as retaining options. Changing a property alone does not establish consistent propagation.
-- Existing `.Simulate()` creates and returns a substitute; callers must retain the returned SDK interface. Keep the existing receiver-registration behavior, including provider lookup through its registered receiver.
-
-## Public API shape
-
-All examples below are **proposed API**, not currently executable documentation. Final names and overloads must pass the first implementation stage before they are copied into public docs.
-
-### Initial setup and compatibility options
+Both entry points retain SDK return types. Keep the original CLR signatures as forwarding/legacy overloads, with optional defaults on the extended callback overloads. This preserves positional-null and named-data-service call forms without introducing an ambiguous `Simulate(Action<...>)` overload.
 
 ```csharp
 IOrganizationService service = null!;
+var now = new DateTime(2026, 11, 4, 9, 0, 0, DateTimeKind.Utc);
+var account = new Entity("account", Guid.NewGuid()) { ["name"] = "Example" };
+
+service = service.Simulate(configure: simulation => simulation
+    .WithData(account)
+    .WithClock(now));
+
+service.Simulated().Configure(simulation => simulation
+    .WithClock(now.AddHours(1))
+    .WithData(data => data.Upsert(
+        new Entity("account", account.Id) { ["name"] = "Updated fixture" })));
+```
+
+Root `OrganizationSimulationBuilder` and `ServiceProviderSimulationBuilder` retain typed chaining. The common generic root is only shared fluent plumbing; it is not another state engine. Direct `.Simulated().WithData(...)`, `.WithClock(...)`, `.WithMetadata(...)`, and related conveniences call the same builder methods.
+
+### Security uses the existing facade
+
+```csharp
+var user = new Entity("systemuser", Guid.NewGuid());
+var businessUnit = new Entity("businessunit", Guid.NewGuid()) { ["name"] = "Test BU" };
 
 service = service.Simulate(configure: simulation => simulation
     .WithUser(user)
-    .WithData(account, contact)
-    .WithMetadata("TestMetadata/entity-metadata.json")
-    .WithClock(new MockSystemTime(
-        new DateTime(2026, 10, 30, 9, 0, 0, DateTimeKind.Utc))));
-
-// Existing options form the baseline; explicitly configured fluent values win.
-service = service.Simulate(
-    options: existingOptions,
-    configure: simulation => simulation.WithUser(otherUser));
-```
-
-Keep the existing SDK return types. Do not change parameterless `.Simulate()` into a builder that requires `.Build()`, or add implicit conversions between a builder and SDK services.
-
-Proposed types:
-
-- `SimulationBuilder`: shared identity, data, metadata, security, clock, and service/request configuration.
-- `OrganizationSimulationBuilder`: shared configuration for a standalone organization service.
-- `ServiceProviderSimulationBuilder`: shared configuration plus service resolution and plugin context.
-- Dedicated data, metadata, security, services, and plugin builders under these roots. A common services builder exposes request behavior on both mocks; its provider-specific extension adds service resolution configuration.
-
-Use concrete builder classes with strongly typed fluent returns. Shared implementation must not make `.WithUser(...).WithPluginContext(...)` lose the provider builder type. Avoid adding a public builder interface for every class unless an actual extension/test requirement needs it.
-
-### Callback overloads without positional-null ambiguity
-
-Adding `Simulate(Action<...>)` beside `Simulate(ISimulatorOptions?)` makes existing `.Simulate(null)` ambiguous. Prefer a trailing optional **named** `configure` parameter, retaining the old CLR signatures as forwarding methods.
-
-Illustrative organization-service declarations:
-
-```csharp
-// Existing CLR signature retained; optional defaults move to the new overload.
-IOrganizationService Simulate(
-    this IOrganizationService service,
-    ISimulatorOptions? options,
-    MockedEntityDataService? dataService);
-
-IOrganizationService Simulate(
-    this IOrganizationService service,
-    ISimulatorOptions? options = null,
-    MockedEntityDataService? dataService = null,
-    Action<OrganizationSimulationBuilder>? configure = null);
-```
-
-Use the equivalent two-/three-parameter pattern for providers: retain `(provider, options)` and add `(provider, options = null, configure = null)`. Both old and new overloads delegate to one implementation.
-
-This keeps existing compiled calls resolvable and lets ordinary source calls bind to either the forwarding or extended overload. A small in-memory C# compiler probe during this review accepted parameterless, positional-null, positional options/data-service, named options/data-service, and named callback forms with this pattern. It was not a build against the actual library or a binary compatibility test.
-
-Stage 1 must verify the real extension methods in the solution's C# 12/net8.0 configuration and against an already compiled consumer. Optional-parameter reflection metadata changes on the retained overloads; inspect that explicitly. Do not publish the callback API until these checks pass.
-
-### Grouped configuration
-
-Keep a small root set for common tasks. Use callbacks for larger fixtures and advanced settings:
-
-```csharp
-service = service.Simulate(configure: simulation => simulation
-    .WithUser(user)
-    .WithData(data => data
-        .WithEntities(account, contact)
-        .WithRelationships(relationships)
-        .WithQueues(queues => queues
-            .WithQueue(queueId, name: "Support")))
-    .WithMetadata(metadata => metadata
-        .Load("TestMetadata/entity-metadata.json"))
+    .WithBusinessUnit(businessUnit)
+    .WithData(account)
     .WithSecurity(security => security
+        .WithBusinessUnit(businessUnit.Id, "Test BU")
+        .WithUser(user.Id, businessUnit.Id)
+        .WithMissingEntityPolicy(false)
         .WithRole("Account reader", role => role
             .CanRead("account", PrivilegeDepthEnum.Organization))
-        .AssignRoleToUser("Account reader", user.Id))
-    .WithServices(services => services
-        .WithProcessor(processorType, processor)
-        .WithFailure(failureSetting)));
+        .AssignRoleToUser("Account reader", user.Id)));
 ```
 
-Role definition, import, privileges, and assignment all belong under `.WithSecurity(...)`; there is no separate root role shortcut. `.WithRole(...)` defines a role without silently assigning it. Assignment identifies the user/team explicitly. Root `.WithUser(user)` selects the authenticated identity. `.WithSecurity(security => security.WithUser(...))` adds a graph principal without switching identity.
+`security` is `SimulatedSecurityModelService`, not a new security DSL. The same callback type works for initial and live configuration. Its initial mode simply defers seeding to the existing initializer. The model, role parser, privilege calculation, and seeder continue owning security behavior.
 
-Use `.WithServices(...)` on both organization-service and provider mocks for request handlers, entity processors, and request failures. These shared operations have the same names, signatures, and semantics on both. The provider services builder additionally exposes dependency registration and missing-service behavior because those require `IServiceProvider.GetService`. Keep the concern split internal; do not give the same request configuration a different public entry-point name depending on the mock.
+Selecting the authenticated user and defining a security principal remain distinct. Define the graph's units/users and role assignments explicitly, using the existing prerequisites; this pass does not automatically infer or reconcile that graph from identity fixtures. The example intentionally uses the same explicit unit/user ids in both places.
 
-### Provider and isolated plugin setup
+`IgnoreMissingEntities` retains its existing default of `true`; `WithMissingEntityPolicy(false)` opts into denial for unlisted permissions. Defining/importing a role does not assign it. `WithoutSecurity()` clears optional enforcement without deleting fixture rows or disabling metadata validation.
+
+### Services use consistent terminology
 
 ```csharp
-IServiceProvider provider = null!;
-
 provider = provider.Simulate(configure: simulation => simulation
-    .WithUser(user)
-    .WithData(account)
-    .WithClock(new MockSystemTime(nowUtc))
+    .WithServices(services => services
+        .WithRequestHandler<ScoreRequest>(CalculateScore)
+        .WithProcessor(processorType, processor)
+        .WithMissingService(typeof(ITracingService))));
+```
+
+Organization-service mocks use the same `WithServices` name and the same handler/processor/failure operations. Only the provider exposes missing SDK service settings. Their implementation writes the existing five flags; no application dependency factory/container is included.
+
+### Plugin setup uses the existing mock
+
+```csharp
+provider = provider.Simulate(configure: simulation => simulation
     .WithPluginContext(plugin => plugin
         .WithMessage("Update")
         .WithStage(20)
         .WithPrimaryEntity("account", account.Id)
-        .WithInputParameter("Target", update)
-        .WithPreImage("Before", before)
-        .WithInitiatingUser(initiatingUserId))
-    .WithServices(services => services
-        .WithRequestHandler<CalculateScoreRequest>((request, context) =>
-            new OrganizationResponse
-            {
-                Results = new ParameterCollection { ["Score"] = 100 }
-            })
-        .WithService<IMyDependency>(dependency)));
+        .WithInputParameter("Target", account)
+        .WithPreImage("Before", account)));
 
 pluginUnderTest.Execute(provider);
-var created = provider.Simulated().Data().Get("task");
-var traces = provider.Simulated().Logs().Get();
 ```
 
-Plugin execution remains explicit through `IPlugin.Execute(provider)`. Entity processors remain a separate extension point. Context configuration does not register plugins or dispatch a pipeline.
+The callback receives `PluginExecutionContextMock`. Direct assignments such as `plugin.Stage = 20` work as well as fluent extensions. An overload accepts an existing mock by reference.
 
-### Subsequent configuration through `.Simulated()`
+Message/entity/id, stage/mode/isolation/depth, parameters/shared variables, images, initiating user, request/correlation/operation details, owning extension, parent context, offline flags, and transaction flags are wired through the existing resolver. User/BU/organization identity derives from the provider as before. Explicit operation time can be set; otherwise resolution uses simulated time.
 
-```csharp
-service.Simulated()
-    .WithClock(new MockSystemTime(laterUtc))
-    .WithData(nextAccount)
-    .WithRequestHandler<CalculateScoreRequest>(CalculateScore);
+There is no new execution-frame copying or lifetime guarantee. Existing parameter/image reference behavior is retained; subsequent service resolution reads the selected mock. Previously returned context references follow the existing resolver's captured/live behavior. Parent/transaction settings remain fixtures and do not invoke a pipeline or start a transaction.
 
-provider.Simulated().Configure(simulation => simulation
-    .WithData(nextAccount)
-    .WithPluginContext(plugin => plugin
-        .WithMessage("Create")
-        .WithPrimaryEntity("account", nextAccount.Id)
-        .WithInputParameter("Target", nextAccount)));
-```
+## Coverage of the compatibility options
 
-`Configure` applies one validated change set. Each direct `With...` call applies a separate change set and returns the same facade, so chained direct calls are not atomic as a group. Neither form clears data, audit, logs, telemetry, or service-bus captures.
+All 13 existing properties remain available through `SimulatorOptions` and `ISimulatorOptions`. No required properties are added to the interface.
 
-Preserve existing `.Data()`, `.Audit()`/`.Audits()`, `.Logs()`, `.Telemetry()`, `.ServiceBus()`, `.Metadata()`, `.SecurityModel()`, `.Queues()`, and `.CustomOrgRequests()` methods and return types. Add the missing metadata/security/request facades on providers. Fluent methods return the simulation facade or builder; inspection methods continue returning their existing services.
+| Existing option | Fluent equivalent |
+| --- | --- |
+| `AuthenticatedUser` | `WithUser(user)` |
+| `BusinessUnit` | `WithBusinessUnit(businessUnit)` |
+| `Organization` | `WithOrganization(organization)` |
+| `ClockSimulator` | `WithClock(clock)` or `WithClock(now)` |
+| `FiscalYearSettings` | `WithFiscalYearSettings(settings)` |
+| `InitialiseData` | `WithData(rows/dictionary)` or `WithData(data => data.WithEntities(...))` |
+| `InitialiseRelationships` | `WithData(data => data.WithRelationships(relationships))` |
+| `Metadata` | `WithMetadata(path/model)` or `WithMetadata(metadata => metadata.Load(path))` |
+| `SimulatedSecurityModel` | `WithSecurity(model)` or the existing security-facade callback |
+| `Queues` | `WithData(data => data.WithQueues(model/configure))` |
+| `EntityProcessors` | `WithServices(services => services.WithProcessor(key, processor))` |
+| `FakeServiceFailureSettings` | `WithServices(services => services.WithFailure(rule))`; provider-only `WithMissingService(type, missing)` covers the five existing resolution flags |
+| `PluginExecutionContextMock` | Provider `WithPluginContext(mock/configure)` |
 
-## Configuration coverage and concern groups
+Existing `Data()`, metadata/security/request/queue facades, and audit/log/telemetry/service-bus captures remain available. Providers gain the missing metadata/security/custom-request facades. Root fiscal settings replace the previous extra `WithEnvironment` wrapper.
 
-This inventory is the definition of “full fluent API” for this implementation. It covers the existing configuration contract and the agreed setup gaps, rather than promising all future Dataverse features.
+## Behavioral trade-offs
 
-| Concern                  | Proposed root shortcuts                                                                                                         | Grouped capabilities / existing source                                                                                                                                                                                                                                            |
-|--------------------------|---------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Identity and environment | `WithUser(Entity)`, `WithBusinessUnit(Entity)`, `WithOrganization(Entity)`                                                      | Covers `AuthenticatedUser`, `BusinessUnit`, and `Organization`; explicit `systemuser`/`businessunit`/`organization` validation. Keep distinct from adding graph principals.                                                                                                       |
-| Data                     | `WithData(params Entity[])`, `WithData(IEnumerable<Entity>)`, `WithData(dictionary)`, `WithData(Action<SimulationDataBuilder>)` | Entities including early-bound types; relationship fixtures; `WithQueues(model/configure)`; explicit upsert for replacing fixture rows. Covers `InitialiseData`, `InitialiseRelationships`, `Queues`.                                                                             |
-| Metadata                 | `WithMetadata(path)`, `WithMetadata(model)`, `WithMetadata(configure)`                                                          | Use existing loader/model; inline/split files and contract checks. Whole-model replacement, not implicit merging. Loading/replacement only in the first pass; no fluent removal API. |
-| Security                 | `WithSecurity(model/configure)` | BUs, users, owner/access teams, role definition/import/privileges and assignment together under this group, XML file/list/directory import, assignments/removals, memberships, shares/revocations. Reuse the typed model; reject unsupported custom `ISecurityModel` implementations. Explicit `WithoutSecurity()` for permissive behavior. |
-| Clock and calendar       | `WithClock(IClockSimulator)`, `WithClock(DateTime)`, `WithEnvironment(configure)`                                               | Fixed simulated time and `WithEnvironment(environment => environment.WithFiscalYearSettings(settings))`, covering `ClockSimulator` and `FiscalYearSettings`. Use UTC examples; preserve the existing date-value interpretation.                                                   |
-| Services: request behavior | `WithServices(configure)` on both mocks; shared `WithRequestHandler<TRequest>(handler)` root convenience | Typed handlers; entity processors by `ProcessorType`; request-name/optional-record-id failure settings; explicit removal of custom registrations/processors/failures. Covers `EntityProcessors` and request entries in `FakeServiceFailureSettings`. |
-| Services: provider resolution | The same `WithServices(configure)`, with provider-specific members | Additional service registrations, plus missing tracing, telemetry, endpoint notification, plugin context, and organization-service factory behavior. Covers all five service flags in `FakeServiceFailureSettings`. |
-| Plugin execution         | Provider-only `WithPluginContext(mock/configure)`                                                                               | Complete supported `IPluginExecutionContext` fixture, including parameters, images, identities, correlation/operation/request details, parent and transaction context. Covers `PluginExecutionContextMock`.                                                                       |
+1. **Reference semantics are consistent.** A supplied options object remains the same object with or without a callback. Existing copies/seeding performed by individual services remain as implemented; there is no blanket cloning of configuration, metadata, security models, or fixtures. Use fresh options/models/fixtures for independent tests.
+2. **Live changes are sequential.** A failure does not undo earlier changes in the callback. `Configure` is an arranging convenience, not a transaction. Initializer errors retain existing setup behavior too; no new rollback contract applies to a supplied data store.
+3. **Existing validation/order rules apply.** Initial data/relationships/security/queues follow the original initializer. Live relationships and queue items require referenced records to exist when the helper runs. No general declaration-order reconciliation is added.
+4. **Additive data is a convenience, not a new store policy.** Fluent dictionary data is appended record by record. Raw `Data().Add(dictionary)` still replaces the store. Raw fixture ids, duplicate behavior, and mutable references retain their existing contracts; no global uniqueness policy is introduced by a builder.
+5. **No unrelated replay occurs.** Changing clock/metadata does not reseed or copy the store, metadata graph, security graph, or queues. Default-user creation stays in `SimulatorOptionsProcessor`, including its existing fields.
+6. **Identity and propagation remain deliberate.** Updating connection defaults does not rebind existing impersonated/SYSTEM service views. Providers and factory services share the same options and request registry. Handler invocation uses the executing caller's data view.
+7. **Deferred registration is bounded.** Only initial custom request registration waits for initialization. Runtime registrations use the existing registry immediately; duplicate/built-in replacement protection remains there.
 
-The root should not expose every security graph operation. IntelliSense at `.WithSecurity(...)`, `.WithData(...)`, `.WithServices(...)`, and `.WithPluginContext(...)` supplies the detail. Both mock types expose the same shared service configuration, while provider-only service resolution members appear only on the provider builder. Chaining a shared handler/processor/failure method must retain the provider builder type so dependency registration remains available later in the same callback. Use a small `WithEnvironment(...)` group for identity/clock/calendar details, including fiscal settings; the root identity and clock shortcuts forward into that group.
-
-Every member of both `SimulatorOptions` and `ISimulatorOptions` must appear in the final mapping and have an executable fluent example. Do not add these new groups as required interface properties: that would break third-party `ISimulatorOptions` implementations. Stop growing the flat compatibility bag for new features.
-
-## Behavioral contracts
-
-### Precedence, ordering, and failure
-
-1. Current defaults apply first, supplied legacy options provide the baseline, and the callback overrides only what it explicitly touches.
-2. Repeated scalar settings use the last explicit value. Repeated data/relationship/security/queue additions accumulate; duplicate record/definition conflicts fail with useful identities. Existing idempotent membership/assignment behavior stays idempotent. Typed handler duplicates, including built-ins, fail rather than overwrite.
-3. Configuration order should not determine dependency resolution. Collect declarations, then validate the complete fixture and initialize it in dependency order. Selecting a user before defining its BU/role is valid if the finished fixture is consistent.
-4. Validate/load into temporary configuration and simulator-owned fixture state before committing. Invalid paths, graph references, duplicates, or unsupported service registrations leave an existing simulation unchanged. No partially seeded store or registered provider should escape initial setup failure.
-5. Callback exceptions discard the pending simulator changes. External effects performed by user callbacks/delegates cannot be rolled back. Configuration is an arrange-phase operation; concurrent execution/configuration is outside the contract.
-6. Reject null arguments explicitly rather than overloading null with reset semantics. Add disabling/removal methods only for capabilities explicitly included in this plan; metadata supports loading/replacement only in the first pass. Keep group callback and value overloads to the useful minimum.
-
-### Data and ownership
-
-New `.WithData(...)` is additive fixture seeding. It bypasses CRUD permissions, metadata-required-field validation, processors, timestamps, and auditing, as fixture setup does today. Structural fixture checks still apply. Queue/security seeders retain their supported specialized setup rules.
-
-- Do not implement fluent dictionary seeding by calling the existing store-replacing `Data().Add(dictionary)` on an initialized simulation.
-- Require non-empty fixture ids and valid logical names on the new fluent path. Duplicate logical-name/id pairs fail; explicit grouped upsert handles intentional replacement. Configuration is not an alternate CRUD API.
-- Clone supported mutable SDK entity values and fixture containers on the new path using the existing cloning contract. Preserve early-bound entity types so `.Data().Get<T>()` remains useful. Arbitrary application objects, delegates, processor instances, and custom service instances are not promised deep copies.
-- Copy mutable security/queue/context configuration into simulation-owned structures. Reusing a new fluent fixture across independent simulations must not share memberships, role assignment state, queues, or parameter/image collections. Treat metadata as shareable only where its model is demonstrably immutable; otherwise copy mutable parts.
-- Reconcile the selected user/BU/organization with security seeders once. Identical fixture identities are consolidated; conflicting attributes/BU definitions fail rather than being silently overwritten. Adding security also registers the selected user and BU in the graph without granting privileges.
-- Existing raw `.Data().Add/Get` remains mutable, with its existing dictionary-replacement behavior. Legacy options-only seeding retains existing reference behavior; do not silently impose the new fluent ownership contract on it.
-
-### Identity and security
-
-`WithUser` sets the authenticated connection/default plugin identity; it does not enable security. Supplying a security model/role or making an explicit security declaration enables security. Merely accessing the new fluent configuration or reading a current-configuration view must not enable it.
-
-Preserve the scoped P1 identity contract: factory null selects simulator-local SYSTEM, `Guid.Empty` selects the provider/plugin user, explicit ids select seeded callers, and `WhoAmI` reports the authenticated connection. SYSTEM's bypass flag remains separate from its id. No automatic privilege grants or unknown-user bypass.
-
-Subsequent identity changes update the default for subsequent work and factory creation. Previously created factory services retain their bound caller, including services created with `Guid.Empty`; explicit caller/SYSTEM services must never be rebound as a side effect. Changes to a provider's data/security/handlers remain visible across its service family.
-
-Keep connection identity, effective service caller, and `InitiatingUserId` distinct. For this release, plugin `UserId` follows the configured provider/plugin user; do not introduce an unrelated context-only `UserId` override that disagrees with factory `Guid.Empty`. If independent plugin/connection identity becomes necessary, design it with dedicated factory/identity fixtures before adding it.
-
-Security configuration delegates to the existing enforcement engine. It does not imply field-level security, modernized BU ownership, new cascade behavior, or exact platform fault parity.
-
-### Metadata and clock
-
-Metadata stays optional and uses the existing contract 1.0 consumer. `.WithMetadata(path)` and legacy `.Metadata().Load(path)` must reach the same configuration used by direct operations, queries, requests, and factory services. Loading/replacing metadata affects subsequent operations; it does not rewrite or retroactively validate every seeded row. The first pass supports whole-model replacement, with no merge or fluent removal API. Revisit removal only when a concrete requirement emerges. A simulation initialized without metadata retains its existing permissive behavior and failure contract for metadata retrieval without a model.
-
-`WithClock(IClockSimulator)` samples `Now` once per application, matching current initialization. The `DateTime` convenience has the same fixed-time effect. Subsequent changes affect future timestamps, relative-date queries, and newly resolved context operation time; they do not rewrite existing records. Continuously advancing clocks and timezone/fiscal parity expansion are separate work.
-
-### Request handlers and provider services
-
-`.WithServices(...)` is the shared public configuration group on organization-service and provider mocks, for both `.Simulate()` and `.Simulated()`. It exposes the same request handler, processor, and failure methods on both. The root `.WithRequestHandler<TRequest>(...)` convenience forwards into that group on either mock. Provider-specific resolution methods extend the group without renaming or duplicating its shared configuration.
-
-Use a provider-owned custom-handler registry shared by its factory services. Registration through initial setup, provider `.Simulated()`, or a factory service must be visible to existing and subsequently created services in that family. Standalone simulations retain separate registries. Preserve the registered caller's data/security context when invoking a shared handler, including nested batches/transactions.
-
-Keep typed registration and the existing public delegate. Preserve built-in replacement protection and unsupported-request exceptions. Request-name Custom API dispatch, catch-all success handlers, and response builders remain separate extensions; “full fluent” does not require inventing those behaviors.
-
-Provider `.WithServices(...)` supports custom application service types and explicit missing-service settings. Initially reserve the five SDK service types already managed by the simulator; reject attempts to replace them with arbitrary instances. This preserves shared organization-service state and log/telemetry/service-bus inspection. A later explicit replacement policy can address capture semantics if a real consumer requires it.
-
-For additional services, begin with instance and factory registration with a documented lifetime (one lazy instance per simulation). Reject duplicate registrations and recursive resolution with clear errors. Missing-service behavior and registrations affect subsequent `GetService` calls; they cannot revoke references already handed to plugin code. Unknown unregistered types retain the current exception behavior.
-
-### Plugin context completeness and lifetime
-
-The context builder must cover message/entity/id, stage/mode/isolation/depth, input/output/shared parameters, pre/post images, initiating user, organization name, request/correlation/operation ids, operation time, owning extension, offline/playback flags, transaction state, and parent context. Identity fields derived from the provider are configurable through the root identity methods, rather than duplicated conflicting setters.
-
-Wire every advertised setting into `PluginExecutionContextSimulator`; a fluent setter that never reaches `GetService(typeof(IPluginExecutionContext))` is incomplete. Preserve legacy defaults when no new configuration is supplied. Support explicit ids/flags currently generated or read-only in `PluginExecutionContextMock` through an internal fixture representation; retain the old mock overload as an adapter.
-
-Each applied plugin-context fixture starts a new execution frame. Repeated context resolution within that frame shares live parameter/image collections so plugin writes remain observable. A subsequent `WithPluginContext` starts a new frame and does not clear database/captures. Previously obtained context references retain their old frame. Parent/transaction flags describe the isolated test fixture; setting them does not start an SDK transaction or dispatch parent/child plugins. Include a cycle guard in any parent-context copying.
-
-## Internal implementation approach
-
-Introduce an internal concern-based configuration representation and an application engine, separate from mutable runtime stores. Public builders collect intent; they do not execute CRUD or instantiate a second simulator.
-
-The internal configuration should group identity/environment, data seeds, metadata, security, service registrations/availability, request behavior, and plugin execution. Keep a small runtime state owner for a standalone service or provider family, with shared data/audits/configuration/custom registrations and per-service caller views. Extract only what these requirements need; a general DI container or wholesale request/query rewrite is unnecessary.
-
-Two compatibility paths must be explicit:
-
-- **Legacy options without a callback:** retain today's live options/reference behavior, including existing facade updates. Adapt access internally without detaching fields that operations currently read live. Do not reinterpret unsupported legacy options as new functionality.
-- **New fluent setup, optionally based on options:** snapshot the supplied baseline into owned configuration, then apply the callback. Later changes go through `.Simulated()`; mutating the original baseline does not change the new fluent simulation. Document this boundary and test it.
-
-Route old facades into their simulation's configuration adapter so `.Metadata().Load(...)`, `.SecurityModel().WithRole(...)`, and `.CustomOrgRequests().Add(...)` remain coherent with the new fluent path. Factory-created services must observe the family configuration rather than stale captured copies. Reuse the existing built-in request engine; shared custom registration must not accidentally bind a handler to the first caller's view.
-
-Unify dependency ordering where practical: materialize/load configuration, resolve identity and security declarations, set clock/calendar, seed ordinary/specialized fixtures and relationships in the required order, then publish services/context. The current organization-service and provider initialization sequences differ; prove equivalent results for both paths rather than adding a third sequence.
-
-## XML documentation and IntelliSense contract
-
-XML comments are part of each public fluent method's implementation and acceptance criteria, including every overload, group builder, callback entry point, and `.Simulated()` convenience. Write them alongside the API rather than deferring them to the external documentation handoff.
-
-- Use `<summary>` to explain the setting and its effect in plain language. Include `<param>` and `<typeparam>` descriptions, and `<returns>` explaining which builder/facade is returned for chaining.
-- Use `<remarks>` for defaults, precedence, additive versus replacement behavior, when changes take effect, ownership/copying, and applicable mock types. Document the difference between initial setup and subsequent configuration where relevant.
-- Document role definition separately from explicit user/team assignment under `WithSecurity`. Give shared `WithServices` operations the same descriptions and semantics on both mocks, and identify provider-only resolution methods clearly.
-- Document metadata as whole-model replacement with no first-pass merge/removal API. Do not suggest unsupported reset behavior through null.
-- Use `<exception>` for supported argument/configuration/registration failures, and `<example>`/`<code>` for group entry points and methods whose behavior needs a usage example. Keep examples consistent with the executable `DocumentationCode` fixtures.
-- Use `<see>`/`<seealso>` links to related methods and types. Use `<inheritdoc>` only where the compiler/IDE/package documentation resolves it correctly and the inherited description accurately covers the overload; provider-specific differences still need explicit text.
-
-Enable XML documentation-file generation for the library and verify that the generated XML accompanies the assembly in the NuGet package, so consumers receive these descriptions in IntelliSense. Check documentation completeness for the new fluent surface and fix malformed XML or unresolved references introduced by the change; a repository-wide documentation cleanup is outside this milestone.
-
-At review, inspect representative IntelliSense tooltips and parameter help for both `.Simulate(configure: ...)` and `.Simulated().Configure(...)`, plus `WithSecurity`, common/provider-specific `WithServices` methods, and metadata overloads. An XML file existing on disk alone is not proof that the fluent API is clearly documented to consumers.
+The broader snapshot/atomicity tests from the first implementation are replaced with tests for these agreed simpler contracts. Existing CRUD/query/security/transaction regressions remain in the suite.
 
 ## Implementation stages and acceptance gates
 
-Implement and review these stages separately, but treat all six as the fluent milestone before publishing the recommended patterns.
+| Stage | Deliverable | Acceptance gate |
+| --- | --- | --- |
+| **1. Public contract and compatibility** | Root callbacks, existing concern types, typed returns, and retained extension signatures. | Old/new/null/named call forms compile; a consumer compiled against the original library runs with the replacement DLL. |
+| **2. Thin common setup** | Direct option assignment and reuse of data, metadata, clock/calendar, relationships, and queue helpers. | Both initial paths use their original initializer; reference semantics and sequential failures are documented/tested. No second materializer or broad copy layer remains. |
+| **3. Security and requests** | Existing security facade usable before/after initialization; existing typed request registration shared across provider services. | Roles/assignments/import and request handlers/processors/failures run through existing engines. Caller identity and batch/transaction dispatch are preserved. |
+| **4. Existing provider service controls** | The five missing-service flags under the same `WithServices` name. | Missing/restored resolution works for each managed SDK interface. Custom dependency factories and lifetimes are deferred. |
+| **5. One plugin context model** | Settable fields and fluent extensions on `PluginExecutionContextMock`, plus complete resolver mapping. | Resolve and assert all supported fields; exercise a real plugin and inspect output/captures. No parallel context type remains. |
+| **6. XML docs, examples, and handoff** | Clear XML comments, executable examples, and documentation mapping in this repo. | Build/unit/package/binary checks pass; XML accompanies the package. Coordinate publication with the separate docs rewrite. |
 
-Each implementation stage includes XML comments for the public API it introduces. Stage 6 verifies their completeness and distribution; it is not the first stage in which comments are written.
+## XML documentation and verification
 
-| Stage                                                | Deliverable                                                                                                                                  | Acceptance gate                                                                                                                                                                                                    |
-|------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **1. Lock the public contract**                      | Real extension overloads, root/group builder skeletons, typed chaining, complete options coverage, and declared capability boundaries.       | Compile legacy/new call forms against the actual library; run an old compiled consumer; verify `ISimulatorOptions` implementers need no changes. Resolve reflection/overload issues before documenting signatures. |
-| **2. Shared configuration and common setup**         | Internal adapter/application path; identity, data/relationships/queues, metadata, clock/calendar; both initial and subsequent configuration. | Initial/runtime setup yields equivalent supported behavior; invalid changes do not partially apply; baseline/fixture ownership and early-bound behavior are proven. Existing legacy setup tests remain green.      |
-| **3. Security and request behavior**                 | Full existing security setup/import surface, processors/failures, shared custom registry, provider facade gaps.                              | Direct/provider/factory tests cover roles/teams/shares, isolated callers, handler propagation before/after service creation, duplicate/built-in protection, and batch/transaction invocation.                      |
-| **4. Provider service configuration**                | Grouped service availability and additional-service registrations with explicit lifetime.                                                    | All five legacy service flags map correctly; custom resolutions/lifetimes/isolation work; reserved types and invalid registrations fail clearly; captures remain available.                                        |
-| **5. Complete plugin fixtures**                      | Full context mapping, compatibility mock adapter, new execution frames, parent/transaction fixture support.                                  | Assert values returned through the resolved SDK context for every setting; exercise an actual plugin using parameters/images/services and inspect its writes/captures. Preserve identity/factory contracts.        |
-| **6. Executable examples and documentation handoff** | New `DocumentationCode` examples, XML docs, migration/coverage tables, and coordinated changes in the separate docs repository.              | All shown samples compile/run; legacy examples remain valid; new recommended patterns and limitations are consistent across both repositories. Record Release build/unit results and any targeted live evidence.   |
+Document each new public fluent method/overload with a useful summary, parameters/type parameters, fluent return value, and the important behavioral boundaries. Reused security/queue/role methods exposed by callbacks should also be documented. Include examples at the entry points and keep them aligned with `DocumentationCode`.
 
-### Verification required during implementation
+Generate library XML documentation and verify it is present next to the assembly in the local package. Check new fluent comment coverage through the focused XML test. Keep the older undocumented surface outside a new blanket CS1591 requirement.
 
-- Compile old parameterless/options/null/named/custom-data-service calls, new callback calls, mixed options-plus-callback calls, and provider chains ending in provider-only methods. Keep the exact old extension/constructor/member signatures resolvable from an already built consumer.
-- Verify the same `WithServices` handler/processor/failure calls compile and behave consistently on both mocks, including initial and subsequent setup. Confirm role definition/import and user/team assignment are discoverable together under `WithSecurity`.
-- Exercise every compatibility option through its fluent equivalent. Compare meaningful behavior (stored records, resolved context, fault behavior, captures), rather than only testing builder property assignment.
-- Test repeated group calls, scalar precedence, additions/removals, declaration order, no-op `Configure`, invalid change atomicity, and direct-call versus grouped-call boundaries.
-- Reuse a baseline/model/entity/context fixture across independent simulations and verify the documented isolation differences between legacy and fluent paths. Include mutable SDK values, early-bound entities, parameters/images, role memberships, and service lifetimes.
-- Verify existing/future factory services see metadata, security, failure, processor, clock, and handler changes without altering bound caller identities. Confirm independent provider families remain isolated.
-- Keep existing CRUD/query/transaction regressions green. Setup API changes should not alter supported operation behavior, seed auditing, or raw fixture access.
-- Extend `CloudAwesome.Xrm.Simulate.Test/DocumentationCode` with minimal service setup, grouped data/metadata/security, request handlers, options migration, and a complete isolated plugin example.
-- Check XML-comment coverage and accuracy for every new public fluent member/overload, generated XML output and package inclusion, and representative IntelliSense/parameter-help displays. Resolve new documentation warnings and keep code examples aligned with executable fixtures.
-- Run the four-project Release build and unit suite after implementation. Use targeted live comparisons if identity/context or operation behavior changes; do not require a full live run for a purely additive setup wrapper or treat builder tests as new Dataverse parity evidence.
+Required implementation checks are the four-project Release build, full unit suite, the baseline-compiled consumer, and local package XML inspection. No fresh live Dataverse evidence is claimed by setup-layer tests. Visual IDE tooltip verification remains a separate manual check when a functioning documentation surface is available.
 
-No solution build/unit/live suite was run for this markdown-only review. Historical roadmap counts are not fresh verification of this proposal.
+Verification on 2026-11-04: the four-project Release build passed, the full unit suite passed **1,078 tests with no failures/skips**, the original baseline-compiled consumer passed with the replacement DLL, and local package inspection confirmed the DLL plus XML documentation. See the handoff for commands/artifacts and limitations. No live Dataverse or documentation-site execution is claimed. The prior implementation's 1,091-pass result describes its superseded contracts and is not the result for this version.
 
-## Documentation handoff and completion criteria
+## Deferred decisions
 
-The documentation rewrite should use the initial callback for complete fixtures, root shortcuts for quick starts, and grouped callbacks for advanced setup. Explain `.Simulated()` as both subsequent configuration and inspection. Keep an options migration page and the old examples as valid alternatives.
+Do not add atomic reconfiguration, automatic configuration isolation/copying, automatic security-identity reconciliation, generalized order-independent declarations, separate execution-frame lifetimes, dependency factories/scopes, or a new registry/removal framework without a concrete consumer requirement and a separate cost discussion.
 
-The migration mapping must show all 13 existing properties, the difference between selecting a user and defining a security principal, role definition and explicit assignment together under `WithSecurity`, the common `WithServices` entry point on both mocks, additive fluent data versus raw dictionary replacement, whole-model metadata replacement, fixed clock semantics, provider-only capabilities, and legacy-live versus fluent-owned configuration.
+Metadata merge/removal, strict/parity presets, automatic plugin dispatch, deeper platform semantics, release/version choices, and documentation publication remain separate work.
 
-Publish only after these conditions are met:
+## Evidence and handoff
 
-- [ ] Both entry points expose all applicable existing settings with discoverable grouped builders and common shortcuts.
-- [ ] Role definition/import and assignment are grouped under `WithSecurity`; shared request configuration uses `WithServices` consistently on both mocks.
-- [ ] First-pass metadata configuration supports loading/whole-model replacement without introducing merge or removal methods.
-- [ ] Existing public signatures and existing consumer call forms remain supported; compatibility verification is recorded.
-- [ ] Initial and subsequent configuration share one supported application path with the documented ownership/propagation rules.
-- [ ] Security/metadata/request setup is reachable from providers, and configured handlers reach their factory services.
-- [ ] Every advertised plugin setting is wired into the resolved execution context; plugin execution remains explicit.
-- [ ] Executable samples and the support/limitations matrix agree with implementation.
-- [ ] All public fluent members/overloads have clear XML comments, and generated XML ships with the package and displays correctly in IntelliSense.
-- [ ] The separate documentation repository receives the reviewed API/examples and migration guidance before publication.
-- [ ] Release/version choice is made against the actual published baseline, with any deliberate behavior changes called out.
-
-Do not bundle strict/live-parity presets, automatic plugin dispatch, new metadata semantics, advanced queries, public built-in handler replacement, or package automation into this implementation simply because configuration now has a convenient home. The existing roadmap continues to track those decisions independently.
-
-## Evidence anchors
-
-- [Executive roadmap and priorities](00-executive-summary.md)
-- [Existing setup/API architecture review](02-architecture-tests-docs-ci.md#request-extensibility-and-setup-api)
-- [Metadata consumer contract and remaining scope](05-metadata-simulation.md)
-- [Security and identity contract](06-security-model.md)
-- [Options](../CloudAwesome.Xrm.Simulate/SimulatorOptions.cs), [options interface](../CloudAwesome.Xrm.Simulate/Interfaces/ISimulatorOptions.cs), and [initialization helpers](../CloudAwesome.Xrm.Simulate/SimulatorOptionsProcessor.cs)
-- [Organization-service entry points](../CloudAwesome.Xrm.Simulate/OrganisationServiceSimulator.cs) and [provider entry points](../CloudAwesome.Xrm.Simulate/ServiceProviderSimulator.cs)
-- [Organization facade](../CloudAwesome.Xrm.Simulate/DataServices/OrganisationServiceSimulated.cs) and [provider facade](../CloudAwesome.Xrm.Simulate/DataServices/ServiceProviderSimulated.cs)
-- [Factory identity/shared data](../CloudAwesome.Xrm.Simulate/ServiceProviders/OrganisationServiceFactorySimulator.cs) and [data/fixture behavior](../CloudAwesome.Xrm.Simulate/DataServices/MockedEntityDataService.cs)
-- [Plugin fixture](../CloudAwesome.Xrm.Simulate/ServiceProviders/PluginExecutionContextMock.cs) and [context wiring](../CloudAwesome.Xrm.Simulate/ServiceProviders/PluginExecutionContextSimulator.cs)
-- [Custom registration](../CloudAwesome.Xrm.Simulate/ServiceRequests/CustomOrganizationRequestRegistry.cs), [handler dispatch/protection](../CloudAwesome.Xrm.Simulate/ServiceRequests/RequestHandlerRegistry.cs), and [failure settings](../CloudAwesome.Xrm.Simulate/DataStores/FakeServiceFailureSettings.cs)
-- [Security model](../CloudAwesome.Xrm.Simulate/SecurityModel/SimulatedSecurityModel.cs), [runtime security facade](../CloudAwesome.Xrm.Simulate/SecurityModel/SimulatedSecurityModelService.cs), and [queue fixtures](../CloudAwesome.Xrm.Simulate/Queues/SimulatedQueueModel.cs)
-- [Mutable SDK value cloning](../CloudAwesome.Xrm.Simulate/QueryParsers/EntityCloner.cs)
-- [Executable documentation examples](../CloudAwesome.Xrm.Simulate.Test/DocumentationCode)
+- [Documentation migration handoff](11-fluent-api-documentation-handoff.md)
+- [Executable examples](../CloudAwesome.Xrm.Simulate.Test/DocumentationCode/FluentConfigurationExamples.cs)
+- [Fluent regressions](../CloudAwesome.Xrm.Simulate.Test/FluentConfigurationTests.cs)
+- [Thin fluent layer](../CloudAwesome.Xrm.Simulate/Configuration)
+- [Existing initialization helpers](../CloudAwesome.Xrm.Simulate/SimulatorOptionsProcessor.cs)
+- [Reused security facade](../CloudAwesome.Xrm.Simulate/SecurityModel/SimulatedSecurityModelService.cs)
+- [Single plugin mock](../CloudAwesome.Xrm.Simulate/ServiceProviders/PluginExecutionContextMock.cs) and [resolver](../CloudAwesome.Xrm.Simulate/ServiceProviders/PluginExecutionContextSimulator.cs)

@@ -1,4 +1,4 @@
-﻿using CloudAwesome.Xrm.Simulate.DataServices;
+using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.DataStores;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using Microsoft.Xrm.Sdk;
@@ -26,7 +26,10 @@ public static class PluginExecutionContextSimulator
                 : dataService.AuthenticatedUser.Id);
         pluginExecutionContext.BusinessUnitId.Returns(dataService.BusinessUnit.Id);
         pluginExecutionContext.OrganizationId.Returns(dataService.Organization.Id);
-        pluginExecutionContext.OperationCreatedOn.Returns(dataService.SystemTime);
+        pluginExecutionContext.OperationCreatedOn.Returns(dataService.ExecutionContext?.ConfiguredOperationCreatedOn ?? dataService.SystemTime);
+        pluginExecutionContext.OrganizationName.Returns(
+            dataService.Get("organization").FirstOrDefault(e => e.Id == dataService.Organization.Id)?.GetAttributeValue<string>("name")
+            ?? string.Empty);
         
         if (dataService.ExecutionContext is null) return pluginExecutionContext;
         
@@ -37,6 +40,18 @@ public static class PluginExecutionContextSimulator
 
         pluginExecutionContext.MessageName.Returns(context.MessageName);
         
+        pluginExecutionContext.Mode.Returns(context.Mode);
+        pluginExecutionContext.IsolationMode.Returns(context.IsolationMode);
+        pluginExecutionContext.RequestId.Returns(context.RequestId);
+        pluginExecutionContext.SecondaryEntityName.Returns(context.SecondaryEntityName);
+        pluginExecutionContext.OwningExtension.Returns(context.OwningExtension);
+        pluginExecutionContext.CorrelationId.Returns(context.CorrelationId);
+        pluginExecutionContext.IsExecutingOffline.Returns(context.IsExecutingOffline);
+        pluginExecutionContext.IsOfflinePlayback.Returns(context.IsOfflinePlayback);
+        pluginExecutionContext.IsInTransaction.Returns(context.IsInTransaction);
+        pluginExecutionContext.OperationId.Returns(context.OperationId);
+        pluginExecutionContext.ParentContext.Returns(context.ParentContext);
+
         pluginExecutionContext.Depth.Returns(context.Depth);
         pluginExecutionContext.Stage.Returns(context.Stage);
         

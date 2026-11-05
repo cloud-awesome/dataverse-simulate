@@ -1,5 +1,6 @@
-﻿using CloudAwesome.Xrm.Simulate.DataServices;
+using CloudAwesome.Xrm.Simulate.DataServices;
 using CloudAwesome.Xrm.Simulate.Interfaces;
+using CloudAwesome.Xrm.Simulate.ServiceRequests;
 using Microsoft.Xrm.Sdk;
 using NSubstitute;
 
@@ -11,6 +12,10 @@ public static class OrganisationServiceFactorySimulator
         MockedEntityDataService dataService,
         SimulatorAuditService auditService,
         ISimulatorOptions? options)
+        => Create(dataService, auditService, options, OrganisationServiceSimulator.CreateRequestRegistry());
+
+    internal static IOrganizationServiceFactory? Create(MockedEntityDataService dataService,
+        SimulatorAuditService auditService, ISimulatorOptions? options, RequestHandlerRegistry requestHandlers)
     {
         if (dataService.FakeServiceFailureSettings is { OrganizationServiceFactory: true })
         {
@@ -25,7 +30,7 @@ public static class OrganisationServiceFactorySimulator
                 dataService.ForUser(x.Arg<Guid?>() == Guid.Empty
                     ? dataService.AuthenticatedUser.Id
                     : x.Arg<Guid?>()),
-                auditService));
+                auditService, requestHandlers));
 
         return serviceFactory;
     }

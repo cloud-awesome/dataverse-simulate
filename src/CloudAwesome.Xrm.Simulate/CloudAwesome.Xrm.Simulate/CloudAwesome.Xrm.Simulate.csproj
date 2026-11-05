@@ -5,6 +5,9 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>12</LangVersion>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <!-- Legacy APIs are not all documented; new fluent APIs are checked by focused documentation tests. -->
+        <NoWarn>$(NoWarn);1591</NoWarn>
         <PackageId>CloudAwesome.Xrm.Simulate</PackageId>
         <Version>1.1.1</Version>
         <Authors>Arthur Nicholson-Gumuła</Authors>

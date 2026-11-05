@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CloudAwesome.Xrm.Simulate.DataServices;
@@ -25,17 +25,21 @@ public class PluginExecutionContextMock: IPluginExecutionContext
     public Guid BusinessUnitId => _dataService.BusinessUnit.Id;
     public Guid OrganizationId => _dataService.Organization.Id;
     public string OrganizationName => _dataService.Organization.Name;
-    public Guid PrimaryEntityId { get; } = Guid.NewGuid();
+    public Guid PrimaryEntityId { get; set; } = Guid.NewGuid();
     public EntityImageCollection PreEntityImages { get; set; } = new EntityImageCollection();
     public EntityImageCollection PostEntityImages { get; set; } = new EntityImageCollection();
     public EntityReference OwningExtension { get; set; } = new EntityReference();
-    public Guid CorrelationId { get; } = Guid.NewGuid();
-    public bool IsExecutingOffline { get; } = false;
-    public bool IsOfflinePlayback { get; } = false;
-    public bool IsInTransaction { get; } = false;
-    public Guid OperationId { get; } = Guid.NewGuid();
-    public DateTime OperationCreatedOn => _dataService.SystemTime;
+    public Guid CorrelationId { get; set; } = Guid.NewGuid();
+    public bool IsExecutingOffline { get; set; } = false;
+    public bool IsOfflinePlayback { get; set; } = false;
+    public bool IsInTransaction { get; set; } = false;
+    public Guid OperationId { get; set; } = Guid.NewGuid();
+    private DateTime? _operationCreatedOn;
+    internal DateTime? ConfiguredOperationCreatedOn => _operationCreatedOn;
+
+    /// <summary>Explicit operation time; unresolved fixture reads retain the existing default time.</summary>
+    public DateTime OperationCreatedOn { get => _operationCreatedOn ?? _dataService.SystemTime; set => _operationCreatedOn = value; }
     public int Stage { get; set; } = 20; // Defaults to PreOperation
-    public IPluginExecutionContext ParentContext { get; } = null!;
+    public IPluginExecutionContext ParentContext { get; set; } = null!;
 
 }

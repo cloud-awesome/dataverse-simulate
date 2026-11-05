@@ -15,6 +15,11 @@ public class MockedEntityDataService
 
     public MockedEntityDataService() => _dataStore = new MockedEntityDataStore();
 
+    private MockedEntityDataService(MockedEntityDataStore dataStore) => _dataStore = dataStore;
+
+    // Update connection defaults without rebinding an existing impersonated or SYSTEM caller view.
+    internal MockedEntityDataService ForConnection() => new(_dataStore);
+
     private MockedEntityDataService(MockedEntityDataStore dataStore, EntityReference user, bool isSystemUser)
     {
         _dataStore = dataStore;
