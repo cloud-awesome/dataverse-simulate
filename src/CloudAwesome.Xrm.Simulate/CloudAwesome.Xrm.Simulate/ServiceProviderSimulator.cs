@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
 using CloudAwesome.Xrm.Simulate.DataServices;
+using CloudAwesome.Xrm.Simulate.Configuration;
+using CloudAwesome.Xrm.Simulate.ServiceRequests;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.ServiceProviders;
 using Microsoft.Xrm.Sdk;
@@ -10,10 +12,26 @@ namespace CloudAwesome.Xrm.Simulate;
 
 public static class ServiceProviderSimulator
 {
+    /// <summary>Creates a provider using the retained legacy CLR signature.</summary>
+    /// <param name="serviceProvider">The extension receiver.</param>
+    /// <param name="options">The existing live options, or null for defaults.</param>
+    /// <returns>The simulated service provider.</returns>
+    public static IServiceProvider Simulate(this IServiceProvider serviceProvider, ISimulatorOptions? options)
+        => Simulate(serviceProvider, options, null);
+
+    /// <summary>Configures existing options and initializes the provider through the existing simulator.</summary>
+    /// <param name="serviceProvider">The extension receiver; retain the returned provider.</param>
+    /// <param name="options">The existing options object, retained by reference, or null for defaults.</param>
+    /// <param name="configure">The optional callback for shared setup and plugin context.</param>
+    /// <returns>The provider to pass explicitly to the plugin under test.</returns>
+    /// <remarks>Configuration uses existing fixture/reference semantics. No rollback, snapshot lifecycle, or dependency container is introduced.</remarks>
+    /// <example><code>provider = provider.Simulate(configure: s => s.WithPluginContext(p => p.WithMessage("Create")));</code></example>
     public static IServiceProvider Simulate(this IServiceProvider serviceProvider,
-        ISimulatorOptions? options = null)
+        ISimulatorOptions? options = null, Action<ServiceProviderSimulationBuilder>? configure = null)
     {
         var localOptions = options ?? new SimulatorOptions();
+        var setup = new SimulationSetup(localOptions);
+        configure?.Invoke(new ServiceProviderSimulationBuilder(setup));
         var context = new SimulationContext();
         context.Options = localOptions;
 
@@ -50,7 +68,7 @@ public static class ServiceProviderSimulator
                         OrganisationServiceFactorySimulator.Create(
                             context.DataService,
                             context.SimulatorAuditService,
-                            localOptions),
+                            localOptions, context.RequestHandlers),
                     _ when argType == typeof(ITracingService) =>
                         TracingServiceSimulator.Create(context.DataService, context.LoggingService, localOptions),
                     _ when argType == typeof(ILogger) =>
@@ -62,6 +80,7 @@ public static class ServiceProviderSimulator
                 };
             });
 
+        setup.RegisterInitialRequests(new CustomOrganizationRequestRegistry(context.RequestHandlers));
         RegisterSimulation(localServiceProvider, context);
 
         if (serviceProvider is not null && !ReferenceEquals(serviceProvider, localServiceProvider))
@@ -78,7 +97,7 @@ public static class ServiceProviderSimulator
             serviceProvider is null || !Contexts.TryGetValue(serviceProvider, out var context)
                 ? throw new InvalidOperationException("This IServiceProvider has not been initialised with Simulate().")
                 : new ServiceProviderSimulated(context.DataService, context.LoggingService, context.TelemetryService,
-                    context.SimulatorAuditService, context.ServiceBus, context.Options);
+                    context.SimulatorAuditService, context.ServiceBus, context.Options, context.RequestHandlers);
     }
 
     private sealed class SimulationContext
@@ -89,6 +108,7 @@ public static class ServiceProviderSimulator
         public MockedServiceBusService ServiceBus { get; } = new();
         public SimulatorAuditService SimulatorAuditService { get; } = new();
         public ISimulatorOptions Options { get; set; } = new SimulatorOptions();
+        public RequestHandlerRegistry RequestHandlers { get; } = OrganisationServiceSimulator.CreateRequestRegistry();
     }
 
     private static readonly ConditionalWeakTable<IServiceProvider, SimulationContext> Contexts = new();

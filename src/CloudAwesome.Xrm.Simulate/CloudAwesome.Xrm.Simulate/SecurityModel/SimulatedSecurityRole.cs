@@ -60,30 +60,76 @@ public sealed class SimulatedSecurityRole
         return entity;
     }
 
+	/// <summary>Sets the Create privilege depth for a table in this role.</summary>
+	/// <param name="entityLogicalName">The table logical name.</param>
+	/// <param name="depth">The privilege depth, including None to deny this privilege.</param>
+	/// <returns>This role definition for further privilege configuration.</returns>
+	/// <remarks>Defining privileges does not assign the role to a user or team.</remarks>
     public SimulatedSecurityRole CanCreate(string entityLogicalName, PrivilegeDepthEnum depth) =>
         SetPrivilege(entityLogicalName, SecurityPrivilege.Create, depth);
 
+	/// <summary>Sets the Read privilege depth for a table in this role.</summary>
+	/// <param name="entityLogicalName">The table logical name.</param>
+	/// <param name="depth">The privilege depth, including None to deny this privilege.</param>
+	/// <returns>This role definition for further privilege configuration.</returns>
+	/// <remarks>Defining privileges does not assign the role to a user or team.</remarks>
     public SimulatedSecurityRole CanRead(string entityLogicalName, PrivilegeDepthEnum depth) =>
         SetPrivilege(entityLogicalName, SecurityPrivilege.Read, depth);
 
+	/// <summary>Sets the Write privilege depth for a table in this role.</summary>
+	/// <param name="entityLogicalName">The table logical name.</param>
+	/// <param name="depth">The privilege depth, including None to deny this privilege.</param>
+	/// <returns>This role definition for further privilege configuration.</returns>
+	/// <remarks>Defining privileges does not assign the role to a user or team.</remarks>
     public SimulatedSecurityRole CanWrite(string entityLogicalName, PrivilegeDepthEnum depth) =>
         SetPrivilege(entityLogicalName, SecurityPrivilege.Write, depth);
 
+	/// <summary>Sets the Delete privilege depth for a table in this role.</summary>
+	/// <param name="entityLogicalName">The table logical name.</param>
+	/// <param name="depth">The privilege depth, including None to deny this privilege.</param>
+	/// <returns>This role definition for further privilege configuration.</returns>
+	/// <remarks>Defining privileges does not assign the role to a user or team.</remarks>
     public SimulatedSecurityRole CanDelete(string entityLogicalName, PrivilegeDepthEnum depth) =>
         SetPrivilege(entityLogicalName, SecurityPrivilege.Delete, depth);
 
+	/// <summary>Sets the Append privilege depth for a table in this role.</summary>
+	/// <param name="entityLogicalName">The table logical name.</param>
+	/// <param name="depth">The privilege depth, including None to deny this privilege.</param>
+	/// <returns>This role definition for further privilege configuration.</returns>
+	/// <remarks>Defining privileges does not assign the role to a user or team.</remarks>
     public SimulatedSecurityRole CanAppend(string entityLogicalName, PrivilegeDepthEnum depth) =>
         SetPrivilege(entityLogicalName, SecurityPrivilege.Append, depth);
 
+	/// <summary>Sets the AppendTo privilege depth for a table in this role.</summary>
+	/// <param name="entityLogicalName">The table logical name.</param>
+	/// <param name="depth">The privilege depth, including None to deny this privilege.</param>
+	/// <returns>This role definition for further privilege configuration.</returns>
+	/// <remarks>Defining privileges does not assign the role to a user or team.</remarks>
     public SimulatedSecurityRole CanAppendTo(string entityLogicalName, PrivilegeDepthEnum depth) =>
         SetPrivilege(entityLogicalName, SecurityPrivilege.AppendTo, depth);
 
+	/// <summary>Sets the Assign privilege depth for a table in this role.</summary>
+	/// <param name="entityLogicalName">The table logical name.</param>
+	/// <param name="depth">The privilege depth, including None to deny this privilege.</param>
+	/// <returns>This role definition for further privilege configuration.</returns>
+	/// <remarks>Defining privileges does not assign the role to a user or team.</remarks>
     public SimulatedSecurityRole CanAssign(string entityLogicalName, PrivilegeDepthEnum depth) =>
         SetPrivilege(entityLogicalName, SecurityPrivilege.Assign, depth);
 
+	/// <summary>Sets the Share privilege depth for a table in this role.</summary>
+	/// <param name="entityLogicalName">The table logical name.</param>
+	/// <param name="depth">The privilege depth, including None to deny this privilege.</param>
+	/// <returns>This role definition for further privilege configuration.</returns>
+	/// <remarks>Defining privileges does not assign the role to a user or team.</remarks>
     public SimulatedSecurityRole CanShare(string entityLogicalName, PrivilegeDepthEnum depth) =>
         SetPrivilege(entityLogicalName, SecurityPrivilege.Share, depth);
 
+	/// <summary>Sets an explicitly selected table privilege and depth.</summary>
+	/// <param name="entityLogicalName">The table logical name.</param>
+	/// <param name="privilege">The privilege to configure.</param>
+	/// <param name="depth">The privilege depth.</param>
+	/// <returns>This role definition for further configuration.</returns>
+	/// <exception cref="ArgumentException">The logical name is empty.</exception>
     public SimulatedSecurityRole SetPrivilege(
         string entityLogicalName,
         SecurityPrivilege privilege,

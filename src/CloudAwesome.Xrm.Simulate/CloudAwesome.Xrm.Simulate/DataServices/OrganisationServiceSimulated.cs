@@ -1,5 +1,6 @@
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.Metadata;
+using CloudAwesome.Xrm.Simulate.Configuration;
 using CloudAwesome.Xrm.Simulate.Queues;
 using CloudAwesome.Xrm.Simulate.SecurityModel;
 using CloudAwesome.Xrm.Simulate.ServiceRequests;
@@ -38,6 +39,18 @@ public class OrganisationServiceSimulated
         _options = options;
     }
     
+    /// <summary>Applies fluent calls directly to the existing options and live services.</summary>
+    /// <param name="configure">The callback for subsequent configuration.</param>
+    /// <returns>This facade for configuration or inspection.</returns>
+    /// <remarks>Calls apply in order. A later exception does not undo earlier changes; fixture references and captures are retained.</remarks>
+    /// <exception cref="ArgumentNullException">The callback is null.</exception>
+    public OrganisationServiceSimulated Configure(Action<OrganizationSimulationBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        configure(new OrganizationSimulationBuilder(new SimulationSetup(_options, _dataService, CustomOrgRequests())));
+        return this;
+    }
+
     public MockedEntityDataService Data()
     {
         return _dataService;

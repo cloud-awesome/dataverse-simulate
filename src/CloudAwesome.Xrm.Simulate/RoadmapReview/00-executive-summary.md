@@ -49,15 +49,15 @@ These are completed first implementations. Metadata, security, transactions, and
 
 This is the authoritative sequence for the companion documents. P1 and P2 should be developed together: capture live behavior for a gap, implement the correction, then retain the regression test.
 
-| Order | Work item | Why now / completion criterion |
-| --- | --- | --- |
-| **P1 - complete** | Harden the implemented behavior | The three final correctness gaps have implementations and focused unit/live fixtures. Preserve explicit unsupported contracts rather than claiming whole-subsystem parity. |
-| **P2** | Make live parity repeatable | Extend the harness beyond the delivered P1 comparisons into deeper metadata/security/activity cases; add opt-in/manual CI and a release parity run with recorded results. |
-| **P3** | Prepare a documented, reproducible release | Publish a support/limitations matrix and current examples; add package metadata, package validation, version policy, symbols/source support, and a release workflow. Existing PR CI is the starting point. |
-| **P4** | Complete metadata and relationship semantics | Implement relationship validation/direction, lookup/intersect mutation, ownership-aware defaults, declared alternate-key enforcement, type validation, and selected cascade/concurrency behavior as real unit-test scenarios require. |
-| **P5** | Improve isolated plugin context and setup ergonomics | Complete context property wiring, parent/transaction context fixtures, and documented setup helpers. Preserve the unit-testing scope; automatic plugin registration and cascading execution are excluded. |
-| **P6** | Add targeted request/query breadth | Prioritize `In`/`NotIn` and real consumer scenarios, then scoped/fiscal/multiselect operators, advanced joins, global option-set retrieval, bulk upsert or activity/platform helpers as justified. |
-| **P7** | Establish performance baselines | Add BenchmarkDotNet over supported scenarios, including security, paging, queues, and batches, before considering indexes or other optimizations. |
+| Order             | Work item                                            | Why now / completion criterion                                                                                                                                                                                                        |
+|-------------------|------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **P1 - complete** | Harden the implemented behavior                      | The three final correctness gaps have implementations and focused unit/live fixtures. Preserve explicit unsupported contracts rather than claiming whole-subsystem parity.                                                            |
+| **P2**            | Make live parity repeatable                          | Extend the harness beyond the delivered P1 comparisons into deeper metadata/security/activity cases; add opt-in/manual CI and a release parity run with recorded results.                                                             |
+| **P3**            | Prepare a documented, reproducible release           | Publish a support/limitations matrix and current examples; add package metadata, package validation, version policy, symbols/source support, and a release workflow. Existing PR CI is the starting point.                            |
+| **P4**            | Complete metadata and relationship semantics         | Implement relationship validation/direction, lookup/intersect mutation, ownership-aware defaults, declared alternate-key enforcement, type validation, and selected cascade/concurrency behavior as real unit-test scenarios require. |
+| **P5**            | Improve isolated plugin context and setup ergonomics | Complete context property wiring, parent/transaction context fixtures, and documented setup helpers. Preserve the unit-testing scope; automatic plugin registration and cascading execution are excluded.                             |
+| **P6**            | Add targeted request/query breadth                   | Prioritize `In`/`NotIn` and real consumer scenarios, then scoped/fiscal/multiselect operators, advanced joins, global option-set retrieval, bulk upsert or activity/platform helpers as justified.                                    |
+| **P7**            | Establish performance baselines                      | Add BenchmarkDotNet over supported scenarios, including security, paging, queues, and batches, before considering indexes or other optimizations.                                                                                     |
 
 ### P1 implementation status and close-out
 
@@ -83,3 +83,4 @@ Do not carry forward the old proposed version numbers as commitments. Choose the
 - [07 - Queue simulation](07-queue-simulation.md)
 - [08 - Query execution](08-query-execution-phase-review.md)
 - [09 - P1 close-out review and P2 handoff](09-p1-closeout-review.md)
+- [10 - Fluent configuration API review and implementation plan](10-fluent-configuration-api.md)

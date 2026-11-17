@@ -1,5 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using CloudAwesome.Xrm.Simulate.DataServices;
+using CloudAwesome.Xrm.Simulate.Configuration;
 using CloudAwesome.Xrm.Simulate.Interfaces;
 using CloudAwesome.Xrm.Simulate.ServiceRequests;
 using CloudAwesome.Xrm.Simulate.ServiceRequests.OrganizationRequests;
@@ -12,11 +13,39 @@ namespace CloudAwesome.Xrm.Simulate;
 
 public static class OrganisationServiceSimulator
 {
+    /// <summary>Creates an organization service using the retained legacy CLR signature.</summary>
+    /// <param name="organizationService">The extension receiver.</param>
+    /// <param name="options">The existing live options, or null for defaults.</param>
+    /// <param name="dataService">The fixture store to initialize, or null for a new store.</param>
+    /// <returns>The simulated organization service.</returns>
     public static IOrganizationService Simulate(this IOrganizationService organizationService, 
-        ISimulatorOptions? options = null, MockedEntityDataService? dataService = null)
+        ISimulatorOptions? options, MockedEntityDataService? dataService)
     {
         return SimulateCore(options, dataService, auditService: null, initialiseState: true);
     }
+
+    /// <summary>Configures existing options, initializes the service, and registers custom handlers.</summary>
+    /// <param name="organizationService">The extension receiver; retain the returned service.</param>
+    /// <param name="options">The existing options object, retained by reference, or null for defaults.</param>
+    /// <param name="dataService">An optional store initialized by the existing simulator.</param>
+    /// <param name="configure">The optional fluent setup callback.</param>
+    /// <returns>The simulated SDK organization service.</returns>
+    /// <remarks>There is no configuration rollback or automatic fixture copying. Initial request handlers are registered after initialization.</remarks>
+    /// <example><code>service = service.Simulate(configure: s => s.WithData(account).WithClock(now));</code></example>
+    public static IOrganizationService Simulate(this IOrganizationService organizationService,
+        ISimulatorOptions? options = null, MockedEntityDataService? dataService = null,
+        Action<OrganizationSimulationBuilder>? configure = null)
+    {
+        var setup = new SimulationSetup(options ?? new SimulatorOptions());
+        configure?.Invoke(new OrganizationSimulationBuilder(setup));
+        var service = SimulateCore(setup.Options, dataService, null, true);
+        setup.RegisterInitialRequests(service.Simulated().CustomOrgRequests());
+        return service;
+    }
+
+    internal static IOrganizationService SimulateWithExistingState(ISimulatorOptions? options,
+        MockedEntityDataService dataService, SimulatorAuditService auditService, RequestHandlerRegistry requestHandlers)
+        => SimulateCore(options, dataService, auditService, false, requestHandlers);
 
     internal static IOrganizationService SimulateWithExistingState(
         ISimulatorOptions? options,
@@ -31,6 +60,11 @@ public static class OrganisationServiceSimulator
         MockedEntityDataService? dataService,
         SimulatorAuditService? auditService,
         bool initialiseState)
+        => SimulateCore(options, dataService, auditService, initialiseState, RegisterServiceRequests());
+
+    private static IOrganizationService SimulateCore(ISimulatorOptions? options,
+        MockedEntityDataService? dataService, SimulatorAuditService? auditService, bool initialiseState,
+        RequestHandlerRegistry organizationRequestRegistry)
     {
         var localOptions = options ?? new SimulatorOptions();
         var localDataService = dataService ?? new MockedEntityDataService();
@@ -51,7 +85,6 @@ public static class OrganisationServiceSimulator
         new EntityAssociator(localDataService, localAuditService).MockRequest(service, localOptions);
         new EntityDisassociator(localDataService, localAuditService).MockRequest(service, localOptions);
 
-        var organizationRequestRegistry = RegisterServiceRequests();
         new OrganisationRequestExecutor(localDataService, localAuditService, organizationRequestRegistry).MockRequest(service, localOptions);
 
         if (initialiseState)
@@ -79,6 +112,8 @@ public static class OrganisationServiceSimulator
                 ? throw new InvalidOperationException("This IOrganizationService has not been initialised with Simulate().") 
                 : new OrganisationServiceSimulated(context.DataService, context.AuditService, context.RequestHandlers, context.Options);
     }
+
+    internal static RequestHandlerRegistry CreateRequestRegistry() => RegisterServiceRequests();
 
     private static RequestHandlerRegistry RegisterServiceRequests()
     {

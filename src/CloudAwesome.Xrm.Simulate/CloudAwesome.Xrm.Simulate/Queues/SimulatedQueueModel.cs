@@ -13,6 +13,15 @@ public sealed class SimulatedQueueModel
         return new SimulatedQueueModel();
     }
 
+	/// <summary>Declares a queue fixture without executing queue requests.</summary>
+	/// <param name="queueId">The non-empty queue id.</param>
+	/// <param name="name">The optional queue name.</param>
+	/// <param name="ownerId">The owner, defaulting to the configured user.</param>
+	/// <param name="businessUnitId">The business unit, defaulting to the configured unit.</param>
+	/// <param name="isDefault">Whether this is a default queue.</param>
+	/// <param name="entity">Optional additional queue attributes to copy during seeding.</param>
+	/// <returns>This model for further queue fixture declarations.</returns>
+	/// <remarks>References and duplicate ids are validated when the complete fixture is applied.</remarks>
     public SimulatedQueueModel WithQueue(
         Guid queueId,
         string? name = null,
@@ -34,6 +43,15 @@ public sealed class SimulatedQueueModel
         return this;
     }
 
+	/// <summary>Declares a queue-item fixture with an existing queue and target.</summary>
+	/// <param name="queueItemId">The non-empty queue-item id.</param>
+	/// <param name="queueId">The queue id or reference, which must exist in the completed fixture.</param>
+	/// <param name="objectId">The target record reference.</param>
+	/// <param name="workerId">The optional worker reference.</param>
+	/// <param name="enteredOn">The entry time, defaulting to simulated time.</param>
+	/// <param name="entity">Optional additional queue-item attributes to copy during seeding.</param>
+	/// <returns>This model for further queue fixture declarations.</returns>
+	/// <remarks>Metadata queue capability and references are checked by the existing queue seeder.</remarks>
     public SimulatedQueueModel WithQueueItem(
         Guid queueItemId,
         Guid queueId,
@@ -55,6 +73,15 @@ public sealed class SimulatedQueueModel
         return this;
     }
 
+	/// <summary>Declares a queue-item fixture with an existing queue and target.</summary>
+	/// <param name="queueItemId">The non-empty queue-item id.</param>
+	/// <param name="queueId">The queue id or reference, which must exist in the completed fixture.</param>
+	/// <param name="objectId">The target record reference.</param>
+	/// <param name="workerId">The optional worker reference.</param>
+	/// <param name="enteredOn">The entry time, defaulting to simulated time.</param>
+	/// <param name="entity">Optional additional queue-item attributes to copy during seeding.</param>
+	/// <returns>This model for further queue fixture declarations.</returns>
+	/// <remarks>Metadata queue capability and references are checked by the existing queue seeder.</remarks>
     public SimulatedQueueModel WithQueueItem(
         Guid queueItemId,
         EntityReference queueId,
